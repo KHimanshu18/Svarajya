@@ -130,12 +130,13 @@ export const IncomeStore = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount: rest.grossIncome,
-                    date: new Date(rest.createdAt).toISOString(),
+                    type: rest.incomeType,
                     source: rest.sourceName,
-                    isRecurring: rest.frequency !== 'one_time',
-                    frequency: rest.frequency !== 'one_time' ? rest.frequency : undefined,
-                    creditAccountId: rest.creditedAccountId,
+                    frequency: rest.frequency,
+                    amountGross: rest.grossIncome,
+                    deductions: rest.deductions,
+                    amountNet: rest.grossIncome - (rest.deductions || 0),
+                    creditedAccountId: rest.creditedAccountId,
                     description: `META:${meta}`,
                 })
             }).then(async (res) => {
@@ -167,12 +168,13 @@ export const IncomeStore = {
         if (rec && typeof window !== 'undefined') {
             const meta = JSON.stringify({ incomeType: rec.incomeType, deductions: rec.deductions, tdsAmount: rec.tdsAmount, riskLevel: rec.riskLevel, allocationMonths: rec.allocationMonths, expectedGrowthPct: rec.expectedGrowthPct, historicalIncome: rec.historicalIncome, notes: rec.notes });
             const payload: Record<string, unknown> = {
-                amount: rec.grossIncome,
-                date: new Date(rec.createdAt).toISOString(),
+                type: rec.incomeType,
                 source: rec.sourceName,
-                isRecurring: rec.frequency !== 'one_time',
-                frequency: rec.frequency !== 'one_time' ? rec.frequency : undefined,
-                creditAccountId: rec.creditedAccountId,
+                frequency: rec.frequency,
+                amountGross: rec.grossIncome,
+                deductions: rec.deductions,
+                amountNet: rec.grossIncome - (rec.deductions || 0),
+                creditedAccountId: rec.creditedAccountId,
                 description: `META:${meta}`,
             };
             if (rec.id && !rec.id.startsWith('inc-')) payload.id = rec.id;

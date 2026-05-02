@@ -26,7 +26,7 @@ export function NumberInputRupee({ label, value, onChange, placeholder, optional
 
     return (
         <div>
-            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
+            <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">
                 {label} {optional && <span className="opacity-50">(Optional)</span>}
             </label>
             <div className="relative">
