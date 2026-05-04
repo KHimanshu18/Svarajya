@@ -24,7 +24,7 @@ const DOC_TYPES: { id: DocType; label: string }[] = [
     { id: "voter", label: "Voter ID" },
     { id: "other", label: "Other" },
 ];
-
+const NO_EXPIRY_TYPES: DocType[] = ["aadhaar", "pan", "voter"];
 interface ApiIdentityRecord {
     id: string;
     idType: string;
@@ -249,7 +249,7 @@ function AddDocumentForm() {
                 idType: docType.toUpperCase(),
                 numberMasked,
                 issuedDate: issuedDate || null,
-                expiryDate: expiryDate || null,
+                expiryDate: NO_EXPIRY_TYPES.includes(docType) ? null : (expiryDate || null),
                 placeOfIssue: placeOfIssue || null,
                 dobOnDoc: dobOnDoc || null,
                 nameOnDoc: nameOnDoc.trim(),
@@ -552,6 +552,7 @@ function AddDocumentForm() {
                                     />
                                     {issueDateError && <p className="text-[10px] text-red-400 font-medium">{issueDateError}</p>}
                                 </div>
+                                {!NO_EXPIRY_TYPES.includes(docType) && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Expiry Date</label>
                                     <input 
@@ -563,6 +564,7 @@ function AddDocumentForm() {
                                     {expiryDateError && <p className="text-[10px] text-red-400 font-medium">{expiryDateError}</p>}
                                     {expiryWarning && !expiryDateError && <p className="text-[10px] text-amber-400 font-medium">{expiryWarning}</p>}
                                 </div>
+                                 )}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Place of Issue</label>
                                     <input 
