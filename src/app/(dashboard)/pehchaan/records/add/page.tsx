@@ -24,7 +24,7 @@ const DOC_TYPES: { id: DocType; label: string }[] = [
     { id: "voter", label: "Voter ID" },
     { id: "other", label: "Other" },
 ];
-
+const NO_EXPIRY_TYPES: DocType[] = ["aadhaar", "pan", "voter"];
 interface ApiIdentityRecord {
     id: string;
     idType: string;
@@ -249,7 +249,7 @@ function AddDocumentForm() {
                 idType: docType.toUpperCase(),
                 numberMasked,
                 issuedDate: issuedDate || null,
-                expiryDate: expiryDate || null,
+                expiryDate: NO_EXPIRY_TYPES.includes(docType) ? null : (expiryDate || null),
                 placeOfIssue: placeOfIssue || null,
                 dobOnDoc: dobOnDoc || null,
                 nameOnDoc: nameOnDoc.trim(),
@@ -552,17 +552,19 @@ function AddDocumentForm() {
                                     />
                                     {issueDateError && <p className="text-[10px] text-red-400 font-medium">{issueDateError}</p>}
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Expiry Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={expiryDate} 
-                                        onChange={(e) => setExpiryDate(e.target.value)} 
-                                        className={`w-full bg-white/5 border ${expiryDateError ? 'border-red-500/50' : expiryWarning ? 'border-amber-500/50' : 'border-white/10'} rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all`}
-                                    />
-                                    {expiryDateError && <p className="text-[10px] text-red-400 font-medium">{expiryDateError}</p>}
-                                    {expiryWarning && !expiryDateError && <p className="text-[10px] text-amber-400 font-medium">{expiryWarning}</p>}
-                                </div>
+                                {!["aadhaar", "pan", "voter"].includes(docType) && (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Expiry Date</label>
+                                        <input 
+                                            type="date" 
+                                            value={expiryDate} 
+                                            onChange={(e) => setExpiryDate(e.target.value)} 
+                                            className={`w-full bg-white/5 border ${expiryDateError ? 'border-red-500/50' : expiryWarning ? 'border-amber-500/50' : 'border-white/10'} rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all`}
+                                        />
+                                        {expiryDateError && <p className="text-[10px] text-red-400 font-medium">{expiryDateError}</p>}
+                                        {expiryWarning && !expiryDateError && <p className="text-[10px] text-amber-400 font-medium">{expiryWarning}</p>}
+                                    </div>
+                                    )}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Place of Issue</label>
                                     <input 
