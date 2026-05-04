@@ -9,12 +9,12 @@ import { createClient } from "@/lib/supabase/client";
 export default function ResetPasswordPage() {
     const router = useRouter();
     const supabase = createClient();
-    
+
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
@@ -37,9 +37,19 @@ export default function ResetPasswordPage() {
         const search = window.location.search;
         const hashParams = new URLSearchParams(hash);
         const queryParams = new URLSearchParams(search);
-        const token = hashParams.get('access_token') || queryParams.get('access_token');
         
-        if (!token) {
+        const token = hashParams.get('access_token') || queryParams.get('access_token');
+        const err = hashParams.get('error') || queryParams.get('error');
+        const errDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+        if (err || errDesc) {
+            const description = errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : "";
+            if (description.toLowerCase().includes('expired')) {
+                setError("Link expired. Please request a new reset link.");
+            } else {
+                setError("Invalid reset link. Please request a new one.");
+            }
+        } else if (!token) {
             setError("Invalid or missing reset token. Please request a new password reset link.");
         }
     }, []);
@@ -53,69 +63,80 @@ export default function ResetPasswordPage() {
     };
 
     const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+        e.preventDefault();
+        setError("");
 
-    if (password.length < 8) {
-        setError("Password must be at least 8 characters long.");
-        return;
-    }
-    if (!/\d/.test(password)) {
-        setError("Password must contain at least one number.");
-        return;
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>_-]/.test(password)) {
-        setError("Password must contain at least one special character.");
-        return;
-    }
-    if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-    }
-
-    setLoading(true);
-
-    try {
-        console.log("Extracting tokens from URL...");
-        const hash = window.location.hash.substring(1);
-        const search = window.location.search;
-        
-        const hashParams = new URLSearchParams(hash);
-        const queryParams = new URLSearchParams(search);
-        
-        const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
-
-        if (!accessToken) {
-            throw new Error("Invalid reset link. Please request a new password reset link.");
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters long.");
+            return;
+        }
+        if (!/\d/.test(password)) {
+            setError("Password must contain at least one number.");
+            return;
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>_-]/.test(password)) {
+            setError("Password must contain at least one special character.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
         }
 
-        // Set the session using the token
-        const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-        });
-        
-        if (sessionError) throw sessionError;
+        setLoading(true);
 
-        // Now update the password
-        const { error: updateError } = await supabase.auth.updateUser({
-            password: password
-        });
+        try {
+            console.log("Extracting tokens from URL...");
+            const hash = window.location.hash.substring(1);
+            const search = window.location.search;
 
-        if (updateError) throw updateError;
+            const hashParams = new URLSearchParams(hash);
+            const queryParams = new URLSearchParams(search);
 
-        // Sign out after password update
-        await supabase.auth.signOut();
-        setSuccess(true);
-        setCountdown(5);
-    } catch (err: unknown) {
-        console.error("Password reset error:", err);
-        setError(getErrorMessage(err, "Failed to update password. The link may have expired. Please request a new reset link."));
-    } finally {
-        setLoading(false);
-    }
-};
+            const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+            const err = hashParams.get('error') || queryParams.get('error');
+            const errDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+            if (err || errDesc) {
+                const description = errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : "";
+                if (description.toLowerCase().includes('expired')) {
+                    throw new Error("Link expired. Please request a new reset link.");
+                } else {
+                    throw new Error("Invalid reset link. Please request a new one.");
+                }
+            }
+
+            if (!accessToken) {
+                throw new Error("Invalid reset link. Please request a new password reset link.");
+            }
+
+            // Set the session using the token
+            const { error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+            });
+
+            if (sessionError) throw sessionError;
+
+            // Now update the password
+            const { error: updateError } = await supabase.auth.updateUser({
+                password: password
+            });
+
+            if (updateError) throw updateError;
+
+            // Sign out after password update
+            await supabase.auth.signOut();
+            setSuccess(true);
+            setCountdown(5);
+        } catch (err: unknown) {
+            console.error("Password reset error:", err);
+            setError(getErrorMessage(err, "Failed to update password. The link may have expired. Please request a new reset link."));
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div className="flex flex-col min-h-screen items-center justify-center p-8 relative overflow-hidden">
             {/* Background glow */}
@@ -141,7 +162,7 @@ export default function ResetPasswordPage() {
                             <p className="text-sm text-white/70 leading-relaxed px-4">
                                 Your password has been updated successfully.
                             </p>
-                            
+
                             <div className="pt-8 w-full">
                                 <button
                                     onClick={() => router.replace("/start")}
@@ -166,7 +187,7 @@ export default function ResetPasswordPage() {
                             <div className="w-12 h-12 mb-6 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center shadow-[0_0_20px_rgba(251,191,36,0.1)]">
                                 <span className="text-xl">🔐</span>
                             </div>
-                            
+
                             <h2 className="text-2xl font-semibold text-white mb-2">
                                 Set New Password
                             </h2>
@@ -190,7 +211,7 @@ export default function ResetPasswordPage() {
                                             placeholder="Enter new Password"
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-12 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/50 transition-colors text-sm disabled:opacity-50"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute inset-y-0 right-4 flex items-center text-white/40 hover:text-amber-400 transition-colors"
@@ -212,7 +233,7 @@ export default function ResetPasswordPage() {
                                             placeholder="Confirm new Password"
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-12 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/50 transition-colors text-sm disabled:opacity-50"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                             className="absolute inset-y-0 right-4 flex items-center text-white/40 hover:text-amber-400 transition-colors"

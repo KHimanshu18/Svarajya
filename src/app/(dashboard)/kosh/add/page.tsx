@@ -126,7 +126,7 @@ export default function AddIncomePage() {
 
                 {/* ——— STEP 1: Quick Capture ——— */}
                 {step === 1 && (
-                    <div className="flex-1 space-y-5">
+                    <div className="flex-1 space-y-7">
                         {/* Tutorial strip */}
                         <div className="bg-[var(--color-rajya-accent)]/8 border border-[var(--color-rajya-accent)]/20 rounded-xl p-3">
                             <p className="text-xs text-[var(--color-rajya-muted)]">
@@ -140,7 +140,7 @@ export default function AddIncomePage() {
                         <IncomeTypeChips selected={incomeType} onSelect={setIncomeType} error={errors.incomeType} />
 
                         <div>
-                            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Source Name</label>
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">Source Name</label>
                             <input
                                 type="text"
                                 value={sourceName}
@@ -152,7 +152,7 @@ export default function AddIncomePage() {
                         </div>
 
                         <div>
-                            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Frequency</label>
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">Frequency</label>
                             <div className="flex gap-2">
                                 {FREQUENCIES.map(f => (
                                     <button
@@ -176,7 +176,7 @@ export default function AddIncomePage() {
                         {/* Allocation months for one_time */}
                         {frequency === "one_time" && (
                             <div>
-                                <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
+                                <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">
                                     Allocate across months <span className="opacity-50">(Optional)</span>
                                 </label>
                                 <input
@@ -194,7 +194,7 @@ export default function AddIncomePage() {
 
                         {/* Bank account field */}
                         <div>
-                            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">
                                 Credited Bank Account <span className="opacity-50">(Optional)</span>
                             </label>
                             <input

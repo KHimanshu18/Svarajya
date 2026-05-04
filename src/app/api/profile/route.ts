@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { userService } from '@/lib/services/userService';
 import { withAuth, getAuthContext, AuthLevel } from '@/lib/middleware/auth.middleware';
 import { withErrorHandler } from '@/lib/middleware/error.middleware';
@@ -258,6 +259,28 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       }
 
       user = await userService.update(authContext.userId, patch);
+    }
+
+    // Sync to Supabase Auth metadata
+    if (data.name !== undefined || data.phone !== undefined) {
+      try {
+        const supabase = await createClient();
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.full_name = data.name;
+        if (data.phone !== undefined) updateData.phone = data.phone;
+        
+        // This relies on the authenticated session cookie which is automatically
+        // sent with the request when making a POST to /api/profile
+        const { error: syncError } = await supabase.auth.updateUser({
+          data: updateData
+        });
+        
+        if (syncError) {
+          console.error("[Profile POST] Failed to sync to Supabase Auth:", syncError);
+        }
+      } catch (err) {
+        console.error("[Profile POST] Error syncing to Supabase Auth:", err);
+      }
     }
 
     const userAny: any = user;

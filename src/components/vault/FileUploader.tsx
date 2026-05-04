@@ -6,6 +6,7 @@ import { Upload, FileText, X, Cloud, CloudOff, Loader2 } from "lucide-react";
 import { Vault, VaultFolder } from "@/lib/vault";
 import { CloudDriveSync } from "@/lib/cloudDriveSync";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/providers/ToastProvider";
 
 interface FileUploaderProps {
     folder: VaultFolder;
@@ -36,18 +37,19 @@ export function FileUploader({
     const [savedFileObj, setSavedFileObj] = useState<File | null>(null);
     const [syncingCloud, setSyncingCloud] = useState(false);
     const supabase = createClient();
+    const toast = useToast();
 
     const handleFile = async (file: File) => {
         // 1. Validate File Size (Max 2MB)
         if (file.size > 2 * 1024 * 1024) {
-            alert("File size exceeds 2MB limit.");
+            toast("File size exceeds 2MB limit. Please upload a smaller file.", "error");
             return;
         }
 
         // 2. Validate File Type
         const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
         if (!allowedTypes.includes(file.type)) {
-            alert("Unsupported file type. Please upload JPEG, PNG, or PDF.");
+            toast("Only PDF, JPG, and PNG files are allowed", "error");
             return;
         }
 
@@ -92,7 +94,12 @@ export function FileUploader({
             onUploaded?.(id, file.name);
         } catch (err: any) {
             console.error("Upload failed:", err);
-            alert(`Upload failed: ${err.message || "Unknown error"}`);
+            const isNetworkError = !window.navigator.onLine || err.message?.includes('network') || err.message?.includes('fetch');
+            if (isNetworkError) {
+                toast("Network error. Check your connection and try again.", "error");
+            } else {
+                toast("Failed to upload. Please try again.", "error");
+            }
         } finally {
             setUploading(false);
         }
@@ -131,7 +138,7 @@ export function FileUploader({
                 const providerToken = data.session?.provider_token;
                 
                 if (!providerToken) {
-                    alert("Google Drive sync failed. Please log out and log back in with Google.");
+                    toast("Google Drive sync failed. Please log out and log back in with Google.", "error");
                     setCloudOptIn(false);
                     setSyncingCloud(false);
                     return;
@@ -139,7 +146,7 @@ export function FileUploader({
 
                 const success = await CloudDriveSync.uploadToGoogleDrive(savedFileObj, docName || savedFileObj.name, providerToken);
                 if (!success) {
-                    alert("Failed to upload to Google Drive.");
+                    toast("Failed to upload to Google Drive.", "error");
                     setCloudOptIn(false);
                 }
             } catch (err) {

@@ -1,0 +1,5 @@
+[33me14e191[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mAlisha-dev[m[33m, [m[1;31morigin/Alisha-dev[m[33m)[m Fix: login error messages for wrong password vs no account, email confirmation redirect to login page
+[33ma9fb9fb[m Fix: redirect to login after email verification
+[33m19c2220[m Merge branch 'Alisha-dev' of https://github.com/Abhi0556/Svarajya into Vasanthi-dev
+[33m91215da[m Fixed education delete, certificate upload, and identity links issues
+[33m2d333b9[m Fix: underscore as special character, email not confirmed error message, remove auto-redirect on signup success

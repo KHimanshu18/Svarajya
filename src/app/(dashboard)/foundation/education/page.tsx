@@ -92,7 +92,7 @@ export default function EducationPage() {
         }
     };
 
-    const handleAddEntry = () => {
+    const handleAddEntry = async () => {
         if (!degree || !institution) return;
         if (yearError) return;
 
@@ -108,29 +108,59 @@ export default function EducationPage() {
             }
         }
 
-        const entry: EducationEntry = {
-            degree,
-            institution,
-            year,
-            specialization,
-            hasLoan,
-            certificateId: uploadedCerts["new"]
-        };
-        setEntries([...entries, entry]);
+        setIsSaving(true);
+        try {
+            const response = await fetch('/api/education', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    degree,
+                    institution,
+                    year,
+                    specialization,
+                    hasLoan,
+                    certificateId: uploadedCerts["new"]
+                }),
+            });
 
-        // Reset form
-        setDegree("");
-        setInstitution("");
-        setYear("");
-        setSpecialization("");
-        setHasLoan(false);
-        setUploadedCerts(prev => {
-            const next = { ...prev };
-            delete next["new"];
-            return next;
-        });
-        setYearError("");
-        setShowForm(false);
+            if (!response.ok) {
+                throw new Error("Failed to save qualification");
+            }
+
+            const result = await response.json();
+            const savedRecord = result.data;
+
+            const entry: EducationEntry = {
+                id: savedRecord.id,
+                degree,
+                institution,
+                year,
+                specialization,
+                hasLoan,
+                certificateId: uploadedCerts["new"]
+            };
+            setEntries([...entries, entry]);
+
+            // Reset form
+            setDegree("");
+            setInstitution("");
+            setYear("");
+            setSpecialization("");
+            setHasLoan(false);
+            setUploadedCerts(prev => {
+                const next = { ...prev };
+                delete next["new"];
+                return next;
+            });
+            setYearError("");
+            setShowForm(false);
+            toast("Qualification saved successfully", "success");
+        } catch (error) {
+            console.error("Save error:", error);
+            toast("Failed to save qualification. Please try again.", "error");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDeleteEntry = async (id: string | undefined, index: number) => {
@@ -171,31 +201,13 @@ export default function EducationPage() {
     };
 
     const handleFinish = async () => {
-        setIsSaving(true);
-        try {
-            const response = await fetch('/api/profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    education: entries.map(e => ({
-                        ...e,
-                        institute: e.institution,
-                        yearCompleted: e.year ? parseInt(e.year) : undefined,
-                        certificateUrl: e.certificateId
-                    })),
-                }),
-            });
-
-            if (!response.ok) throw new Error("Failed to save education");
-
-            toast("Education saved successfully", "success");
-            router.push("/rajya");
-        } catch (error) {
-            console.error("Save error:", error);
-            toast("Failed to save education. Please try again.", "error");
-        } finally {
-            setIsSaving(false);
+        if (entries.length === 0) {
+            toast("Please add at least one qualification", "error");
+            return;
         }
+        
+        toast("Education section completed successfully", "success");
+        router.push("/rajya");
     };
 
     const anyLoan = entries.some(e => e.hasLoan);
@@ -376,10 +388,10 @@ export default function EducationPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={handleAddEntry}
-                                disabled={!degree || !institution || !!yearError}
+                                disabled={!degree || !institution || !!yearError || isSaving}
                                 className="bg-[var(--color-rajya-accent)] text-black font-semibold py-3 rounded-xl text-sm disabled:opacity-40"
                             >
-                                Save Qualification
+                                {isSaving ? "Saving..." : "Save Qualification"}
                             </button>
                             {entries.length > 0 && (
                                 <button
@@ -426,10 +438,9 @@ export default function EducationPage() {
             {entries.length > 0 && !showForm && (
                 <button
                     onClick={handleFinish}
-                    disabled={isSaving}
-                    className="w-full bg-[var(--color-rajya-accent)] text-black py-4 rounded-xl font-semibold text-sm mt-auto disabled:opacity-50"
+                    className="w-full bg-[var(--color-rajya-accent)] text-black py-4 rounded-xl font-semibold text-sm mt-auto hover:bg-[var(--color-rajya-accent)]/90 transition-colors"
                 >
-                    {isSaving ? "Saving..." : "Save & Continue to Dashboard"}
+                    Save & Continue to Dashboard
                 </button>
             )}
 

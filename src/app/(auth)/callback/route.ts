@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   // Password reset flow → preserve the hash fragment (contains access_token)
   if (type === 'recovery') {
     // Preserve the entire hash when redirecting
-    const hash = requestUrl.hash || ''
+    const hash = requestUrl.hash || '';
+    console.log("Recovery hash:", hash);
     return NextResponse.redirect(new URL('/reset-password' + hash, requestUrl.origin))
   }
 

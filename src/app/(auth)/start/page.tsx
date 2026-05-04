@@ -124,22 +124,43 @@ function AuthGatewayContent() {
     // Handle verification success from URL
     useEffect(() => {
         if (searchParams.get("verification_success") === "true") {
-            setMode("login");
-            setMsg("Email verified successfully! Please log in with your credentials.");
+            // Immediately sign out to clear any auto-created session from email link
+            supabase.auth.signOut().then(() => {
+                setEmail("");
+                setPassword("");
+                setFullName("");
+                setConfirmPassword("");
+                setMode("login");
+                setMsg("Email verified successfully! Please log in with your credentials.");
+
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete("verification_success");
+                window.history.replaceState({}, "", newUrl);
+            });
         }
-    }, [searchParams]);
+    }, [searchParams, supabase.auth]);
 
     // Clear any auto-created session on login page load
     useEffect(() => {
+        if (mode !== "splash" && mode !== "login") return;
+
         const clearAutoSession = async () => {
+            // Add 100ms delay to ensure session is fully detected
+            await new Promise(resolve => setTimeout(resolve, 100));
             const { data } = await supabase.auth.getSession();
             if (data.session) {
                 console.log("Auto-session detected, signing out...");
                 await supabase.auth.signOut();
+                setEmail("");
+                setPassword("");
+                setFullName("");
+                setConfirmPassword("");
+                // Force a clean page state
+                window.location.reload();
             }
         };
         clearAutoSession();
-    }, [supabase.auth]);
+    }, [supabase.auth, mode]);
 
     // ------------------------------------------
     // Rate limit countdown ticker
@@ -221,20 +242,24 @@ function AuthGatewayContent() {
 
         try {
             if (mode === "signup") {
-                const { data, error: signUpError } = await supabase.auth.signUp({
-                    email: trimmedEmail,
-                    password,
-                    options: {
-                        data: { full_name: fullName.trim() },
-                    }
+                const res = await fetch('/api/auth/send-confirmation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: trimmedEmail,
+                        password,
+                        name: fullName.trim()
+                    })
                 });
+                
+                const responseData = await res.json();
 
-                if (signUpError) {
+                if (!res.ok) {
                     const newState = recordAttempt(storageKey, trimmedEmail);
                     const left = Math.max(0, MAX_ATTEMPTS - newState.count);
                     setAttemptsLeft(left);
 
-                    const errMsg = signUpError.message?.toLowerCase() ?? "";
+                    const errMsg = responseData.error?.toLowerCase() ?? "";
                     if (errMsg.includes("already registered") || errMsg.includes("user already registered")) {
                         setError(
                             <span>
@@ -245,32 +270,20 @@ function AuthGatewayContent() {
                             </span>
                         );
                     } else {
-                        setError(getErrorMessage(signUpError, "Registration failed. Please try again."));
+                        setError(getErrorMessage(responseData.error, "Registration failed. Please try again."));
                     }
                     return;
                 }
 
-                if (data.user && data.user.identities && data.user.identities.length === 0) {
-                    setError(
-                        <span>
-                            Email already registered. Please{" "}
-                            <button type="button" onClick={() => switchMode("login")} className="underline font-semibold hover:text-red-300">
-                                login instead
-                            </button>.
-                        </span>
-                    );
-                    return;
-                }
-
                 // FIXED: Create user in Prisma immediately after signup using secret bypass
-                if (data?.user) {
+                if (responseData.user) {
                     try {
                         const profileRes = await fetch('/api/auth/create-user', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                id: data.user.id,
-                                email: data.user.email,
+                                id: responseData.user.id,
+                                email: responseData.user.email,
                                 name: fullName.trim() || trimmedEmail.split('@')[0],
                             }),
                         });
@@ -294,15 +307,9 @@ function AuthGatewayContent() {
                 // Clear rate limit on success
                 clearRateLimit(storageKey, trimmedEmail);
 
-                // If email confirmation required
-                if (!data.session) {
-                    setMode("registration_success");
-                    setCountdown(10);
-                    return;
-                }
-
-                // Direct sign-in (no email confirm required)
-                router.push("/onboarding/intro");
+                setMode("registration_success");
+                setCountdown(10);
+                return;
 
             } else if (mode === "forgot_password") {
                 const checkRes = await fetch(`/api/check-user?email=${encodeURIComponent(trimmedEmail)}`);
@@ -313,15 +320,25 @@ function AuthGatewayContent() {
                     return;
                 }
 
-                const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-                    redirectTo: `${window.location.origin}/callback?type=recovery`
+                const res = await fetch('/api/auth/send-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: trimmedEmail })
                 });
-                if (resetError) throw resetError;
+                
+                const responseData = await res.json();
+                if (!res.ok) throw new Error(responseData.error || "Failed to send reset email");
+
                 setMode("login");
                 setMsg("Reset link sent! Please check your inbox.");
 
             } else {
                 // LOGIN
+                if (!trimmedEmail || !password) {
+                    setError("Please enter both email and password.");
+                    return;
+                }
+
                 const { error: signInError } = await supabase.auth.signInWithPassword({
                     email: trimmedEmail, password,
                 });
