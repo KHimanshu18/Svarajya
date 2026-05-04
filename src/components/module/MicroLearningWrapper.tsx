@@ -40,11 +40,12 @@ export function MicroLearningWrapper({
     };
 
     return (
-        <div className="w-full max-w-md mx-auto min-h-[400px] flex flex-col">
-            <div className="bg-[var(--color-rajya-bg)] border-b border-white/5 pb-4 mb-6">
-                <h2 className="text-center font-display text-[var(--color-rajya-accent)] text-xl">
+        <div className="w-full max-w-lg mx-auto min-h-[400px] flex flex-col">
+            <div className="py-6 mb-6">
+                <h2 className="text-center font-display text-[var(--color-rajya-accent)] text-2xl tracking-wide leading-relaxed">
                     {moduleTitle}
                 </h2>
+                <div className="w-16 h-px bg-gradient-to-r from-transparent via-[var(--color-rajya-accent)]/40 to-transparent mx-auto mt-4" />
             </div>
 
             <AnimatePresence mode="wait">

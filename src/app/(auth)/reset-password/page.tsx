@@ -37,11 +37,19 @@ export default function ResetPasswordPage() {
         const search = window.location.search;
         const hashParams = new URLSearchParams(hash);
         const queryParams = new URLSearchParams(search);
-        console.log("Full hash:", window.location.hash);
-        console.log("Access token from hash:", hashParams.get('access_token'));
+        
         const token = hashParams.get('access_token') || queryParams.get('access_token');
+        const err = hashParams.get('error') || queryParams.get('error');
+        const errDesc = hashParams.get('error_description') || queryParams.get('error_description');
 
-        if (!token) {
+        if (err || errDesc) {
+            const description = errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : "";
+            if (description.toLowerCase().includes('expired')) {
+                setError("Link expired. Please request a new reset link.");
+            } else {
+                setError("Invalid reset link. Please request a new one.");
+            }
+        } else if (!token) {
             setError("Invalid or missing reset token. Please request a new password reset link.");
         }
     }, []);
@@ -87,6 +95,17 @@ export default function ResetPasswordPage() {
 
             const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
             const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+            const err = hashParams.get('error') || queryParams.get('error');
+            const errDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+            if (err || errDesc) {
+                const description = errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : "";
+                if (description.toLowerCase().includes('expired')) {
+                    throw new Error("Link expired. Please request a new reset link.");
+                } else {
+                    throw new Error("Invalid reset link. Please request a new one.");
+                }
+            }
 
             if (!accessToken) {
                 throw new Error("Invalid reset link. Please request a new password reset link.");

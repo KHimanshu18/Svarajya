@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { getResetPasswordEmailHtml } from '@/lib/email-templates/html-templates';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -32,23 +33,22 @@ export async function POST(request: Request) {
     let resetUrl = linkData.properties.action_link;
 
     const urlObj = new URL(resetUrl);
-    urlObj.searchParams.set('redirect_to', `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/callback`);
+    urlObj.searchParams.set('redirect_to', `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password`);
     resetUrl = urlObj.toString();
 
+    // If we can't get the name easily from auth admin for reset, we use a fallback
+    // Actually, we could fetch from Prisma, but for now fallback to 'User'
+    // Since name isn't readily available in generateLink response for recovery
+    // Let's see if linkData.user has user_metadata.full_name
+    const fullName = linkData.user?.user_metadata?.full_name || 'User';
+
+    const emailHtml = getResetPasswordEmailHtml(fullName, resetUrl);
+
     const { data, error } = await resend.emails.send({
-      from: 'Sva-Rajya <security@resend.dev>', // Update with your verified Resend domain if necessary
+      from: 'Sva-Rajya <noreply@update.svarajya.com>', // Update with your verified Resend domain if necessary
       to: email,
-      subject: 'Reset your password for Sva-Rajya',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2>Password Reset Request</h2>
-          <p>We received a request to reset your password. Click the link below to set a new password:</p>
-          <div style="margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #fbbf24; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
-          </div>
-          <p>If you did not request this, you can safely ignore this email.</p>
-        </div>
-      `
+      subject: 'Sva-Rajya — Password Reset Request',
+      html: emailHtml
     });
 
     if (error) {
