@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { prisma } from '@/lib/prisma';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { ConfirmationEmail } from '@/lib/email-templates/confirmation-email';
+import { getConfirmationEmailHtml } from '@/lib/email-templates/html-templates';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -54,12 +52,7 @@ export async function POST(request: Request) {
     urlObj.searchParams.set('redirect_to', `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/callback`);
     confirmUrl = urlObj.toString();
 
-    const emailHtml = renderToStaticMarkup(
-      React.createElement(ConfirmationEmail, {
-        name: name || 'there',
-        confirmationLink: confirmUrl
-      })
-    );
+    const emailHtml = getConfirmationEmailHtml(name || 'there', confirmUrl);
 
     const { data, error } = await resend.emails.send({
       from: 'Sva-Rajya <noreply@update.svarajya.com>', // Update with your verified Resend domain if necessary
