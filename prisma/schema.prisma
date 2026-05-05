@@ -867,6 +867,10 @@ model User {
   status            UserStatus  @default(ACTIVE)
   language          String      @default("en")
   is_first_login    Boolean     @default(true)
+  googleLinked      Boolean     @default(false)
+  googleRefreshToken String?
+  googleAccessToken  String?
+  googleTokenExpiry  DateTime?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   lastActiveAt      DateTime?
@@ -969,6 +973,7 @@ model FamilyMember {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   nomineeIn       NomineeMapping[]
   coveredBy       InsuranceCoverage[]
+  education       Education[]
 
   @@index([userId])
   @@map("family_members")
@@ -983,9 +988,11 @@ model Education {
   specialization  String?
   linkedLoanId    String? // If education loan exists
   certificateUrl  String?
+  familyMemberId  String? // null = self (Adhipati), otherwise links to a family member
   createdAt       DateTime  @default(now())
 
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyMember    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@map("education")

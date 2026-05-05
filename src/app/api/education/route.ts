@@ -33,6 +33,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       yearCompleted: body.year ? parseInt(body.year) : undefined,
       specialization: body.specialization,
       certificateUrl: body.certificateId,
+      familyMemberId: body.familyMemberId || undefined,
       // Note: for hasLoan we don't have linkedLoanId created yet directly here,
       // keeping the structure aligned with how profile handled it.
     };

@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowLeft, CreditCard, FileText, Plane, Car, Vote, MoreHorizontal } from "lucide-react";
+import { ShieldCheck, ArrowLeft, CreditCard, FileText, Plane, Car, Vote, MoreHorizontal, Cloud, CloudOff, AlertCircle } from "lucide-react";
 import { IdentityStore, DocType, calcSealStrength } from "@/lib/identityStore";
 import { SealStrengthRing } from "@/components/identity/SealStrengthRing";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { PageGuide } from "@/components/ui/PageGuide";
+import { motion } from "framer-motion";
 
 const DOC_META: Record<DocType, { label: string; icon: React.ReactNode }> = {
     aadhaar: { label: "Aadhaar", icon: <CreditCard className="w-5 h-5" /> },
@@ -32,8 +33,21 @@ export default function IdentityHub() {
     const level = IdentityStore.getLevel();
     const [now] = useState(() => Date.now());
 
-    // Fetch documents from database
+    const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
     const [dbDocuments, setDbDocuments] = useState<any[]>([]);
+
+    const fetchGoogleStatus = async () => {
+        try {
+            const res = await fetch('/api/auth/google-status');
+            if (res.ok) {
+                const data = await res.json();
+                setIsGoogleLinked(data.linked);
+            }
+        } catch (e) {
+            console.error("Failed to fetch Google status:", e);
+        }
+    };
+
     const fetchDocuments = async () => {
         try {
             const response = await fetch('/api/identity');
@@ -47,6 +61,16 @@ export default function IdentityHub() {
     };
     useEffect(() => {
         fetchDocuments();
+        fetchGoogleStatus();
+
+        // Check for success/error in URL
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('success') === 'Google_Linked') {
+            toast("Google Drive linked successfully!", "success");
+            // Clear URL params
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
     }, []);
 
     // Refetch documents when page becomes visible (e.g., returning from add page or tab switch)
@@ -138,6 +162,45 @@ export default function IdentityHub() {
                     actions={[{ emoji: "📄", label: "Add documents" }, { emoji: "🔗", label: "Link contacts" }, { emoji: "📅", label: "Track renewals" }]}
                 />
                 <div className="h-4" />
+
+                {/* Google Drive Linking Banner */}
+                {isGoogleLinked === false && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 mb-6"
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                                <CloudOff className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-semibold text-white">Link Google Drive</h3>
+                                <p className="text-[10px] text-white/50 mt-0.5 leading-relaxed">
+                                    Secure your documents by saving them directly to your personal Google Drive.
+                                    Our zero-server policy ensures only you have access.
+                                </p>
+                                <button
+                                    onClick={() => window.location.href = '/api/auth/link-google'}
+                                    className="mt-3 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <Cloud className="w-3.5 h-3.5" />
+                                    Link Drive Now
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {isGoogleLinked === true && (
+                    <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[10px] text-emerald-400 font-medium">Google Drive Sync Active</span>
+                        </div>
+                        <span className="text-[9px] text-white/30 uppercase tracking-tighter">Secure & Sovereign</span>
+                    </div>
+                )}
 
                 {/* Coverage + Confidence */}
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">

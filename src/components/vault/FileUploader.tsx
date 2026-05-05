@@ -15,6 +15,7 @@ interface FileUploaderProps {
     accept?: string; // e.g. "image/*,application/pdf"
     label?: string;
     compact?: boolean;
+    storageType?: 'supabase' | 'googledrive' | 'local';
 }
 
 export function FileUploader({
@@ -24,6 +25,7 @@ export function FileUploader({
     accept = "image/*,application/pdf",
     label = "Upload document",
     compact = false,
+    storageType,
 }: FileUploaderProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
@@ -63,8 +65,27 @@ export function FileUploader({
         try {
             let id: string;
 
-            // 3. Check if we should upload to Supabase Storage
-            if (folder === "identity" || folder === "education") {
+            // 3. Check storage type
+            if (storageType === 'googledrive') {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folderName', 'Svarajya_Nidhi');
+                
+                const uploadRes = await fetch('/api/google-drive/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await uploadRes.json();
+                if (!uploadRes.ok) {
+                    if (uploadRes.status === 401 || uploadRes.status === 403) {
+                        throw new Error(result.error || "Google Drive authentication expired. Please log out and log back in with Google.");
+                    }
+                    throw new Error(result.error || "Failed to upload to Google Drive");
+                }
+                
+                id = result.data.fileId;
+            } else if (storageType === 'supabase' || (!storageType && (folder === "identity" || folder === "education"))) {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) throw new Error("Authentication required for remote storage.");
 

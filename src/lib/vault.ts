@@ -122,11 +122,31 @@ export const Vault = {
 
     /** Generate a data URL for previewing image blobs or return remote URL directly. */
     async getPreviewUrl(id: string): Promise<string | null> {
+        if (!id) return null;
         if (id.startsWith("http")) return id;
-        
+        if (id.startsWith("opfs")) {
+            const { LocalVaultEngine } = await import("./localVaultEngine");
+            return await LocalVaultEngine.getDocumentBlobUrl(id);
+        }
+
+        // Handle Google Drive file IDs (alphanumeric, usually ~33 chars)
+        // If it's not a local ID (which we check in IndexedDB), we try Google Drive
         const db = await getDB();
         const file = await db.get("vault", id);
-        if (!file || !file.vaultFileId) return null;
+        
+        if (!file || !file.vaultFileId) {
+            // Might be a direct Google Drive ID stored as 'vaultFileId' equivalent
+            if (id.length > 20) {
+                try {
+                    const res = await fetch(`/api/google-drive/view?fileId=${id}`);
+                    const data = await res.json();
+                    return data.success ? data.data.webViewLink : null;
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
         
         const { LocalVaultEngine } = await import("./localVaultEngine");
         return await LocalVaultEngine.getDocumentBlobUrl(file.vaultFileId);

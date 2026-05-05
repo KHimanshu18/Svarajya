@@ -198,6 +198,7 @@ function AuthGatewayContent() {
 
     // ------------------------------------------
     const getErrorMessage = (err: unknown, fallback: string): string => {
+        if (typeof err === "string") return err;
         if (typeof err === "object" && err !== null && "message" in err) {
             return (err as { message?: string }).message || fallback;
         }

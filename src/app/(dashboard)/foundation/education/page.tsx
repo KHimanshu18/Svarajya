@@ -3,12 +3,19 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { BookOpen, ShieldAlert, CheckCircle2, ArrowLeft, Upload, Plus, GraduationCap, Trash2 } from "lucide-react";
+import { BookOpen, ShieldAlert, CheckCircle2, ArrowLeft, Upload, Plus, GraduationCap, Trash2, User, CloudOff } from "lucide-react";
 import { FileUploader } from "@/components/vault/FileUploader";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { Vault } from "@/lib/vault";
 import { useToast } from "@/components/providers/ToastProvider";
+
+interface FamilyMemberOption {
+    id: string;
+    name: string;
+    relation: string;
+    dob?: string;
+}
 
 interface EducationEntry {
     id?: string;
@@ -18,6 +25,8 @@ interface EducationEntry {
     specialization: string;
     hasLoan: boolean;
     certificateId?: string;
+    familyMemberId?: string;
+    personName?: string; // Display name for the person
 }
 
 const DEGREE_OPTIONS = [
@@ -37,31 +46,62 @@ export default function EducationPage() {
     const [year, setYear] = useState("");
     const [specialization, setSpecialization] = useState("");
     const [hasLoan, setHasLoan] = useState(false);
+    const [selectedPerson, setSelectedPerson] = useState(""); // "" = self, otherwise familyMemberId
+    const [familyMembers, setFamilyMembers] = useState<FamilyMemberOption[]>([]);
     const [uploadedCerts, setUploadedCerts] = useState<Record<string, string>>({}); // Mapping of entry index/id to certificate URL
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState<string | null>(null); // Stores ID of entry being deleted
     const [isSaving, setIsSaving] = useState(false);
     const [yearError, setYearError] = useState("");
+    const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
     const toast = useToast();
 
     useEffect(() => {
         const fetchEducation = async () => {
             setIsLoading(true);
             try {
+                // Fetch linking status
+                const statusRes = await fetch('/api/auth/google-status');
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    setIsGoogleLinked(statusData.linked);
+                }
+
                 const response = await fetch('/api/profile');
                 if (response.ok) {
                     const json = await response.json();
                     const profileData = json?.data;
+
+                    // Load family members for the person selector
+                    if (profileData?.familyMembers && profileData.familyMembers.length > 0) {
+                        setFamilyMembers(profileData.familyMembers.map((fm: any) => ({
+                            id: fm.id,
+                            name: fm.name,
+                            relation: fm.relation || fm.relationship || "",
+                            dob: fm.dob,
+                        })));
+                    }
+
                     if (profileData?.education && profileData.education.length > 0) {
-                        const loadedEntries = profileData.education.map((edu: any) => ({
-                            id: edu.id,
-                            degree: edu.degree || "",
-                            institution: edu.institute || edu.institution || "",
-                            year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
-                            specialization: edu.specialization || "",
-                            hasLoan: !!edu.linkedLoanId,
-                            certificateId: edu.certificateUrl || undefined,
-                        }));
+                        const loadedEntries = profileData.education.map((edu: any) => {
+                            // Resolve person name
+                            let personName = "Self (Adhipati)";
+                            if (edu.familyMemberId && profileData.familyMembers) {
+                                const member = profileData.familyMembers.find((fm: any) => fm.id === edu.familyMemberId);
+                                if (member) personName = `${member.name} (${member.relation || member.relationship || 'Family'})`;
+                            }
+                            return {
+                                id: edu.id,
+                                degree: edu.degree || "",
+                                institution: edu.institute || edu.institution || "",
+                                year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
+                                specialization: edu.specialization || "",
+                                hasLoan: !!edu.linkedLoanId,
+                                certificateId: edu.certificateUrl || undefined,
+                                familyMemberId: edu.familyMemberId || undefined,
+                                personName,
+                            };
+                        });
                         setEntries(loadedEntries);
                         setShowForm(false);
                     } else {
@@ -82,15 +122,38 @@ export default function EducationPage() {
 
     const handleYearChange = (val: string) => {
         setYear(val);
+    };
+
+    useEffect(() => {
         setYearError("");
-        if (val) {
-            const certYear = parseInt(val);
+        if (year) {
+            const certYear = parseInt(year);
             const currentYear = new Date().getFullYear();
-            if (isNaN(certYear) || certYear > currentYear || certYear < 1900) {
-                setYearError(`Year must be between 1900 and ${currentYear}`);
+            
+            if (isNaN(certYear) || certYear < 1900) {
+                setYearError("Please enter a valid year (1900 or later)");
+            } else if (certYear > currentYear) {
+                setYearError("Passing year cannot be in the future");
+            } else {
+                // Check against DOB + 15
+                let personDob = null;
+                if (!selectedPerson || selectedPerson === "self") {
+                    personDob = OnboardingStore.get().dob;
+                } else {
+                    const familyMember = familyMembers.find(m => m.id === selectedPerson);
+                    personDob = familyMember?.dob;
+                }
+
+                if (personDob) {
+                    const birthYear = new Date(personDob).getFullYear();
+                    const minYear = birthYear + 15;
+                    if (certYear < minYear) {
+                        setYearError(`Passing year cannot be before ${minYear} (birth year + 15)`);
+                    }
+                }
             }
         }
-    };
+    }, [year, selectedPerson, familyMembers]);
 
     const handleAddEntry = async () => {
         if (!degree || !institution) return;
@@ -98,11 +161,27 @@ export default function EducationPage() {
 
         if (year) {
             const certYear = parseInt(year);
-            const userDobStr = OnboardingStore.get().dob;
-            if (userDobStr) {
-                const birthYear = new Date(userDobStr).getFullYear();
-                if (certYear <= birthYear) {
-                    setYearError("Year must be after your birth year");
+            const currentYear = new Date().getFullYear();
+            if (certYear > currentYear) {
+                setYearError("Passing year cannot be in the future");
+                toast("Passing year cannot be in the future", "error");
+                return;
+            }
+            // Get the selected person's DOB
+            let personDob = null;
+            if (!selectedPerson || selectedPerson === "self") {
+                personDob = OnboardingStore.get().dob;
+            } else {
+                const familyMember = familyMembers.find(m => m.id === selectedPerson);
+                personDob = familyMember?.dob;
+            }
+
+            if (personDob) {
+                const birthYear = new Date(personDob).getFullYear();
+                const minYear = birthYear + 15;
+                if (certYear < minYear) {
+                    setYearError(`Passing year cannot be before ${minYear} (birth year + 15)`);
+                    toast(`Passing year must be at least ${minYear} (15 years after birth)`, "error");
                     return;
                 }
             }
@@ -119,7 +198,8 @@ export default function EducationPage() {
                     year,
                     specialization,
                     hasLoan,
-                    certificateId: uploadedCerts["new"]
+                    certificateId: uploadedCerts["new"],
+                    familyMemberId: selectedPerson || undefined,
                 }),
             });
 
@@ -130,6 +210,13 @@ export default function EducationPage() {
             const result = await response.json();
             const savedRecord = result.data;
 
+            // Resolve person name for display
+            let personName = "Self (Adhipati)";
+            if (selectedPerson) {
+                const member = familyMembers.find(fm => fm.id === selectedPerson);
+                if (member) personName = `${member.name} (${member.relation})`;
+            }
+
             const entry: EducationEntry = {
                 id: savedRecord.id,
                 degree,
@@ -137,7 +224,9 @@ export default function EducationPage() {
                 year,
                 specialization,
                 hasLoan,
-                certificateId: uploadedCerts["new"]
+                certificateId: uploadedCerts["new"],
+                familyMemberId: selectedPerson || undefined,
+                personName,
             };
             setEntries([...entries, entry]);
 
@@ -147,6 +236,7 @@ export default function EducationPage() {
             setYear("");
             setSpecialization("");
             setHasLoan(false);
+            setSelectedPerson("");
             setUploadedCerts(prev => {
                 const next = { ...prev };
                 delete next["new"];
@@ -192,6 +282,25 @@ export default function EducationPage() {
     };
 
     const handleViewCert = async (certId: string) => {
+        // Handle Google Drive file IDs (alphanumeric, no http, usually ~33 chars)
+        if (!certId.startsWith('http') && certId.length > 20 && !certId.startsWith('opfs')) {
+            toast("Fetching from Google Drive...", "success");
+            try {
+                const res = await fetch(`/api/google-drive/view?fileId=${certId}`);
+                const data = await res.json();
+                if (data.success && data.data.webViewLink) {
+                    window.open(data.data.webViewLink, '_blank');
+                    return;
+                } else {
+                    toast(data.error || "Failed to fetch from Google Drive. Please try relogging with Google.", "error");
+                    return;
+                }
+            } catch (e) {
+                toast("Error connecting to Google Drive.", "error");
+                return;
+            }
+        }
+
         const url = await Vault.getPreviewUrl(certId);
         if (url) {
             window.open(url, '_blank');
@@ -269,6 +378,11 @@ export default function EducationPage() {
                                 <p className="text-sm font-medium text-[var(--color-rajya-text)] pr-6">{e.degree}</p>
                             </div>
                             <p className="text-xs text-[var(--color-rajya-muted)]">{e.institution}{e.year ? ` • ${e.year}` : ""}</p>
+                            {e.personName && (
+                                <p className="text-[10px] text-amber-400/60 mt-0.5 flex items-center gap-1">
+                                    <User className="w-3 h-3" /> {e.personName}
+                                </p>
+                            )}
                             {e.specialization && <p className="text-[10px] text-[var(--color-rajya-muted)]/60 mt-0.5">{e.specialization}</p>}
                             {e.certificateId && (
                                 <div className="mt-2 flex flex-col gap-1">
@@ -305,6 +419,29 @@ export default function EducationPage() {
                         className="space-y-4 mb-6"
                     >
                         <p className="text-xs text-white/40 uppercase tracking-wider">Add a Qualification</p>
+
+                        {/* Person selector */}
+                        <div>
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Certificate belongs to *</label>
+                            <div className="relative">
+                                <User className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <select
+                                    value={selectedPerson}
+                                    onChange={e => setSelectedPerson(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
+                                >
+                                    <option value="">Self (Adhipati — Head of Family)</option>
+                                    {familyMembers.map(fm => (
+                                        <option key={fm.id} value={fm.id}>
+                                            {fm.name} ({fm.relation})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            {familyMembers.length === 0 && (
+                                <p className="text-[10px] text-white/25 mt-1">Add family members in Foundation → Family to select them here</p>
+                            )}
+                        </div>
 
                         {/* Degree picker */}
                         <div>
@@ -371,17 +508,30 @@ export default function EducationPage() {
                         </div>
 
                         {/* Certificate upload */}
-                        <div className="bg-[var(--color-rajya-card)] border border-[var(--color-rajya-accent)]/20 rounded-xl p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Upload className="w-4 h-4 text-[var(--color-rajya-accent)]" />
-                                <p className="text-sm font-medium text-[var(--color-rajya-text)]">Upload Certificate (Optional)</p>
-                            </div>
-                            <p className="text-[10px] text-[var(--color-rajya-muted)] mb-3">Upload your degree/diploma certificate. Saved securely in Nidhi Vault.</p>
-                            <FileUploader
-                                folder="education"
-                                label="Upload certificate"
-                                onUploaded={(url) => setUploadedCerts(prev => ({ ...prev, "new": url || "" }))}
-                            />
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
+                            <h3 className="text-sm font-semibold text-white mb-2">Certificate Attachment</h3>
+                            <p className="text-[10px] text-[var(--color-rajya-muted)] mb-4">Upload your degree/diploma certificate. Saved securely in your personal Google Drive.</p>
+                            
+                            {isGoogleLinked === false ? (
+                                <div className="p-6 border-2 border-dashed border-blue-500/20 rounded-2xl bg-blue-500/5 text-center">
+                                    <CloudOff className="w-8 h-8 text-blue-400 mx-auto mb-3" />
+                                    <p className="text-sm text-white font-medium">Link Google Drive First</p>
+                                    <p className="text-xs text-white/40 mt-1 mb-4">Education certificates are stored securely in your own Google Drive.</p>
+                                    <button 
+                                        onClick={() => window.location.href = '/api/auth/link-google'}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
+                                    >
+                                        Link Google Account
+                                    </button>
+                                </div>
+                            ) : (
+                                <FileUploader
+                                    folder="education"
+                                    storageType="googledrive"
+                                    label="Upload certificate"
+                                    onUploaded={(url) => setUploadedCerts(prev => ({ ...prev, "new": url || "" }))}
+                                />
+                            )}
                         </div>
 
                         {/* Save entry */}

@@ -109,6 +109,14 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             return;
         }
 
+        if (formData.relationship === "Spouse") {
+            const spouseAge = currentYear - targetBirthYear;
+            if (spouseAge < 18) {
+                setErrorMsg("Spouse must be at least 18 years old.");
+                return;
+            }
+        }
+
         const userDobStr = OnboardingStore.get().dob;
         if (userDobStr && formData.dob) {
             const userBirthYear = new Date(userDobStr).getFullYear();

@@ -1,0 +1,121 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { getValidGoogleAccessToken } from '@/lib/googleAuth';
+
+/**
+ * POST /api/google-drive/upload
+ * Uploads a file to the user's Google Drive via their OAuth provider token.
+ * 
+ * Expects multipart/form-data with:
+ * - file: the file to upload
+ * - folderName: optional folder name in Drive (defaults to "Svarajya_Nidhi")
+ * - fileName: optional custom file name
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const providerToken = await getValidGoogleAccessToken(session.user.id);
+    if (!providerToken) {
+      return NextResponse.json(
+        { error: 'Google Drive access not available. Please link your Google Drive.' },
+        { status: 403 }
+      );
+    }
+
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const folderName = (formData.get('folderName') as string) || 'Sva-Rajya';
+    const fileName = (formData.get('fileName') as string) || file?.name;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    // 1. Find or create the folder
+    const folderId = await getOrCreateFolder(providerToken, folderName);
+
+    // 2. Upload the file
+    const metadata = {
+      name: fileName,
+      parents: [folderId],
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', file);
+
+    const uploadRes = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${providerToken}` },
+        body: form,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      console.error('Google Drive upload failed:', errText);
+
+      if (uploadRes.status === 401) {
+        return NextResponse.json(
+          { error: 'Google token expired. Please log out and log back in.' },
+          { status: 401 }
+        );
+      }
+
+      return NextResponse.json({ error: 'Failed to upload to Google Drive' }, { status: 500 });
+    }
+
+    const driveFile = await uploadRes.json();
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        fileId: driveFile.id,
+        fileName: driveFile.name,
+        webViewLink: driveFile.webViewLink,
+        webContentLink: driveFile.webContentLink,
+      },
+    });
+  } catch (err: any) {
+    console.error('[Google Drive Upload]', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+async function getOrCreateFolder(accessToken: string, folderName: string): Promise<string> {
+  // Search for existing folder
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const searchData = await searchRes.json();
+
+  if (searchData?.files?.length > 0) {
+    return searchData.files[0].id;
+  }
+
+  // Create new folder
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+    }),
+  });
+
+  const created = await createRes.json();
+  return created.id;
+}

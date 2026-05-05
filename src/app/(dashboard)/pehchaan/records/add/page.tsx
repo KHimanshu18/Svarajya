@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck, Info, Lock, ExternalLink } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck, Info, Lock, ExternalLink, CloudOff, AlertCircle } from "lucide-react";
 import { IdentityStore, DocType } from "@/lib/identityStore";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { FileUploader } from "@/components/vault/FileUploader";
@@ -61,6 +61,7 @@ function AddDocumentForm() {
     const [mismatchReason, setMismatchReason] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [saved, setSaved] = useState<{ id: string; strength: number; coverage: any } | null>(null);
+    const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
 
     // Date Validation State
     const [issueDateError, setIssueDateError] = useState("");
@@ -77,10 +78,10 @@ function AddDocumentForm() {
         setIssueDateError("");
         setExpiryDateError("");
         setExpiryWarning("");
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         let valid = true;
 
         if (issuedDate) {
@@ -93,7 +94,7 @@ function AddDocumentForm() {
                 valid = false;
             }
         }
-        
+
         if (expiryDate) {
             const expiry = new Date(expiryDate);
             if (issuedDate) {
@@ -108,7 +109,7 @@ function AddDocumentForm() {
                 setExpiryWarning("Warning: This document has expired.");
             }
         }
-        
+
         return valid;
     };
 
@@ -119,6 +120,13 @@ function AddDocumentForm() {
     useEffect(() => {
         const fetchDocs = async () => {
             try {
+                // Fetch linking status
+                const statusRes = await fetch('/api/auth/google-status');
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    setIsGoogleLinked(statusData.linked);
+                }
+
                 const res = await fetch("/api/identity");
                 if (res.ok) {
                     const json = await res.json();
@@ -143,7 +151,7 @@ function AddDocumentForm() {
             }
         };
         fetchDocs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     /**
@@ -264,9 +272,9 @@ function AddDocumentForm() {
 
             if (!apiResponse.ok) {
                 const errorData = await apiResponse.json();
-                const isDuplicate = typeof errorData.error === 'string' && 
-                    (errorData.error.toLowerCase().includes("duplicate") || 
-                     errorData.error.toLowerCase().includes("already exists"));
+                const isDuplicate = typeof errorData.error === 'string' &&
+                    (errorData.error.toLowerCase().includes("duplicate") ||
+                        errorData.error.toLowerCase().includes("already exists"));
 
                 if (apiResponse.status === 409 || isDuplicate) {
                     setError("This document type already exists in your vault.");
@@ -300,9 +308,9 @@ function AddDocumentForm() {
 
         } catch (e: any) {
             console.error("Save error details:", e);
-            
+
             let errorMessage = "An error occurred during secure persistence.";
-            
+
             if (e instanceof Error) {
                 errorMessage = e.message;
             } else if (typeof e === 'string') {
@@ -325,7 +333,7 @@ function AddDocumentForm() {
             } else if (errorMessage === "[object Object]") {
                 errorMessage = "A secure database error occurred (Object format error).";
             }
-            
+
             setError(errorMessage);
             setIsSaving(false);
         }
@@ -539,64 +547,48 @@ function AddDocumentForm() {
                                     </button>
                                 </div>
                             </section>
-                            
+
                             {/* New Fields */}
                             <section className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Issue Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={issuedDate} 
-                                        onChange={(e) => setIssuedDate(e.target.value)} 
+                                    <input
+                                        type="date"
+                                        value={issuedDate}
+                                        onChange={(e) => setIssuedDate(e.target.value)}
                                         className={`w-full bg-white/5 border ${issueDateError ? 'border-red-500/50' : 'border-white/10'} rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all`}
                                     />
                                     {issueDateError && <p className="text-[10px] text-red-400 font-medium">{issueDateError}</p>}
                                 </div>
-<<<<<<< HEAD
-                                {!NO_EXPIRY_TYPES.includes(docType) && (
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Expiry Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={expiryDate} 
-                                        onChange={(e) => setExpiryDate(e.target.value)} 
-                                        className={`w-full bg-white/5 border ${expiryDateError ? 'border-red-500/50' : expiryWarning ? 'border-amber-500/50' : 'border-white/10'} rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all`}
-                                    />
-                                    {expiryDateError && <p className="text-[10px] text-red-400 font-medium">{expiryDateError}</p>}
-                                    {expiryWarning && !expiryDateError && <p className="text-[10px] text-amber-400 font-medium">{expiryWarning}</p>}
-                                </div>
-                                 )}
-=======
                                 {!["aadhaar", "pan", "voter"].includes(docType) && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Expiry Date</label>
-                                        <input 
-                                            type="date" 
-                                            value={expiryDate} 
-                                            onChange={(e) => setExpiryDate(e.target.value)} 
+                                        <input
+                                            type="date"
+                                            value={expiryDate}
+                                            onChange={(e) => setExpiryDate(e.target.value)}
                                             className={`w-full bg-white/5 border ${expiryDateError ? 'border-red-500/50' : expiryWarning ? 'border-amber-500/50' : 'border-white/10'} rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all`}
                                         />
                                         {expiryDateError && <p className="text-[10px] text-red-400 font-medium">{expiryDateError}</p>}
                                         {expiryWarning && !expiryDateError && <p className="text-[10px] text-amber-400 font-medium">{expiryWarning}</p>}
                                     </div>
-                                    )}
->>>>>>> Vasanthi-dev
+                                )}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Place of Issue</label>
-                                    <input 
-                                        type="text" 
-                                        value={placeOfIssue} 
-                                        onChange={(e) => setPlaceOfIssue(e.target.value)} 
+                                    <input
+                                        type="text"
+                                        value={placeOfIssue}
+                                        onChange={(e) => setPlaceOfIssue(e.target.value)}
                                         placeholder="e.g., Delhi, Mumbai"
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-white/10 outline-none focus:border-amber-400/40 transition-all"
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">DOB on Document</label>
-                                    <input 
-                                        type="date" 
-                                        value={dobOnDoc} 
-                                        onChange={(e) => setDobOnDoc(e.target.value)} 
+                                    <input
+                                        type="date"
+                                        value={dobOnDoc}
+                                        onChange={(e) => setDobOnDoc(e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all"
                                     />
                                 </div>
@@ -605,7 +597,27 @@ function AddDocumentForm() {
                             {/* Upload Section */}
                             <section className="space-y-4">
                                 <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
-                                <FileUploader folder="identity" label="Upload PDF or Image" onUploaded={(id) => setVaultFileId(id)} accept=".pdf,.png,.jpg,.jpeg" />
+                                {isGoogleLinked === false ? (
+                                    <div className="p-6 border-2 border-dashed border-blue-500/20 rounded-2xl bg-blue-500/5 text-center">
+                                        <CloudOff className="w-8 h-8 text-blue-400 mx-auto mb-3" />
+                                        <p className="text-sm text-white font-medium">Link Google Drive First</p>
+                                        <p className="text-xs text-white/40 mt-1 mb-4">Identity documents are stored securely in your own Google Drive.</p>
+                                        <button
+                                            onClick={() => window.location.href = '/api/auth/link-google'}
+                                            className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
+                                        >
+                                            Link Google Account
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <FileUploader
+                                        folder="identity"
+                                        storageType="googledrive"
+                                        label="Upload PDF or Image"
+                                        onUploaded={(id) => setVaultFileId(id)}
+                                        accept=".pdf,.png,.jpg,.jpeg"
+                                    />
+                                )}
                             </section>
 
                             {/* Name Mapping */}
@@ -656,9 +668,9 @@ function AddDocumentForm() {
             {/* Footer CTA — only shown for new documents */}
             {!isViewingExisting && (
                 <footer className="mt-auto pt-10 sticky bottom-0 bg-slate-950/80 backdrop-blur-md pb-6">
-                    <button 
-                        onClick={handleSave} 
-                        disabled={isSaving || !vaultFileId || !!issueDateError || !!expiryDateError} 
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving || !vaultFileId || !!issueDateError || !!expiryDateError}
                         className="w-full bg-amber-400 disabled:opacity-50 disabled:grayscale text-slate-950 font-bold py-5 rounded-2xl shadow-[0_10px_30px_rgba(201,162,39,0.15)] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                     >
                         {isSaving ? (
