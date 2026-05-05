@@ -24,7 +24,13 @@ interface FamilyTreeProps {
     isSaving?: boolean;
 }
 
-const RELATION_OPTIONS = ["Spouse", "Child", "Parent", "Sibling", "Other"];
+const RELATION_OPTIONS = [
+    "Spouse (Dampati)",
+    "Child (Santati)", 
+    "Parent (Pitri)",
+    "Sibling (Bhratri)",
+    "Other"
+];
 const ROLE_OPTIONS = ["Viewer", "Executor", "Emergency-only", "None"];
 
 export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAddMember, onRemoveMember, isSaving }: FamilyTreeProps) {
@@ -40,7 +46,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
     // Form State
     const [formData, setFormData] = useState({
         name: "",
-        relationship: "Spouse",
+        relationship: "Spouse (Dampati)",
         dob: "",
         phone: "",
         email: "",
@@ -113,18 +119,18 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
         if (userDobStr && formData.dob) {
             const userBirthYear = new Date(userDobStr).getFullYear();
 
-            if (formData.relationship === "Child" && targetBirthYear <= userBirthYear) {
+            if (formData.relationship === "Child (Santati)" && targetBirthYear <= userBirthYear) {
                 setErrorMsg("A child's birth year cannot be before or the same as yours.");
                 return;
             }
-            if (formData.relationship === "Parent" && targetBirthYear >= userBirthYear) {
+            if (formData.relationship === "Parent (Pitri)" && targetBirthYear >= userBirthYear) {
                 setErrorMsg("A parent's birth year must be before yours.");
                 return;
             }
         }
 
         onAddMember({ ...formData, phone: formData.phone || undefined, email: formData.email || undefined });
-        setFormData({ name: "", relationship: "Spouse", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
+        setFormData({ name: "", relationship: "Spouse (Dampati)", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
         setIsAdding(false);
         setErrorMsg("");
         setMobileError("");

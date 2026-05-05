@@ -21,7 +21,13 @@ interface FamilyTreeProps {
     onRemoveMember: (id: string) => void;
 }
 
-const RELATION_OPTIONS = ["Spouse", "Child", "Parent", "Sibling", "Other"];
+const RELATION_OPTIONS = [
+    "Spouse (Dampati)",
+    "Child (Santati)", 
+    "Parent (Pitri)",
+    "Sibling (Bhratri)",
+    "Other"
+];
 const ROLE_OPTIONS = ["Viewer", "Executor", "Emergency-only", "None"];
 
 export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyTreeProps) {
@@ -31,7 +37,7 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
     // Form State
     const [formData, setFormData] = useState({
         name: "",
-        relationship: "Spouse",
+        relationship: "Spouse (Dampati)",
         dob: "",
         phone: "",
         email: "",
@@ -67,7 +73,7 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
             setErrorMsg("Birth year seems invalid.");
             return;
         }
-        if (formData.relationship === "Spouse") {
+        if (formData.relationship === "Spouse (Dampati)") {
             const spouseAge = currentYear - targetBirthYear;
             if (spouseAge < 18) {
                 setErrorMsg("Spouse must be at least 18 years old.");
@@ -78,7 +84,7 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
         if (userDobStr && formData.dob) {
             const userBirthYear = new Date(userDobStr).getFullYear();
 
-            if (formData.relationship === "Child") {
+            if (formData.relationship === "Child (Santati)") {
             if (!userDobStr) {
             setErrorMsg("Please complete your profile with your DOB first to add children.");
             return;
@@ -89,14 +95,14 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
            return;
     }
 }
-            if (formData.relationship === "Parent" && targetBirthYear >= userBirthYear) {
+            if (formData.relationship === "Parent (Pitri)" && targetBirthYear >= userBirthYear) {
                 setErrorMsg("A parent's birth year must be before yours.");
                 return;
             }
         }
 
         onAddMember({ ...formData, phone: formData.phone || undefined, email: formData.email || undefined });
-        setFormData({ name: "", relationship: "Spouse", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
+        setFormData({ name: "", relationship: "Spouse (Dampati)", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
         setIsAdding(false);
         setErrorMsg("");
     };
