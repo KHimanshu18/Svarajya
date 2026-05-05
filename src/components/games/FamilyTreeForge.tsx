@@ -58,7 +58,7 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
         const currentYear = new Date().getFullYear();
         const targetDate = new Date(formData.dob);
         const targetBirthYear = targetDate.getFullYear();
-
+        console.log("DEBUG:", { formData, currentYear, targetBirthYear, spouseAge: currentYear - targetBirthYear, relationship: formData.relationship });
         if (targetBirthYear > currentYear) {
             setErrorMsg("Birth year cannot be in the future.");
             return;
@@ -67,15 +67,28 @@ export function FamilyTreeGame({ members, onAddMember, onRemoveMember }: FamilyT
             setErrorMsg("Birth year seems invalid.");
             return;
         }
-
+        if (formData.relationship === "Spouse") {
+            const spouseAge = currentYear - targetBirthYear;
+            if (spouseAge < 18) {
+                setErrorMsg("Spouse must be at least 18 years old.");
+                return;
+            }
+        }
         const userDobStr = OnboardingStore.get().dob;
         if (userDobStr && formData.dob) {
             const userBirthYear = new Date(userDobStr).getFullYear();
 
-            if (formData.relationship === "Child" && targetBirthYear <= userBirthYear) {
-                setErrorMsg("A child's birth year cannot be before or the same as yours.");
-                return;
-            }
+            if (formData.relationship === "Child") {
+            if (!userDobStr) {
+            setErrorMsg("Please complete your profile with your DOB first to add children.");
+            return;
+        }
+           const userBirthYear = new Date(userDobStr).getFullYear();
+           if (targetBirthYear >= userBirthYear) {
+            setErrorMsg("A child's birth year must be after yours.");
+           return;
+    }
+}
             if (formData.relationship === "Parent" && targetBirthYear >= userBirthYear) {
                 setErrorMsg("A parent's birth year must be before yours.");
                 return;
