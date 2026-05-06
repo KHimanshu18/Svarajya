@@ -28,19 +28,23 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const members = await familyService.getFamilyMembers(authContext.userId);
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    const members = await familyService.getFamilyMembers(authContext.userId, limit, offset);
 
     const responses: FamilyMemberResponse[] = members.map((member) => ({
-      id: member.id,
-      userId: member.userId,
-      name: member.name,
-      relation: member.relation,
+      id: member.id!,
+      userId: member.userId!,
+      name: member.name!,
+      relation: member.relation!,
       dob: member.dob?.toISOString() || null,
-      isDependent: member.isDependent,
-      nomineeEligible: member.nomineeEligible,
-      accessLevel: member.accessLevel,
-      createdAt: member.createdAt.toISOString(),
-      updatedAt: member.updatedAt.toISOString(),
+      isDependent: member.isDependent!,
+      nomineeEligible: member.nomineeEligible!,
+      accessLevel: member.accessLevel!,
+      createdAt: member.createdAt!.toISOString(),
+      updatedAt: member.updatedAt!.toISOString(),
     }));
 
     return successResponse(responses);

@@ -33,6 +33,10 @@ model AdminUser {
   role              AdminRole
   status            AdminStatus         @default(ACTIVE)
   twoFactorSecret   String? // TOTP secret for 2FA
+  inviteToken       String?
+  inviteExpiresAt   DateTime?
+  deletedAt         DateTime?
+  twoFactorRecoveryCodes String?
   twoFactorEnabled  Boolean             @default(false)
   lastLoginAt       DateTime?
   lastLoginIp       String?
@@ -876,6 +880,8 @@ model User {
   lastActiveAt      DateTime?
   deviceInfo        Json?
   settings  Json?
+  twoFactorSecret   String?
+  twoFactorRecoveryCodes String?
 
   // Relations
   sessions          UserSession[]
@@ -995,6 +1001,7 @@ model Education {
   familyMember    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([familyMemberId])
   @@map("education")
 }
 
@@ -1353,6 +1360,7 @@ model NomineeMapping {
 
   @@index([userId])
   @@index([assetType])
+  @@index([nomineeId])
   @@map("nominee_mapping")
 }
 

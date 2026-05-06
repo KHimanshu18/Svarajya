@@ -9,6 +9,8 @@ import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlacehold
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { Vault } from "@/lib/vault";
 import { useToast } from "@/components/providers/ToastProvider";
+import useSWR from 'swr';
+import { fetcher } from '@/lib/utils/fetcher';
 
 interface FamilyMemberOption {
     id: string;
@@ -56,69 +58,64 @@ export default function EducationPage() {
     const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
     const toast = useToast();
 
+    const { data: statusData } = useSWR('/api/auth/google-status', fetcher);
+    const { data: profileResponse, error: profileError, isLoading: profileLoading } = useSWR('/api/profile', fetcher);
+
     useEffect(() => {
-        const fetchEducation = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch linking status
-                const statusRes = await fetch('/api/auth/google-status');
-                if (statusRes.ok) {
-                    const statusData = await statusRes.json();
-                    setIsGoogleLinked(statusData.linked);
+        if (statusData) {
+            setIsGoogleLinked(statusData.linked);
+        }
+    }, [statusData]);
+
+    useEffect(() => {
+        if (profileResponse) {
+            const profileData = profileResponse.data;
+            if (profileData) {
+                // Load family members for the person selector
+                if (profileData.familyMembers && profileData.familyMembers.length > 0) {
+                    setFamilyMembers(profileData.familyMembers.map((fm: any) => ({
+                        id: fm.id,
+                        name: fm.name,
+                        relation: fm.relation || fm.relationship || "",
+                        dob: fm.dob,
+                    })));
                 }
 
-                const response = await fetch('/api/profile');
-                if (response.ok) {
-                    const json = await response.json();
-                    const profileData = json?.data;
-
-                    // Load family members for the person selector
-                    if (profileData?.familyMembers && profileData.familyMembers.length > 0) {
-                        setFamilyMembers(profileData.familyMembers.map((fm: any) => ({
-                            id: fm.id,
-                            name: fm.name,
-                            relation: fm.relation || fm.relationship || "",
-                            dob: fm.dob,
-                        })));
-                    }
-
-                    if (profileData?.education && profileData.education.length > 0) {
-                        const loadedEntries = profileData.education.map((edu: any) => {
-                            // Resolve person name
-                            let personName = "Self (Adhipati)";
-                            if (edu.familyMemberId && profileData.familyMembers) {
-                                const member = profileData.familyMembers.find((fm: any) => fm.id === edu.familyMemberId);
-                                if (member) personName = `${member.name} (${member.relation || member.relationship || 'Family'})`;
-                            }
-                            return {
-                                id: edu.id,
-                                degree: edu.degree || "",
-                                institution: edu.institute || edu.institution || "",
-                                year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
-                                specialization: edu.specialization || "",
-                                hasLoan: !!edu.linkedLoanId,
-                                certificateId: edu.certificateUrl || undefined,
-                                familyMemberId: edu.familyMemberId || undefined,
-                                personName,
-                            };
-                        });
-                        setEntries(loadedEntries);
-                        setShowForm(false);
-                    } else {
-                        setShowForm(true);
-                    }
+                if (profileData.education && profileData.education.length > 0) {
+                    const loadedEntries = profileData.education.map((edu: any) => {
+                        // Resolve person name
+                        let personName = "Self (Adhipati)";
+                        if (edu.familyMemberId && profileData.familyMembers) {
+                            const member = profileData.familyMembers.find((fm: any) => fm.id === edu.familyMemberId);
+                            if (member) personName = `${member.name} (${member.relation || member.relationship || 'Family'})`;
+                        }
+                        return {
+                            id: edu.id,
+                            degree: edu.degree || "",
+                            institution: edu.institute || edu.institution || "",
+                            year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
+                            specialization: edu.specialization || "",
+                            hasLoan: !!edu.linkedLoanId,
+                            certificateId: edu.certificateUrl || undefined,
+                            familyMemberId: edu.familyMemberId || undefined,
+                            personName,
+                        };
+                    });
+                    setEntries(loadedEntries);
+                    setShowForm(false);
                 } else {
                     setShowForm(true);
                 }
-            } catch (error) {
-                console.error("Failed to load education:", error);
+            } else {
                 setShowForm(true);
-            } finally {
-                setIsLoading(false);
             }
-        };
-        fetchEducation();
-    }, []);
+            setIsLoading(false);
+        } else if (profileError) {
+            console.error("Failed to load education:", profileError);
+            setShowForm(true);
+            setIsLoading(false);
+        }
+    }, [profileResponse, profileError]);
 
     const handleYearChange = (val: string) => {
         setYear(val);

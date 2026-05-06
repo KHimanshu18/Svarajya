@@ -8,6 +8,8 @@ import { FamilyTreeGame, FamilyMember } from "@/components/module1/FamilyTreeGam
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { useToast } from "@/components/providers/ToastProvider";
+import useSWR from 'swr';
+import { fetcher } from '@/lib/utils/fetcher';
 
 export default function Submodule1B() {
     const router = useRouter();
@@ -16,91 +18,99 @@ export default function Submodule1B() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const toast = useToast();
+    const { data: familyResponse, error: familyError, isLoading: familyLoading, mutate } = useSWR('/api/family', fetcher);
 
-    /**
-     * FETCH: Always gets fresh data from database
-     */
     const fetchFamilyMembers = useCallback(async () => {
-        setIsLoading(true);
         try {
-            const response = await fetch('/api/family', { cache: 'no-store' });
-            if (response.ok) {
-                const json = await response.json();
-                // Handle both response formats: { data: [...] } or just [...]
-                const profileData = json?.data || json;
-                
-                if (Array.isArray(profileData)) {
-                    const loadedMembers = profileData.map((member: any) => ({
-                        id: member.id,
-                        name: member.name || "",
-                        relationship: member.relation || "Other",
-                        dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : "",
-                        phone: member.phone || "",
-                        email: member.email || "",
-                        dependent: member.isDependent === true,
-                        nomineeEligible: member.nomineeEligible ?? true,
-                        accessRole: member.accessLevel === "write" ? "Executor" : 
-                                   member.accessLevel === "read" ? "Viewer" : 
-                                   member.accessLevel === "emergency" ? "Emergency-only" : "None",
-                    }));
-                    
-                    console.log("Synced members from DB:", loadedMembers);
-                    setMembers(loadedMembers);
-                    OnboardingStore.set({ familyMembers: loadedMembers }, { sync: false });
-                } else {
-                    setMembers([]);
-                }
+            const res = await mutate();
+            if (res?.data) {
+                const loadedMembers = res.data.map((member: any) => ({
+                    id: member.id,
+                    name: member.name || "",
+                    relationship: member.relation || "Other",
+                    dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : "",
+                    phone: member.phone || "",
+                    email: member.email || "",
+                    dependent: member.isDependent === true,
+                    nomineeEligible: member.nomineeEligible ?? true,
+                    accessRole: member.accessLevel === "write" ? "Executor" :
+                        member.accessLevel === "read" ? "Viewer" :
+                            member.accessLevel === "emergency" ? "Emergency-only" : "None",
+                }));
+                setMembers(loadedMembers);
+            }
+        } catch (error) {
+            console.error("Manual fetch failed:", error);
+        }
+    }, [mutate]);
+
+    useEffect(() => {
+        if (familyResponse) {
+            const profileData = familyResponse.data || familyResponse;
+
+            if (Array.isArray(profileData)) {
+                const loadedMembers = profileData.map((member: any) => ({
+                    id: member.id,
+                    name: member.name || "",
+                    relationship: member.relation || "Other",
+                    dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : "",
+                    phone: member.phone || "",
+                    email: member.email || "",
+                    dependent: member.isDependent === true,
+                    nomineeEligible: member.nomineeEligible ?? true,
+                    accessRole: member.accessLevel === "write" ? "Executor" :
+                        member.accessLevel === "read" ? "Viewer" :
+                            member.accessLevel === "emergency" ? "Emergency-only" : "None",
+                }));
+
+                setMembers(loadedMembers);
+                OnboardingStore.set({ familyMembers: loadedMembers }, { sync: false });
             } else {
                 setMembers([]);
             }
-        } catch (err) {
-            console.error('Failed to sync family members:', err);
+            setIsLoading(false);
+        } else if (familyError) {
+            console.error('Failed to sync family members:', familyError);
             setMembers([]);
-        } finally {
             setIsLoading(false);
         }
-    }, []);
-
-    // Initial load
-    useEffect(() => {
-        fetchFamilyMembers();
-    }, [fetchFamilyMembers]);
+    }, [familyResponse, familyError]);
 
     /**
      * CREATE: Saves directly to DB then refreshes
      */
-    const handleAddMember = async (memberData: Omit<FamilyMember, "id">) => {
+    const handleAddMember = useCallback(async (memberData: Omit<FamilyMember, "id">) => {
         // Max 5 members validation
         if (members.length >= 5) {
             toast("Maximum 5 family members allowed.", "error");
             return;
         }
-        
+
         // Mobile validation (10 digits)
         if (memberData.phone && !/^\d{10}$/.test(memberData.phone)) {
             toast("Mobile number must be exactly 10 digits.", "error");
             return;
         }
-        
+
         // Email validation (@gmail.com)
         if (memberData.email && !memberData.email.endsWith("@gmail.com")) {
             toast("Email must be @gmail.com", "error");
             return;
         }
-        
+
         console.log("Saving new member to DB:", memberData);
         setIsSaving(true);
-        
+
         try {
             const payload = {
                 name: memberData.name,
                 relation: memberData.relationship,
-                dob: memberData.dob,
+                dob: memberData.dob ? new Date(memberData.dob).toISOString() : undefined,
                 isDependent: memberData.dependent,
                 nomineeEligible: memberData.nomineeEligible,
                 accessLevel: memberData.accessRole === "Executor" ? "write" :
-                            memberData.accessRole === "Viewer" ? "read" :
-                            memberData.accessRole === "Emergency-only" ? "emergency" : "read",
+                    memberData.accessRole === "Viewer" ? "read" :
+                        memberData.accessRole === "Emergency-only" ? "emergency" : "read",
                 phone: memberData.phone || "",
                 email: memberData.email || "",
             };
@@ -115,22 +125,27 @@ export default function Submodule1B() {
                 const error = await response.json();
                 throw new Error(error.message || "Failed to save member");
             }
-
-            toast("Family member added successfully", "success");
-            await fetchFamilyMembers(); // Refresh to get the real ID
+            if (response.ok) {
+                toast("Family member added successfully!", "success");
+                await fetchFamilyMembers();
+            }
         } catch (error) {
             console.error("Add failed:", error);
             toast(error instanceof Error ? error.message : "Failed to add member", "error");
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [members.length, toast, fetchFamilyMembers]);
 
     /**
      * DELETE: Removes from DB via query param then refreshes
      */
-    const handleRemoveMember = async (id: string) => {
+    const handleRemoveMember = useCallback(async (id: string) => {
         console.log("Deleting member from DB:", id);
+
+        // Optimistic update: remove from local state immediately
+        setMembers(prev => prev.filter(m => m.id !== id));
+
         setIsSaving(true);
 
         try {
@@ -140,18 +155,19 @@ export default function Submodule1B() {
 
             if (!response.ok) {
                 const error = await response.json();
+                await fetchFamilyMembers();
                 throw new Error(error.message || "Failed to delete member");
             }
 
             toast("Family member removed successfully", "success");
-            await fetchFamilyMembers(); // Refresh to sync UI
+            await fetchFamilyMembers();
         } catch (error) {
             console.error("Delete failed:", error);
             toast(error instanceof Error ? error.message : "Failed to delete member", "error");
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [toast, fetchFamilyMembers]);
 
     /**
      * SEAL MANDAL: Final sync and proceed
@@ -159,7 +175,7 @@ export default function Submodule1B() {
     const handleSealMandal = async () => {
         setIsLoading(true);
         try {
-            await fetchFamilyMembers(); // Final safety sync
+            await fetchFamilyMembers();
             if (members.length > 0) {
                 setStep("win");
             } else {
@@ -257,6 +273,7 @@ export default function Submodule1B() {
                                 members={members}
                                 onAddMember={handleAddMember}
                                 onRemoveMember={handleRemoveMember}
+                                isSaving={isSaving}
                             />
 
                             <div className="pt-8">

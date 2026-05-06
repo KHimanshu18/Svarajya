@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { OnboardingStore, deriveLifePhase } from "@/lib/stores/onboardingStore";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 function ProgressBar({ step }: { step: number }) {
     return (
@@ -25,28 +26,20 @@ export default function DOBStep() {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+    const { profile: profileData, isLoading: profileLoading } = useProfile();
+
     useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const response = await fetch('/api/profile');
-                if (!response.ok) return;
-                const json = await response.json();
-                const profile = json?.data;
-                if (profile?.dob) {
-                    const dobValue = profile.dob.split('T')[0];
-                    setDob(dobValue);
-                    setLifePhase(deriveLifePhase(dobValue));
-                    setIsReadOnly(true);
-                    OnboardingStore.set({ dob: dobValue, lifePhase: deriveLifePhase(dobValue) }, { sync: false });
-                }
-            } catch (error) {
-                console.error('Failed to load DOB from profile:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
+        if (profileLoading) return;
+
+        if (profileData?.dob) {
+            const dobValue = profileData.dob.split('T')[0];
+            setDob(dobValue);
+            setLifePhase(deriveLifePhase(dobValue));
+            setIsReadOnly(true);
+            OnboardingStore.set({ dob: dobValue, lifePhase: deriveLifePhase(dobValue) }, { sync: false });
+        }
+        setIsLoading(false);
+    }, [profileData, profileLoading]);
 
     const handleDobChange = (val: string) => {
         if (isReadOnly) return;

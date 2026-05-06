@@ -29,13 +29,27 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   }
 
   /**
-   * Get all family members for a user
+   * Get all family members for a user with pagination
    */
-  async getFamilyMembers(userid: string): Promise<FamilyMember[]> {
+  async getFamilyMembers(userid: string, limit: number = 10, offset: number = 0): Promise<Partial<FamilyMember>[]> {
     try {
       return await prisma.familyMember.findMany({
         where: { userId: userid },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          relation: true,
+          dob: true,
+          isDependent: true,
+          nomineeEligible: true,
+          accessLevel: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
       });
     } catch (error) {
       console.error('[FamilyService] Error getting family members:', error);

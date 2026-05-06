@@ -36,10 +36,24 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
   /**
    * Get all identity records for a user
    */
-  async getForUser(userId: string): Promise<IdentityRecord[]> {
+  async getForUser(userId: string): Promise<Partial<IdentityRecord>[]> {
     try {
       return await prisma.identityRecord.findMany({
         where: { userId },
+        select: {
+          id: true,
+          userId: true,
+          idType: true,
+          numberMasked: true,
+          expiryDate: true,
+          issuedDate: true,
+          placeOfIssue: true,
+          dobOnDoc: true,
+          nameOnDoc: true,
+          vaultFileId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
@@ -135,7 +149,7 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
   /**
    * Get expired identity documents
    */
-  async getExpired(userId: string): Promise<IdentityRecord[]> {
+  async getExpired(userId: string): Promise<Partial<IdentityRecord>[]> {
     try {
       const now = new Date();
       return await prisma.identityRecord.findMany({
@@ -144,6 +158,20 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
           expiryDate: {
             lt: now,
           },
+        },
+        select: {
+          id: true,
+          userId: true,
+          idType: true,
+          numberMasked: true,
+          expiryDate: true,
+          issuedDate: true,
+          placeOfIssue: true,
+          dobOnDoc: true,
+          nameOnDoc: true,
+          vaultFileId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
     } catch (error) {
@@ -155,7 +183,7 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
   /**
    * Get expiring soon (within 30 days)
    */
-  async getExpiringSoon(userId: string, daysAhead: number = 30): Promise<IdentityRecord[]> {
+  async getExpiringSoon(userId: string, daysAhead: number = 30): Promise<Partial<IdentityRecord>[]> {
     try {
       const now = new Date();
       const futureDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
@@ -167,6 +195,20 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
             gte: now,
             lte: futureDate,
           },
+        },
+        select: {
+          id: true,
+          userId: true,
+          idType: true,
+          numberMasked: true,
+          expiryDate: true,
+          issuedDate: true,
+          placeOfIssue: true,
+          dobOnDoc: true,
+          nameOnDoc: true,
+          vaultFileId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
     } catch (error) {

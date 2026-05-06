@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 const ProgressBar = React.memo(function ProgressBar({ step }: { step: number }) {
     return (
@@ -30,44 +31,27 @@ export default function NameStep() {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
+    const { profile: profileData, isLoading: profileLoading } = useProfile();
+
     useEffect(() => {
-        let isMounted = true;
-        const loadName = async () => {
-            if (authLoading) return;
-            setIsLoading(true);
+        if (authLoading || profileLoading) return;
 
-            try {
-                // Fetch profile only if we need it
-                const profileRes = await fetch('/api/profile');
-                if (!isMounted) return;
+        const authName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+        const storeData = OnboardingStore.get();
+        const prismaName = profileData?.name || storeData.fullName;
+        const initialName = prismaName || authName || (user?.email?.split('@')[0] ?? '');
 
-                const authName = user?.user_metadata?.full_name || user?.user_metadata?.name;
-                const profileJson = profileRes.ok ? await profileRes.json() : null;
-                const profileData = profileJson?.data;
+        if (initialName) {
+            setName(initialName);
+        }
 
-                const storeData = OnboardingStore.get();
-                const prismaName = profileData?.name || storeData.fullName;
-                const initialName = prismaName || authName || (user?.email?.split('@')[0] ?? '');
-
-                if (initialName) {
-                    setName(initialName);
-                }
-
-                if (prismaName) {
-                    await OnboardingStore.set({ fullName: prismaName }, { sync: false });
-                } else if (authName) {
-                    await OnboardingStore.set({ fullName: authName }, { sync: false });
-                }
-            } catch (error) {
-                console.error('Failed to load name:', error);
-            } finally {
-                if (isMounted) setIsLoading(false);
-            }
-        };
-
-        loadName();
-        return () => { isMounted = false; };
-    }, [user, authLoading]);
+        if (prismaName) {
+            OnboardingStore.set({ fullName: prismaName }, { sync: false });
+        } else if (authName) {
+            OnboardingStore.set({ fullName: authName }, { sync: false });
+        }
+        setIsLoading(false);
+    }, [user, authLoading, profileData, profileLoading]);
 
     const handleContinue = useCallback(() => {
         const trimmed = name.trim();

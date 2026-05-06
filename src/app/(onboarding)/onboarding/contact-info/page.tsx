@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -7,6 +7,8 @@ import { MessageSquare, ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { createClient } from "@/lib/supabase/client";
 import { validateControlledEmail, validateIndianMobile } from "@/lib/validators/contactValidator";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 const MOCK_OTP = "1234";
 
@@ -22,6 +24,8 @@ function ProgressBar({ step }: { step: number }) {
 
 export default function ContactStep() {
     const router = useRouter();
+    const { user, isLoading: authLoading } = useAuth();
+    const { profile: profileData, isLoading: profileLoading } = useProfile();
     const [mobile, setMobile] = useState(() => OnboardingStore.get().mobile || "");
     const [email, setEmail] = useState(() => OnboardingStore.get().email || "");
     const [whatsapp, setWhatsapp] = useState(false);
@@ -33,47 +37,33 @@ export default function ContactStep() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Fetch existing user and auth data from Supabase + Prisma profile
+    // Fetch existing user and auth data
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const supabase = createClient();
-                const authResponse = await supabase.auth.getUser();
-                const profileResponse = await fetch('/api/profile');
+        if (authLoading || profileLoading) return;
 
-                const authUser = authResponse.data.user;
-                const profileJson = profileResponse.ok ? await profileResponse.json() : null;
-                const profile = profileJson?.data;
+        const authEmail = user?.email || profileData?.email || "";
+        const profileMobile = profileData?.phone || "";
+        const profileWhatsapp = profileData?.whatsappEnabled ?? false;
+        const mobileVerified = profileData?.isMobileVerified ?? !!profileMobile;
 
-                const authEmail = authUser?.email || profile?.email || "";
-                const profileMobile = profile?.phone || "";
-                const profileWhatsapp = profile?.whatsappEnabled ?? false;
-                const profileEmail = authEmail;
-                const mobileVerified = profile?.isMobileVerified ?? !!profileMobile;
+        setEmail(authEmail);
+        setWhatsapp(profileWhatsapp);
+        setMobile(profileMobile);
 
-                setEmail(profileEmail);
-                setWhatsapp(profileWhatsapp);
-                setMobile(profileMobile);
+        if (profileMobile && mobileVerified) {
+            setOtpState('verified');
+            setUnlocked(true);
+            setIsReadOnly(true);
+        }
 
-                if (profileMobile && mobileVerified) {
-                    setOtpState('verified');
-                    setUnlocked(true);
-                    setIsReadOnly(true);
-                }
-
-                OnboardingStore.set({
-                    email: profileEmail,
-                    mobile: profileMobile,
-                    whatsappEnabled: profileWhatsapp,
-                }, { sync: false });
-            } catch (error) {
-                console.error('Failed to fetch user profile:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchUserData();
-    }, []);
+        OnboardingStore.set({
+            email: authEmail,
+            mobile: profileMobile,
+            whatsappEnabled: profileWhatsapp,
+        }, { sync: false });
+        
+        setIsLoading(false);
+    }, [user, authLoading, profileData, profileLoading]);
 
     const handleSendOtp = async () => {
         const mobileResult = validateIndianMobile(mobile);

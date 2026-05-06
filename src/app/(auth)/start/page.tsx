@@ -276,35 +276,6 @@ function AuthGatewayContent() {
                     return;
                 }
 
-                // FIXED: Create user in Prisma immediately after signup using secret bypass
-                if (responseData.user) {
-                    try {
-                        const profileRes = await fetch('/api/auth/create-user', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                id: responseData.user.id,
-                                email: responseData.user.email,
-                                name: fullName.trim() || trimmedEmail.split('@')[0],
-                            }),
-                        });
-
-                        if (!profileRes.ok) {
-                            console.error("Profile creation failed:", await profileRes.text());
-                        } else {
-                            console.log("User successfully created in Prisma via public create-user endpoint");
-                        }
-
-                        // Also attempt to sign in immediately to establish session (if confirmation not required)
-                        await supabase.auth.signInWithPassword({
-                            email: trimmedEmail,
-                            password: password
-                        });
-                    } catch (e) {
-                        console.error("Failed to create user profile", e);
-                    }
-                }
-
                 // Clear rate limit on success
                 clearRateLimit(storageKey, trimmedEmail);
 

@@ -26,7 +26,7 @@ interface FamilyTreeProps {
 
 const RELATION_OPTIONS = [
     "Spouse (Dampati)",
-    "Child (Santati)", 
+    "Child (Santati)",
     "Parent (Pitri)",
     "Sibling (Bhratri)",
     "Other"
@@ -76,7 +76,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!formData.name || !formData.dob) {
             setErrorMsg("Name and Janma Tithi (DOB) are required to forge a link.");
             return;
@@ -106,16 +106,13 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
         const targetDate = new Date(formData.dob);
         const targetBirthYear = targetDate.getFullYear();
 
-        if (targetBirthYear > currentYear) {
-            setErrorMsg("Birth year cannot be in the future.");
-            return;
-        }
-        if (targetBirthYear < 1900) {
-            setErrorMsg("Birth year seems invalid.");
+        // Year validation - must be 4 digits
+        if (targetBirthYear < 1900 || targetBirthYear > currentYear) {
+            setErrorMsg("Please enter a valid year (4 digits, between 1900 and current year)");
             return;
         }
 
-        if (formData.relationship === "Spouse") {
+        if (formData.relationship === "Spouse (Dampati)") {
             const spouseAge = currentYear - targetBirthYear;
             if (spouseAge < 18) {
                 setErrorMsg("Spouse must be at least 18 years old.");
@@ -146,7 +143,19 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
     }, [formData, members, onAddMember]);
 
     useLayoutEffect(() => {
-        const calc = () => {
+        // Clear refs for members no longer present to avoid drawing to stale DOM elements
+        const currentIds = new Set(members.map(m => m.id));
+        Object.keys(memberRefs.current).forEach(id => {
+            if (!currentIds.has(id)) {
+                delete memberRefs.current[id];
+            }
+        });
+
+        // Reset lines immediately to avoid seeing old lines during transition
+        setLines([]);
+
+        // Small delay to ensure DOM updates (especially AnimatePresence exits)
+        const timer = setTimeout(() => {
             const cont = containerRef.current;
             const center = centerRef.current;
             if (!cont || !center) return;
@@ -169,19 +178,42 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             });
 
             setLines(newLines);
+        }, 100); // 100ms delay to allow framer-motion animations to settle
+
+        const handleResize = () => {
+            const cont = containerRef.current;
+            const center = centerRef.current;
+            if (!cont || !center) return;
+
+            const contRect = cont.getBoundingClientRect();
+            const cRect = center.getBoundingClientRect();
+            const cx = cRect.left + cRect.width / 2 - contRect.left;
+            const cy = cRect.top + cRect.height / 2 - contRect.top;
+
+            const updatedLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+            members.forEach((m) => {
+                const el = memberRefs.current[m.id];
+                if (!el) return;
+                const r = el.getBoundingClientRect();
+                const mx = r.left + r.width / 2 - contRect.left;
+                const my = r.top + r.height / 2 - contRect.top;
+                updatedLines.push({ x1: cx, y1: cy, x2: mx, y2: my });
+            });
+            setLines(updatedLines);
         };
 
-        calc();
-
-        window.addEventListener("resize", calc);
-        return () => window.removeEventListener("resize", calc);
+        window.addEventListener("resize", handleResize);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener("resize", handleResize);
+        };
     }, [members]);
 
     return (
         <div className="w-full space-y-8">
 
             {/* Visual Tree Display */}
-                <div ref={containerRef} className="relative min-h-[300px] flex flex-col items-center justify-center bg-black/20 rounded-2xl border border-white/5 p-6 overflow-hidden">
+            <div ref={containerRef} className="relative min-h-[300px] flex flex-col items-center justify-center bg-black/20 rounded-2xl border border-white/5 p-6 overflow-hidden">
                 {/* Background Mandala Hint */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
                     <div className="w-64 h-64 border-[0.5px] border-[var(--color-rajya-accent)] rounded-full animate-[spin_60s_linear_infinite]" />
@@ -199,7 +231,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                     <AnimatePresence>
                         {members.length === 0 && !isAdding && (
                             <motion.div
-                                initial={{ opacity: 0 }} 
+                                initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 className="text-center text-[var(--color-rajya-muted)] text-sm italic col-span-full"
                             >
@@ -291,7 +323,14 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                             <input type="text" placeholder="Full Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" />
 
                             <div className="grid grid-cols-2 gap-4">
-                                <input type="date" value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" />
+                                <input 
+                                    type="date" 
+                                    value={formData.dob} 
+                                    onChange={e => setFormData({ ...formData, dob: e.target.value })} 
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" 
+                                />
                                 <select value={formData.relationship} onChange={e => setFormData({ ...formData, relationship: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]">
                                     {RELATION_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-[var(--color-rajya-card)]">{opt}</option>)}
                                 </select>
@@ -299,10 +338,10 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <input 
-                                        type="tel" 
-                                        placeholder="Mobile No. (10 digits)" 
-                                        value={formData.phone} 
+                                    <input
+                                        type="tel"
+                                        placeholder="Mobile No. (10 digits)"
+                                        value={formData.phone}
                                         onChange={handleMobileChange}
                                         maxLength={10}
                                         className={`w-full bg-black/50 border rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)] ${mobileError ? 'border-red-500' : 'border-white/20'}`}
@@ -310,10 +349,10 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                     {mobileError && <p className="text-red-400 text-xs">{mobileError}</p>}
                                 </div>
                                 <div className="space-y-1">
-                                    <input 
-                                        type="email" 
-                                        placeholder="Email ID (@gmail.com)" 
-                                        value={formData.email} 
+                                    <input
+                                        type="email"
+                                        placeholder="Email ID (@gmail.com)"
+                                        value={formData.email}
                                         onChange={handleEmailChange}
                                         onBlur={handleEmailBlur}
                                         className={`w-full bg-black/50 border rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)] ${emailError ? 'border-red-500' : 'border-white/20'}`}
@@ -340,8 +379,8 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
                             {errorMsg && <p className="text-[var(--color-rajya-danger)] text-xs text-center">{errorMsg}</p>}
 
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isSaving}
                                 className="w-full bg-[var(--color-rajya-accent)]/10 text-[var(--color-rajya-accent)] border border-[var(--color-rajya-accent)]/50 py-3 rounded-xl font-medium mt-2 hover:bg-[var(--color-rajya-accent)] hover:text-black transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >

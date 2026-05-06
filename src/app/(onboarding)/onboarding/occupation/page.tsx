@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 const OCCUPATIONS = ["Salaried", "Business", "Freelancer", "Student", "Homemaker", "Retired", "Other"];
 
@@ -27,27 +28,21 @@ export default function OccupationStep() {
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch existing user data from database
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const response = await fetch('/api/profile');
-                if (!response.ok) return;
+    const { profile: profileData, isLoading: profileLoading } = useProfile();
 
-                const json = await response.json();
-                const profile = json?.data;
-                if (profile?.occupationType) {
-                    setSelected(profile.occupationType);
-                    setOtherText(profile.occupationOther || "");
-                    OnboardingStore.set({ occupationType: profile.occupationType, occupationOther: profile.occupationOther || "" }, { sync: false });
-                }
-            } catch (error) {
-                console.error('Failed to fetch user profile:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchUserData();
-    }, []);
+    useEffect(() => {
+        if (profileLoading) return;
+
+        if (profileData?.occupationType) {
+            setSelected(profileData.occupationType);
+            setOtherText(profileData.occupationOther || "");
+            OnboardingStore.set({ 
+                occupationType: profileData.occupationType, 
+                occupationOther: profileData.occupationOther || "" 
+            }, { sync: false });
+        }
+        setIsLoading(false);
+    }, [profileData, profileLoading]);
 
     const handleContinue = () => {
         if (!selected) { setError("Please choose one option."); return; }

@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 const OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
 
@@ -26,25 +27,17 @@ export default function StatusStep() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
+    const { profile: profileData, isLoading: profileLoading } = useProfile();
+
     useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const response = await fetch('/api/profile');
-                if (!response.ok) return;
-                const json = await response.json();
-                const profile = json?.data;
-                if (profile?.maritalStatus) {
-                    setSelected(profile.maritalStatus);
-                    OnboardingStore.set({ maritalStatus: profile.maritalStatus }, { sync: false });
-                }
-            } catch (error) {
-                console.error('Failed to fetch profile for status page:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
+        if (profileLoading) return;
+
+        if (profileData?.maritalStatus) {
+            setSelected(profileData.maritalStatus);
+            OnboardingStore.set({ maritalStatus: profileData.maritalStatus }, { sync: false });
+        }
+        setIsLoading(false);
+    }, [profileData, profileLoading]);
 
     const handleContinue = () => {
         if (!selected) {

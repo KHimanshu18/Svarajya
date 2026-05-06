@@ -1,4 +1,4 @@
-"use client";
+import React from "react";
 
 interface SealStrengthRingProps {
     percentage: number;
@@ -7,7 +7,7 @@ interface SealStrengthRingProps {
     label?: string;
 }
 
-export function SealStrengthRing({ percentage, size = 64, strokeWidth = 4, label }: SealStrengthRingProps) {
+export const SealStrengthRing = React.memo(function SealStrengthRing({ percentage, size = 64, strokeWidth = 4, label }: SealStrengthRingProps) {
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (percentage / 100) * circumference;
