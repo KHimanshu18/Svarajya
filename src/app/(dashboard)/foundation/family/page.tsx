@@ -17,20 +17,16 @@ export default function Submodule1B() {
     const [isSaving, setIsSaving] = useState(false);
     const toast = useToast();
 
-    /**
-     * FETCH: Always gets fresh data from database
-     */
     const fetchFamilyMembers = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await fetch('/api/family', { cache: 'no-store' });
             if (response.ok) {
                 const json = await response.json();
-                // Handle both response formats: { data: [...] } or just [...]
                 const profileData = json?.data || json;
-                
+
                 if (Array.isArray(profileData)) {
-                    const loadedMembers = profileData.map((member: any) => ({
+                    const loadedMembers = profileData.map((member: any): FamilyMember => ({
                         id: member.id,
                         name: member.name || "",
                         relationship: member.relation || "Other",
@@ -39,14 +35,14 @@ export default function Submodule1B() {
                         email: member.email || "",
                         dependent: member.isDependent === true,
                         nomineeEligible: member.nomineeEligible ?? true,
-                        accessRole: member.accessLevel === "write" ? "Executor" : 
-                                   member.accessLevel === "read" ? "Viewer" : 
-                                   member.accessLevel === "emergency" ? "Emergency-only" : "None",
+                        accessRole: (member.accessLevel === "write" ? "Executor" :
+                                    member.accessLevel === "read" ? "Viewer" :
+                                    member.accessLevel === "emergency" ? "Emergency-only" : "None") as FamilyMember["accessRole"],
                     }));
-                    
+
                     console.log("Synced members from DB:", loadedMembers);
                     setMembers(loadedMembers);
-                    OnboardingStore.set({ familyMembers: loadedMembers }, { sync: false });
+                    OnboardingStore.set({ familyMembers: loadedMembers });
                 } else {
                     setMembers([]);
                 }
@@ -61,36 +57,25 @@ export default function Submodule1B() {
         }
     }, []);
 
-    // Initial load
     useEffect(() => {
         fetchFamilyMembers();
     }, [fetchFamilyMembers]);
 
-    /**
-     * CREATE: Saves directly to DB then refreshes
-     */
     const handleAddMember = async (memberData: Omit<FamilyMember, "id">) => {
-        // Max 5 members validation
         if (members.length >= 5) {
             toast("Maximum 5 family members allowed.", "error");
             return;
         }
-        
-        // Mobile validation (10 digits)
         if (memberData.phone && !/^\d{10}$/.test(memberData.phone)) {
             toast("Mobile number must be exactly 10 digits.", "error");
             return;
         }
-        
-        // Email validation (@gmail.com)
         if (memberData.email && !memberData.email.endsWith("@gmail.com")) {
             toast("Email must be @gmail.com", "error");
             return;
         }
-        
-        console.log("Saving new member to DB:", memberData);
+
         setIsSaving(true);
-        
         try {
             const payload = {
                 name: memberData.name,
@@ -117,7 +102,7 @@ export default function Submodule1B() {
             }
 
             toast("Family member added successfully", "success");
-            await fetchFamilyMembers(); // Refresh to get the real ID
+            await fetchFamilyMembers();
         } catch (error) {
             console.error("Add failed:", error);
             toast(error instanceof Error ? error.message : "Failed to add member", "error");
@@ -126,13 +111,8 @@ export default function Submodule1B() {
         }
     };
 
-    /**
-     * DELETE: Removes from DB via query param then refreshes
-     */
     const handleRemoveMember = async (id: string) => {
-        console.log("Deleting member from DB:", id);
         setIsSaving(true);
-
         try {
             const response = await fetch(`/api/family?id=${id}`, {
                 method: 'DELETE',
@@ -144,7 +124,7 @@ export default function Submodule1B() {
             }
 
             toast("Family member removed successfully", "success");
-            await fetchFamilyMembers(); // Refresh to sync UI
+            await fetchFamilyMembers();
         } catch (error) {
             console.error("Delete failed:", error);
             toast(error instanceof Error ? error.message : "Failed to delete member", "error");
@@ -153,13 +133,48 @@ export default function Submodule1B() {
         }
     };
 
-    /**
-     * SEAL MANDAL: Final sync and proceed
-     */
+    // ✅ Added handleEditMember — required by FamilyTreeProps
+    const handleEditMember = async (id: string, memberData: Omit<FamilyMember, "id">) => {
+        setIsSaving(true);
+        try {
+            const payload = {
+                name: memberData.name,
+                relation: memberData.relationship,
+                dob: memberData.dob,
+                isDependent: memberData.dependent,
+                nomineeEligible: memberData.nomineeEligible,
+                accessLevel: memberData.accessRole === "Executor" ? "write" :
+                            memberData.accessRole === "Viewer" ? "read" :
+                            memberData.accessRole === "Emergency-only" ? "emergency" : "read",
+                phone: memberData.phone || "",
+                email: memberData.email || "",
+            };
+
+            const response = await fetch(`/api/family?id=${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || "Failed to update member");
+            }
+
+            toast("Family member updated successfully", "success");
+            await fetchFamilyMembers();
+        } catch (error) {
+            console.error("Edit failed:", error);
+            toast(error instanceof Error ? error.message : "Failed to update member", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleSealMandal = async () => {
         setIsLoading(true);
         try {
-            await fetchFamilyMembers(); // Final safety sync
+            await fetchFamilyMembers();
             if (members.length > 0) {
                 setStep("win");
             } else {
@@ -196,7 +211,6 @@ export default function Submodule1B() {
             <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
 
             <div className="relative z-10">
-                {/* Header */}
                 <div className="flex items-center gap-3 pt-8 mb-6">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -253,10 +267,13 @@ export default function Submodule1B() {
                             exit={{ opacity: 0, scale: 1.05 }}
                             className="flex-1 flex flex-col pt-4 pb-20 justify-between"
                         >
+                            {/* ✅ Added onEditMember and isSaving props */}
                             <FamilyTreeGame
                                 members={members}
                                 onAddMember={handleAddMember}
                                 onRemoveMember={handleRemoveMember}
+                                onEditMember={handleEditMember}
+                                isSaving={isSaving}
                             />
 
                             <div className="pt-8">
