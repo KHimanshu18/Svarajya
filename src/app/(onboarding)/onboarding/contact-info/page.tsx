@@ -34,17 +34,64 @@ export default function ContactStep() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        // Load from local store immediately - no API call needed
-        const stored = OnboardingStore.get();
-        if (stored.mobile) {
-            setMobile(stored.mobile);
-            setEmail(stored.email || "");
-            setWhatsapp(stored.whatsappEnabled || false);
-            setOtpState('verified');
-            setUnlocked(true);
-            setIsReadOnly(true);
-        }
-        setIsLoading(false);
+        const fetchContactInfo = async () => {
+            setIsLoading(true);
+            try {
+                // First, check local store
+                const stored = OnboardingStore.get();
+
+                // Fetch from API
+                const response = await fetch('/api/profile', { cache: 'no-store' });
+                if (response.ok) {
+                    const json = await response.json();
+                    const profile = json?.data;
+
+                    const mobileValue = profile?.phone || stored.mobile || "";
+                    const emailValue = profile?.email || stored.email || "";
+                    const whatsappValue = profile?.whatsappEnabled ?? stored.whatsappEnabled ?? false;
+                    const isVerified = profile?.isMobileVerified === true;
+
+                    setMobile(mobileValue);
+                    setEmail(emailValue);
+                    setWhatsapp(whatsappValue);
+
+                    if (mobileValue && isVerified) {
+                        setOtpState('verified');
+                        setUnlocked(true);
+                        setIsReadOnly(true);
+                    } else if (mobileValue) {
+                        setOtpState('none');
+                    } else {
+                        setOtpState('none');
+                    }
+
+                    // Update local store
+                    OnboardingStore.set({
+                        mobile: mobileValue,
+                        email: emailValue,
+                        whatsappEnabled: whatsappValue,
+                    });
+                } else if (stored.mobile) {
+                    // Fallback to local store if API fails
+                    setMobile(stored.mobile);
+                    setEmail(stored.email || "");
+                    setWhatsapp(stored.whatsappEnabled || false);
+                    setOtpState('none');
+                }
+            } catch (error) {
+                console.error('Failed to fetch contact info:', error);
+                const stored = OnboardingStore.get();
+                if (stored.mobile) {
+                    setMobile(stored.mobile);
+                    setEmail(stored.email || "");
+                    setWhatsapp(stored.whatsappEnabled || false);
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchContactInfo();
     }, []);
 
     const handleSendOtp = async () => {
@@ -292,8 +339,7 @@ export default function ContactStep() {
                                 value={email}
                                 onChange={e => { setEmail(e.target.value.trim().toLowerCase()); setError(""); }}
                                 placeholder="yourname@email.com"
-                                className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-70"
-                                disabled
+                                className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors text-sm"
                             />
                         </div>
 
