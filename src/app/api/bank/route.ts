@@ -28,11 +28,7 @@ async function handleGET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const [accounts, income, expenses] = await Promise.all([
-      bankService.getForUser(authContext.userId),
-      incomeService.getForUser(authContext.userId),
-      expenseService.getForUser(authContext.userId, new Date(new Date().getFullYear(), 0, 1), new Date()),
-    ]);
+    const accounts = await bankService.getForUser(authContext.userId);
 
     const responses: BankAccountResponse[] = accounts.map((account) => ({
       id: account.id,
@@ -47,20 +43,14 @@ async function handleGET(request: NextRequest): Promise<NextResponse> {
       updatedAt: account.updatedAt.toISOString(),
     }));
 
-    // Calculate metrics
-    const totalBalance = accounts.reduce((sum, acc) => sum + acc.currentBalance || 0, 0);
+    const totalBalance = accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
     const activeCount = accounts.filter((acc) => acc.status === 'active').length;
-    const monthlyIncome = income.reduce((sum, inc) => sum + (inc.isPrimary ? inc.amount : 0), 0);
-    const monthlyExpense = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     return successResponse({
       accounts: responses,
       metrics: {
         totalBalance,
         activeCount,
-        monthlyIncome,
-        monthlyExpense,
-        surplus: monthlyIncome - monthlyExpense,
       },
     });
   } catch (error) {

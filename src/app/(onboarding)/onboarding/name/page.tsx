@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { useProfile } from "@/lib/hooks/useProfile";
 
 const ProgressBar = React.memo(function ProgressBar({ step }: { step: number }) {
     return (
@@ -31,27 +30,47 @@ export default function NameStep() {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
-    const { profile: profileData, isLoading: profileLoading } = useProfile();
-
     useEffect(() => {
-        if (authLoading || profileLoading) return;
+        let isMounted = true;
 
-        const authName = user?.user_metadata?.full_name || user?.user_metadata?.name;
-        const storeData = OnboardingStore.get();
-        const prismaName = profileData?.name || storeData.fullName;
-        const initialName = prismaName || authName || (user?.email?.split('@')[0] ?? '');
+        const loadName = async () => {
+            if (authLoading) return;
 
-        if (initialName) {
-            setName(initialName);
-        }
+            // Load from local store IMMEDIATELY
+            const storeData = OnboardingStore.get();
+            if (storeData.fullName) {
+                setName(storeData.fullName);
+                setIsLoading(false);
+                if (!isMounted) return;
+            }
 
-        if (prismaName) {
-            OnboardingStore.set({ fullName: prismaName }, { sync: false });
-        } else if (authName) {
-            OnboardingStore.set({ fullName: authName }, { sync: false });
-        }
-        setIsLoading(false);
-    }, [user, authLoading, profileData, profileLoading]);
+            // Set loading false immediately to show page
+            setIsLoading(false);
+
+            // Fetch from API in background to sync (non-blocking)
+            try {
+                const profileRes = await fetch('/api/profile');
+                if (!isMounted) return;
+
+                const authName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+                const profileJson = profileRes.ok ? await profileRes.json() : null;
+                const profileData = profileJson?.data;
+
+                const prismaName = profileData?.name || storeData.fullName;
+                const initialName = prismaName || authName || (user?.email?.split('@')[0] ?? '');
+
+                if (initialName && !storeData.fullName) {
+                    setName(initialName);
+                    OnboardingStore.set({ fullName: initialName }, { sync: false });
+                }
+            } catch (error) {
+                console.error('Failed to load name:', error);
+            }
+        };
+
+        loadName();
+        return () => { isMounted = false; };
+    }, [user, authLoading]);
 
     const handleContinue = useCallback(() => {
         const trimmed = name.trim();
@@ -61,6 +80,16 @@ export default function NameStep() {
         }
         setError("");
         OnboardingStore.set({ fullName: trimmed });
+
+        // Save to API in background (non-blocking)
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: trimmed })
+        }).catch(err => console.error('Failed to save name:', err));
+
         setPlaced(true);
         startTransition(() => {
             setTimeout(() => router.push("/onboarding/dob"), 1200);

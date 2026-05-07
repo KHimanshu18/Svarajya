@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { OnboardingStore, deriveLifePhase } from "@/lib/stores/onboardingStore";
-import { useProfile } from "@/lib/hooks/useProfile";
 
 function ProgressBar({ step }: { step: number }) {
     return (
@@ -19,27 +18,35 @@ function ProgressBar({ step }: { step: number }) {
 
 export default function DOBStep() {
     const router = useRouter();
-    const [dob, setDob] = useState(() => OnboardingStore.get().dob || "");
-    const [lifePhase, setLifePhase] = useState(() => OnboardingStore.get().lifePhase || "");
+    const [dob, setDob] = useState("");
+    const [lifePhase, setLifePhase] = useState("");
     const [error, setError] = useState("");
     const [placed, setPlaced] = useState(false);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    const { profile: profileData, isLoading: profileLoading } = useProfile();
-
     useEffect(() => {
-        if (profileLoading) return;
-
-        if (profileData?.dob) {
-            const dobValue = profileData.dob.split('T')[0];
-            setDob(dobValue);
-            setLifePhase(deriveLifePhase(dobValue));
-            setIsReadOnly(true);
-            OnboardingStore.set({ dob: dobValue, lifePhase: deriveLifePhase(dobValue) }, { sync: false });
-        }
-        setIsLoading(false);
-    }, [profileData, profileLoading]);
+        const fetchProfile = async () => {
+            try {
+                const response = await fetch('/api/profile');
+                if (!response.ok) return;
+                const json = await response.json();
+                const profile = json?.data;
+                if (profile?.dob) {
+                    const dobValue = profile.dob.split('T')[0];
+                    setDob(dobValue);
+                    setLifePhase(deriveLifePhase(dobValue));
+                    setIsReadOnly(true);
+                    OnboardingStore.set({ dob: dobValue, lifePhase: deriveLifePhase(dobValue) }, { sync: false });
+                }
+            } catch (error) {
+                console.error('Failed to load DOB from profile:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProfile();
+    }, []);
 
     const handleDobChange = (val: string) => {
         if (isReadOnly) return;
@@ -54,6 +61,14 @@ export default function DOBStep() {
         if (age < 18) { setError("This version supports users aged 18 and above."); return; }
         setError("");
         OnboardingStore.set({ dob, lifePhase });
+
+        // Save to API in background
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dob })
+        }).catch(err => console.error('Failed to save DOB:', err));
+
         setPlaced(true);
         setTimeout(() => router.push("/onboarding/status"), 1200);
     };
@@ -66,7 +81,7 @@ export default function DOBStep() {
                 <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
                 <div className="relative z-10 flex flex-col min-h-screen">
                     <div className="flex items-center gap-2 pt-10 mb-2">
-                        <div className="w-9 h-9 rounded-xl bg-white/6 animate-pulse" />
+                        <button className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 animate-pulse" />
                         <div className="h-3 w-24 bg-white/10 rounded animate-pulse" />
                     </div>
                     <div className="h-1 w-full bg-white/10 rounded-full mt-3 animate-pulse" />
@@ -91,7 +106,6 @@ export default function DOBStep() {
         <div className="flex flex-col min-h-screen p-6 relative">
             <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
             <div className="relative z-10 flex flex-col min-h-screen">
-                {/* Back + step */}
                 <div className="flex items-center gap-2 pt-10 mb-2">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -101,7 +115,6 @@ export default function DOBStep() {
                 <ProgressBar step={2} />
 
                 <div className="flex-1 flex flex-col justify-center space-y-8">
-                    {/* Foundation stone visual */}
                     <div className="flex justify-center">
                         <div className="relative">
                             <svg width="180" height="90" viewBox="0 0 180 90">

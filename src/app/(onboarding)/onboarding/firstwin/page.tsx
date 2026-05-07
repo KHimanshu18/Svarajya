@@ -9,7 +9,6 @@ import { createClient } from "@/lib/supabase/client";
 
 const LAST_LOGIN_KEY = "svarajya_last_login";
 
-// Only Savings and Family Security
 const PRIORITIES = [
     { id: "save", label: "Savings", icon: "🏦", desc: "Build a safety net and grow reserves" },
     { id: "protect", label: "Family Security", icon: "🛡️", desc: "Insurance, nominees, and legacy" },
@@ -22,6 +21,7 @@ function FirstWinContent() {
     const [priority, setPriority] = useState("");
     const [profileCompletion, setProfileCompletion] = useState(0);
     const [firstName, setFirstName] = useState("Ruler");
+    const [isLoading, setIsLoading] = useState(true);
     const [progressChecks, setProgressChecks] = useState([
         { label: "Name", done: false },
         { label: "Date of Birth", done: false },
@@ -40,6 +40,7 @@ function FirstWinContent() {
 
     useEffect(() => {
         const loadProfileCompletion = async () => {
+            setIsLoading(true);
             try {
                 const profileResponse = await fetch('/api/profile');
                 const profileJson = profileResponse.ok ? await profileResponse.json() : null;
@@ -53,7 +54,7 @@ function FirstWinContent() {
                     { label: "Date of Birth", done: !!profile?.dob },
                     { label: "Marital Status", done: !!profile?.maritalStatus },
                     { label: "Occupation", done: !!profile?.occupationType },
-                    { label: "Contact Info", done: !!profile?.mobile && profile?.isMobileVerified === true },
+                    { label: "Contact Info", done: !!(profile?.mobile && profile?.isMobileVerified === true) },
                 ];
 
                 setProgressChecks(checkData);
@@ -61,35 +62,30 @@ function FirstWinContent() {
                 setProfileCompletion(Math.round((completed / checkData.length) * 100));
             } catch (error) {
                 console.error('Failed to load progress data:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         loadProfileCompletion();
-
-        if (typeof window !== 'undefined') {
-            const onFocus = () => loadProfileCompletion();
-            window.addEventListener('focus', onFocus);
-            return () => window.removeEventListener('focus', onFocus);
-        }
     }, []);
 
     const handleGoToDashboard = async () => {
         if (priority) OnboardingStore.set({ priority });
         localStorage.setItem(LAST_LOGIN_KEY, new Date().toISOString());
+
         try {
             const supabase = createClient();
             await supabase.auth.updateUser({ data: { onboarding_completed: true } });
-            const res = await fetch("/api/profile", {
+            await fetch("/api/profile", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isFirstLogin: false })
             });
-            if (!res.ok) {
-                console.error("Failed to update first login status:", await res.text());
-            }
         } catch (e) {
             console.error("Error finalizing onboarding:", e);
         }
+
         router.push("/rajya");
     };
 
@@ -105,6 +101,20 @@ function FirstWinContent() {
         </div>
     ));
 
+    if (isLoading) {
+        return (
+            <div className="flex flex-col min-h-screen p-6 relative">
+                <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
+                <div className="relative z-10 flex items-center justify-center min-h-screen">
+                    <div className="text-amber-400 text-center">
+                        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-white/60 text-sm">Loading your Rajya...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (isReturning) {
         return (
             <div className="flex flex-col min-h-screen p-6 relative">
@@ -115,7 +125,7 @@ function FirstWinContent() {
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
                         className="w-24 h-24 rounded-full bg-amber-400/15 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.3)] mb-6"
                     >
                         <Crown className="w-12 h-12 text-amber-400" />
@@ -124,7 +134,7 @@ function FirstWinContent() {
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
+                        transition={{ delay: 0.2 }}
                         className="text-center space-y-2 mb-8"
                     >
                         <p className="text-xs text-amber-400/70 uppercase tracking-widest">Welcome Back</p>
@@ -142,7 +152,7 @@ function FirstWinContent() {
                     <motion.button
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
+                        transition={{ delay: 0.4 }}
                         onClick={handleGoToDashboard}
                         className="w-full max-w-xs bg-amber-400 text-black font-bold py-4 rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-amber-300 transition-colors"
                     >
@@ -163,7 +173,7 @@ function FirstWinContent() {
                     <motion.div
                         initial={{ scale: 0, rotate: -20 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 14, delay: 0.2 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 14, delay: 0.1 }}
                         className="relative"
                     >
                         <div className="w-24 h-24 rounded-full bg-amber-400/15 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.3)]">
@@ -175,7 +185,7 @@ function FirstWinContent() {
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
+                        transition={{ delay: 0.2 }}
                         className="text-center space-y-1"
                     >
                         <p className="text-xs text-amber-400/70 uppercase tracking-widest">Foundation Badge</p>
@@ -185,7 +195,7 @@ function FirstWinContent() {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.7 }}
+                        transition={{ delay: 0.3 }}
                         className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-center"
                     >
                         <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Rajya Strength</p>
@@ -194,7 +204,7 @@ function FirstWinContent() {
                                 className="h-full bg-amber-400 rounded-full"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${profileCompletion}%` }}
-                                transition={{ delay: 0.8, duration: 1.2, ease: "easeOut" }}
+                                transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
                             />
                         </div>
                         <p className="text-amber-400 font-bold text-lg">{profileCompletion}%</p>
@@ -205,7 +215,7 @@ function FirstWinContent() {
                 <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.2 }}
+                    transition={{ delay: 0.5 }}
                     className="mt-6 flex-1 flex flex-col justify-center"
                 >
                     <p className="text-sm text-white/60 text-center mb-4">Next: choose your first priority.</p>
@@ -227,7 +237,7 @@ function FirstWinContent() {
                 <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.5 }}
+                    transition={{ delay: 0.6 }}
                     className="pb-6"
                 >
                     <button
@@ -238,17 +248,8 @@ function FirstWinContent() {
                     </button>
                 </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.8 }}
-                    className="space-y-3 hidden"
-                >
-                    {progressRows}
-                </motion.div>
-
                 {firstName && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.1 }} className="text-center text-white/35 text-xs pb-6">
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="text-center text-white/35 text-xs pb-6">
                         Welcome to Sva-Rajya, {firstName}. Tap a priority above to enter your Rajya.
                     </motion.p>
                 )}

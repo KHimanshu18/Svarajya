@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
-import { useProfile } from "@/lib/hooks/useProfile";
 
 const OCCUPATIONS = ["Salaried", "Business", "Freelancer", "Student", "Homemaker", "Retired", "Other"];
 
@@ -21,34 +20,45 @@ function ProgressBar({ step }: { step: number }) {
 
 export default function OccupationStep() {
     const router = useRouter();
-    const stored = OnboardingStore.get();
-    const [selected, setSelected] = useState(() => stored.occupationType || "");
-    const [otherText, setOtherText] = useState(() => stored.occupationOther || "");
+    const [selected, setSelected] = useState("");
+    const [otherText, setOtherText] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch existing user data from database
-    const { profile: profileData, isLoading: profileLoading } = useProfile();
-
     useEffect(() => {
-        if (profileLoading) return;
-
-        if (profileData?.occupationType) {
-            setSelected(profileData.occupationType);
-            setOtherText(profileData.occupationOther || "");
-            OnboardingStore.set({ 
-                occupationType: profileData.occupationType, 
-                occupationOther: profileData.occupationOther || "" 
-            }, { sync: false });
+        // Load from local store immediately - no API call needed
+        const stored = OnboardingStore.get();
+        if (stored.occupationType) {
+            setSelected(stored.occupationType);
+            setOtherText(stored.occupationOther || "");
         }
         setIsLoading(false);
-    }, [profileData, profileLoading]);
+    }, []);
 
     const handleContinue = () => {
-        if (!selected) { setError("Please choose one option."); return; }
-        if (selected === "Other" && !otherText.trim()) { setError("Please describe your occupation."); return; }
+        if (!selected) {
+            setError("Please choose one option.");
+            return;
+        }
+        if (selected === "Other" && !otherText.trim()) {
+            setError("Please describe your occupation.");
+            return;
+        }
         setError("");
+
+        // Save to local store immediately
         OnboardingStore.set({ occupationType: selected, occupationOther: otherText.trim() });
+
+        // Save to API in background (non-blocking)
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                occupationType: selected,
+                occupationOther: otherText.trim()
+            })
+        }).catch(err => console.error('Failed to save occupation:', err));
+
         router.push("/onboarding/contact-info");
     };
 
@@ -126,8 +136,8 @@ export default function OccupationStep() {
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => { setSelected(opt); setError(""); }}
                                     className={`px-4 py-2.5 rounded-full border text-sm transition-all ${selected === opt
-                                            ? "bg-amber-400/15 border-amber-400 text-amber-400"
-                                            : "bg-white/5 border-white/10 text-white/55 hover:border-white/30"
+                                        ? "bg-amber-400/15 border-amber-400 text-amber-400"
+                                        : "bg-white/5 border-white/10 text-white/55 hover:border-white/30"
                                         }`}
                                 >
                                     {opt}
@@ -140,7 +150,7 @@ export default function OccupationStep() {
                                 initial={{ opacity: 0, y: 6 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 type="text"
-                                placeholder="Tell us in 2â€“3 words"
+                                placeholder="Tell us in 2–3 words"
                                 value={otherText}
                                 onChange={e => setOtherText(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 text-sm"

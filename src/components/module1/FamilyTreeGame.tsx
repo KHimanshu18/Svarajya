@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, User as UserIcon, ShieldAlert } from "lucide-react";
+import { Plus, X, User as UserIcon, ShieldAlert, Pencil } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 
 export type FamilyMember = {
@@ -21,6 +21,7 @@ interface FamilyTreeProps {
     members: FamilyMember[];
     onAddMember: (member: Omit<FamilyMember, "id">) => void;
     onRemoveMember: (id: string) => void;
+    onEditMember: (id: string, member: Omit<FamilyMember, "id">) => void;
     isSaving?: boolean;
 }
 
@@ -33,8 +34,10 @@ const RELATION_OPTIONS = [
 ];
 const ROLE_OPTIONS = ["Viewer", "Executor", "Emergency-only", "None"];
 
-export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAddMember, onRemoveMember, isSaving }: FamilyTreeProps) {
+export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAddMember, onRemoveMember, onEditMember, isSaving }: FamilyTreeProps) {
     const [isAdding, setIsAdding] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState("");
     const [mobileError, setMobileError] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -74,6 +77,25 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
         }
     }, [formData.email]);
 
+    const handleStartEdit = useCallback((member: FamilyMember) => {
+        setFormData({
+            name: member.name,
+            relationship: member.relationship,
+            dob: member.dob,
+            phone: member.phone || "",
+            email: member.email || "",
+            dependent: member.dependent,
+            nomineeEligible: member.nomineeEligible,
+            accessRole: member.accessRole
+        });
+        setEditingMemberId(member.id);
+        setIsEditing(true);
+        setIsAdding(false);
+        setErrorMsg("");
+        setMobileError("");
+        setEmailError("");
+    }, []);
+
     const handleSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
 
@@ -81,6 +103,14 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             setErrorMsg("Name and Janma Tithi (DOB) are required to forge a link.");
             return;
         }
+
+        // Year validation: only 4-digit years between 1900 and current year
+        const yearPart = formData.dob.split('-')[0];
+        if (yearPart.length !== 4) {
+            setErrorMsg("Year must be exactly 4 digits.");
+            return;
+        }
+        const targetBirthYear = parseInt(yearPart);
 
         // Mobile validation if provided
         if (formData.phone && formData.phone.length !== 10) {
@@ -95,7 +125,11 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
         }
 
         // Duplicate detection
-        const isDuplicate = members.some(m => m.name.toLowerCase() === formData.name.toLowerCase() && m.dob === formData.dob);
+        const isDuplicate = members.some(m => 
+            (isEditing ? m.id !== editingMemberId : true) &&
+            m.name.toLowerCase() === formData.name.toLowerCase() && 
+            m.dob === formData.dob
+        );
         if (isDuplicate) {
             setErrorMsg("This person already exists in your Mandal.");
             return;
@@ -103,12 +137,13 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
         // Age/Date validations
         const currentYear = new Date().getFullYear();
-        const targetDate = new Date(formData.dob);
-        const targetBirthYear = targetDate.getFullYear();
 
-        // Year validation - must be 4 digits
-        if (targetBirthYear < 1900 || targetBirthYear > currentYear) {
-            setErrorMsg("Please enter a valid year (4 digits, between 1900 and current year)");
+        if (targetBirthYear > currentYear) {
+            setErrorMsg("Birth year cannot be in the future.");
+            return;
+        }
+        if (targetBirthYear < 1900) {
+            setErrorMsg("Birth year seems invalid (minimum 1900).");
             return;
         }
 
@@ -134,13 +169,22 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             }
         }
 
-        onAddMember({ ...formData, phone: formData.phone || undefined, email: formData.email || undefined });
+        const memberData = { ...formData, phone: formData.phone || undefined, email: formData.email || undefined };
+
+        if (isEditing && editingMemberId) {
+            onEditMember(editingMemberId, memberData);
+        } else {
+            onAddMember(memberData);
+        }
+
         setFormData({ name: "", relationship: "Spouse (Dampati)", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
         setIsAdding(false);
+        setIsEditing(false);
+        setEditingMemberId(null);
         setErrorMsg("");
         setMobileError("");
         setEmailError("");
-    }, [formData, members, onAddMember]);
+    }, [formData, members, onAddMember, onEditMember, isEditing, editingMemberId]);
 
     useLayoutEffect(() => {
         // Clear refs for members no longer present to avoid drawing to stale DOM elements
@@ -249,12 +293,22 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                 className="relative bg-[var(--color-rajya-card)] border border-[var(--color-rajya-accent-dim)] rounded-xl p-4 w-full shadow-lg group"
                                 ref={(el: HTMLDivElement | null) => { memberRefs.current[m.id] = el }}
                             >
-                                <button
-                                    onClick={() => onRemoveMember(m.id)}
-                                    className="absolute -top-2 -right-2 bg-[var(--color-rajya-danger)] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                >
-                                    <X className="w-3 h-3" />
-                                </button>
+                                <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => handleStartEdit(m)}
+                                        className="bg-[var(--color-rajya-accent)] text-black rounded-full p-1.5 shadow-md hover:scale-110 transition-transform"
+                                        title="Edit member"
+                                    >
+                                        <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                        onClick={() => onRemoveMember(m.id)}
+                                        className="bg-[var(--color-rajya-danger)] text-white rounded-full p-1.5 shadow-md hover:scale-110 transition-transform"
+                                        title="Remove member"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
                                 <div className="text-center">
                                     <h4 className="font-display font-bold text-[var(--color-rajya-text)] truncate">{m.name}</h4>
                                     <p className="text-[10px] text-[var(--color-rajya-accent)] uppercase tracking-wider mt-1">{m.relationship}</p>
@@ -287,13 +341,17 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                 </svg>
             </div>
 
-            {/* Add Member Flow */}
+            {/* Add/Edit Member Flow */}
             <AnimatePresence mode="wait">
-                {!isAdding ? (
+                {(!isAdding && !isEditing) ? (
                     <motion.div key="add-btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         {members.length < 5 && (
                             <button
-                                onClick={() => setIsAdding(true)}
+                                onClick={() => {
+                                    setIsAdding(true);
+                                    setIsEditing(false);
+                                    setFormData({ name: "", relationship: "Spouse (Dampati)", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
+                                }}
                                 className="w-full border border-dashed border-[var(--color-rajya-accent-dim)] hover:border-[var(--color-rajya-accent)] text-[var(--color-rajya-muted)] hover:text-[var(--color-rajya-accent)] py-4 rounded-2xl flex items-center justify-center gap-2 transition-all transition-colors group bg-white/5"
                             >
                                 <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -308,7 +366,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                     </motion.div>
                 ) : (
                     <motion.div
-                        key="add-form"
+                        key="form"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -316,8 +374,10 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                     >
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[var(--color-rajya-accent)] font-medium">Add to Mandal</h3>
-                                <button type="button" onClick={() => setIsAdding(false)} className="text-[var(--color-rajya-muted)] hover:text-white"><X className="w-5 h-5" /></button>
+                                <h3 className="text-[var(--color-rajya-accent)] font-medium">
+                                    {isEditing ? `Edit ${formData.name}` : "Add to Mandal"}
+                                </h3>
+                                <button type="button" onClick={() => { setIsAdding(false); setIsEditing(false); setEditingMemberId(null); }} className="text-[var(--color-rajya-muted)] hover:text-white"><X className="w-5 h-5" /></button>
                             </div>
 
                             <input type="text" placeholder="Full Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" />
@@ -328,7 +388,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                     value={formData.dob} 
                                     onChange={e => setFormData({ ...formData, dob: e.target.value })} 
                                     inputMode="numeric"
-                                    pattern="[0-9]*"
+                                    pattern="[0-9]{4}"
                                     className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" 
                                 />
                                 <select value={formData.relationship} onChange={e => setFormData({ ...formData, relationship: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]">
@@ -385,7 +445,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                 className="w-full bg-[var(--color-rajya-accent)]/10 text-[var(--color-rajya-accent)] border border-[var(--color-rajya-accent)]/50 py-3 rounded-xl font-medium mt-2 hover:bg-[var(--color-rajya-accent)] hover:text-black transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isSaving && <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />}
-                                Link to Profile
+                                {isEditing ? "Update Link" : "Link to Profile"}
                             </button>
                         </form>
                     </motion.div>

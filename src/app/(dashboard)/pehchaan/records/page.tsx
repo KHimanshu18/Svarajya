@@ -8,9 +8,6 @@ import { SealStrengthRing } from "@/components/identity/SealStrengthRing";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { PageGuide } from "@/components/ui/PageGuide";
 import { motion } from "framer-motion";
-import useSWR from 'swr';
-import { fetcher } from '@/lib/utils/fetcher';
-import { useToast } from "@/components/providers/ToastProvider";
 
 const DOC_META: Record<DocType, { label: string; icon: React.ReactNode }> = {
     aadhaar: { label: "Aadhaar", icon: <CreditCard className="w-5 h-5" /> },
@@ -35,26 +32,37 @@ export default function IdentityHub() {
     const confidence = IdentityStore.getConfidence();
     const level = IdentityStore.getLevel();
     const [now] = useState(() => Date.now());
+
     const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
     const [dbDocuments, setDbDocuments] = useState<any[]>([]);
-    const toast = useToast();
 
-    const { data: statusData } = useSWR('/api/auth/google-status', fetcher);
-    const { data: identityResponse, mutate: mutateDocuments } = useSWR('/api/identity', fetcher);
-
-    useEffect(() => {
-        if (statusData) {
-            setIsGoogleLinked(statusData.linked);
+    const fetchGoogleStatus = async () => {
+        try {
+            const res = await fetch('/api/auth/google-status');
+            if (res.ok) {
+                const data = await res.json();
+                setIsGoogleLinked(data.linked);
+            }
+        } catch (e) {
+            console.error("Failed to fetch Google status:", e);
         }
-    }, [statusData]);
+    };
 
-    useEffect(() => {
-        if (identityResponse) {
-            setDbDocuments(identityResponse.data || []);
+    const fetchDocuments = async () => {
+        try {
+            const response = await fetch('/api/identity');
+            if (response.ok) {
+                const data = await response.json();
+                setDbDocuments(data.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch documents:', error);
         }
-    }, [identityResponse]);
-
+    };
     useEffect(() => {
+        fetchDocuments();
+        fetchGoogleStatus();
+
         // Check for success/error in URL
         const searchParams = new URLSearchParams(window.location.search);
         if (searchParams.get('success') === 'Google_Linked') {
@@ -65,16 +73,16 @@ export default function IdentityHub() {
         }
     }, []);
 
-    // Refetch documents when page becomes visible
+    // Refetch documents when page becomes visible (e.g., returning from add page or tab switch)
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                mutateDocuments();
+                fetchDocuments();
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [mutateDocuments]);
+    }, []);
 
     // Map DB documents to display format
     const displayDocs = dbDocuments.map(d => ({

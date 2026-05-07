@@ -1001,7 +1001,6 @@ model Education {
   familyMember    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
 
   @@index([userId])
-  @@index([familyMemberId])
   @@map("education")
 }
 
@@ -1360,7 +1359,6 @@ model NomineeMapping {
 
   @@index([userId])
   @@index([assetType])
-  @@index([nomineeId])
   @@map("nominee_mapping")
 }
 

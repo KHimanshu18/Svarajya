@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
-import { useProfile } from "@/lib/hooks/useProfile";
 
 const OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
 
@@ -21,23 +20,19 @@ function ProgressBar({ step }: { step: number }) {
 
 export default function StatusStep() {
     const router = useRouter();
-    const stored = OnboardingStore.get();
-    const [selected, setSelected] = useState(() => stored.maritalStatus || "");
+    const [selected, setSelected] = useState("");
     const [placed, setPlaced] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
-    const { profile: profileData, isLoading: profileLoading } = useProfile();
-
     useEffect(() => {
-        if (profileLoading) return;
-
-        if (profileData?.maritalStatus) {
-            setSelected(profileData.maritalStatus);
-            OnboardingStore.set({ maritalStatus: profileData.maritalStatus }, { sync: false });
+        // Load from local store immediately - no API call needed
+        const storedStatus = OnboardingStore.get().maritalStatus;
+        if (storedStatus) {
+            setSelected(storedStatus);
         }
         setIsLoading(false);
-    }, [profileData, profileLoading]);
+    }, []);
 
     const handleContinue = () => {
         if (!selected) {
@@ -45,7 +40,16 @@ export default function StatusStep() {
             return;
         }
 
+        // Save to local store immediately
         OnboardingStore.set({ maritalStatus: selected });
+
+        // Save to API in background (non-blocking)
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ maritalStatus: selected })
+        }).catch(err => console.error('Failed to save status:', err));
+
         setPlaced(true);
         setTimeout(() => router.push("/onboarding/occupation"), 800);
     };

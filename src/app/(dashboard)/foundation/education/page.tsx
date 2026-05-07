@@ -9,8 +9,6 @@ import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlacehold
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { Vault } from "@/lib/vault";
 import { useToast } from "@/components/providers/ToastProvider";
-import useSWR from 'swr';
-import { fetcher } from '@/lib/utils/fetcher';
 
 interface FamilyMemberOption {
     id: string;
@@ -28,7 +26,7 @@ interface EducationEntry {
     hasLoan: boolean;
     certificateId?: string;
     familyMemberId?: string;
-    personName?: string; // Display name for the person
+    personName?: string;
 }
 
 const DEGREE_OPTIONS = [
@@ -48,32 +46,36 @@ export default function EducationPage() {
     const [year, setYear] = useState("");
     const [specialization, setSpecialization] = useState("");
     const [hasLoan, setHasLoan] = useState(false);
-    const [selectedPerson, setSelectedPerson] = useState(""); // "" = self, otherwise familyMemberId
+    const [selectedPerson, setSelectedPerson] = useState("");
     const [familyMembers, setFamilyMembers] = useState<FamilyMemberOption[]>([]);
-    const [uploadedCerts, setUploadedCerts] = useState<Record<string, string>>({}); // Mapping of entry index/id to certificate URL
+    const [uploadedCerts, setUploadedCerts] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null); // Stores ID of entry being deleted
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [yearError, setYearError] = useState("");
     const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
     const toast = useToast();
 
-    const { data: statusData } = useSWR('/api/auth/google-status', fetcher);
-    const { data: profileResponse, error: profileError, isLoading: profileLoading } = useSWR('/api/profile', fetcher);
-
     useEffect(() => {
-        if (statusData) {
-            setIsGoogleLinked(statusData.linked);
-        }
-    }, [statusData]);
+        const fetchEducation = async () => {
+            setIsLoading(true);
+            try {
+                const [statusRes, familyRes, eduRes] = await Promise.all([
+                    fetch('/api/auth/google-status'),
+                    fetch('/api/family'),
+                    fetch('/api/education')
+                ]);
 
-    useEffect(() => {
-        if (profileResponse) {
-            const profileData = profileResponse.data;
-            if (profileData) {
-                // Load family members for the person selector
-                if (profileData.familyMembers && profileData.familyMembers.length > 0) {
-                    setFamilyMembers(profileData.familyMembers.map((fm: any) => ({
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    setIsGoogleLinked(statusData.linked);
+                }
+
+                let familyData = [];
+                if (familyRes.ok) {
+                    const familyJson = await familyRes.json();
+                    familyData = familyJson?.data || [];
+                    setFamilyMembers(familyData.map((fm: any) => ({
                         id: fm.id,
                         name: fm.name,
                         relation: fm.relation || fm.relationship || "",
@@ -81,41 +83,46 @@ export default function EducationPage() {
                     })));
                 }
 
-                if (profileData.education && profileData.education.length > 0) {
-                    const loadedEntries = profileData.education.map((edu: any) => {
-                        // Resolve person name
-                        let personName = "Self (Adhipati)";
-                        if (edu.familyMemberId && profileData.familyMembers) {
-                            const member = profileData.familyMembers.find((fm: any) => fm.id === edu.familyMemberId);
-                            if (member) personName = `${member.name} (${member.relation || member.relationship || 'Family'})`;
-                        }
-                        return {
-                            id: edu.id,
-                            degree: edu.degree || "",
-                            institution: edu.institute || edu.institution || "",
-                            year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
-                            specialization: edu.specialization || "",
-                            hasLoan: !!edu.linkedLoanId,
-                            certificateId: edu.certificateUrl || undefined,
-                            familyMemberId: edu.familyMemberId || undefined,
-                            personName,
-                        };
-                    });
-                    setEntries(loadedEntries);
-                    setShowForm(false);
+                if (eduRes.ok) {
+                    const eduJson = await eduRes.json();
+                    const educationData = eduJson?.data;
+
+                    if (educationData && educationData.length > 0) {
+                        const loadedEntries = educationData.map((edu: any) => {
+                            let personName = "Self (Adhipati)";
+                            if (edu.familyMemberId && familyData.length > 0) {
+                                const member = familyData.find((fm: any) => fm.id === edu.familyMemberId);
+                                if (member) personName = `${member.name} (${member.relation || 'Family'})`;
+                            }
+                            return {
+                                id: edu.id,
+                                degree: edu.degree || "",
+                                institution: edu.institute || "",
+                                year: edu.yearCompleted ? edu.yearCompleted.toString() : "",
+                                specialization: edu.specialization || "",
+                                hasLoan: !!edu.linkedLoanId,
+                                certificateId: edu.certificateUrl || undefined,
+                                familyMemberId: edu.familyMemberId || undefined,
+                                personName,
+                            };
+                        });
+                        setEntries(loadedEntries);
+                        setShowForm(false);
+                    } else {
+                        setShowForm(true);
+                    }
                 } else {
                     setShowForm(true);
                 }
-            } else {
+            } catch (error) {
+                console.error("Failed to load education:", error);
                 setShowForm(true);
+            } finally {
+                setIsLoading(false);
             }
-            setIsLoading(false);
-        } else if (profileError) {
-            console.error("Failed to load education:", profileError);
-            setShowForm(true);
-            setIsLoading(false);
-        }
-    }, [profileResponse, profileError]);
+        };
+        fetchEducation();
+    }, []);
 
     const handleYearChange = (val: string) => {
         setYear(val);
@@ -126,13 +133,12 @@ export default function EducationPage() {
         if (year) {
             const certYear = parseInt(year);
             const currentYear = new Date().getFullYear();
-            
+
             if (isNaN(certYear) || certYear < 1900) {
                 setYearError("Please enter a valid year (1900 or later)");
             } else if (certYear > currentYear) {
                 setYearError("Passing year cannot be in the future");
             } else {
-                // Check against DOB + 15
                 let personDob = null;
                 if (!selectedPerson || selectedPerson === "self") {
                     personDob = OnboardingStore.get().dob;
@@ -164,7 +170,6 @@ export default function EducationPage() {
                 toast("Passing year cannot be in the future", "error");
                 return;
             }
-            // Get the selected person's DOB
             let personDob = null;
             if (!selectedPerson || selectedPerson === "self") {
                 personDob = OnboardingStore.get().dob;
@@ -184,20 +189,53 @@ export default function EducationPage() {
             }
         }
 
+        // Optimistic add - add to UI immediately
+        const tempId = `temp-${Date.now()}`;
+        let personName = "Self (Adhipati)";
+        if (selectedPerson) {
+            const member = familyMembers.find(fm => fm.id === selectedPerson);
+            if (member) personName = `${member.name} (${member.relation})`;
+        }
+
+        const formData = {
+            degree,
+            institution,
+            year,
+            specialization,
+            hasLoan,
+            certificateId: uploadedCerts["new"],
+            familyMemberId: selectedPerson || undefined,
+        };
+
+        const tempEntry: EducationEntry = {
+            id: tempId,
+            ...formData,
+            personName,
+        };
+        setEntries([...entries, tempEntry]);
+
+        // Reset form
+        setDegree("");
+        setInstitution("");
+        setYear("");
+        setSpecialization("");
+        setHasLoan(false);
+        setSelectedPerson("");
+        setUploadedCerts(prev => {
+            const next = { ...prev };
+            delete next["new"];
+            return next;
+        });
+        setYearError("");
+        setShowForm(false);
+
+        // Save in background
         setIsSaving(true);
         try {
             const response = await fetch('/api/education', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    degree,
-                    institution,
-                    year,
-                    specialization,
-                    hasLoan,
-                    certificateId: uploadedCerts["new"],
-                    familyMemberId: selectedPerson || undefined,
-                }),
+                body: JSON.stringify(formData),
             });
 
             if (!response.ok) {
@@ -207,43 +245,16 @@ export default function EducationPage() {
             const result = await response.json();
             const savedRecord = result.data;
 
-            // Resolve person name for display
-            let personName = "Self (Adhipati)";
-            if (selectedPerson) {
-                const member = familyMembers.find(fm => fm.id === selectedPerson);
-                if (member) personName = `${member.name} (${member.relation})`;
-            }
+            // Replace temp ID with real ID
+            setEntries(prev => prev.map(e =>
+                e.id === tempId ? { ...e, id: savedRecord.id } : e
+            ));
 
-            const entry: EducationEntry = {
-                id: savedRecord.id,
-                degree,
-                institution,
-                year,
-                specialization,
-                hasLoan,
-                certificateId: uploadedCerts["new"],
-                familyMemberId: selectedPerson || undefined,
-                personName,
-            };
-            setEntries([...entries, entry]);
-
-            // Reset form
-            setDegree("");
-            setInstitution("");
-            setYear("");
-            setSpecialization("");
-            setHasLoan(false);
-            setSelectedPerson("");
-            setUploadedCerts(prev => {
-                const next = { ...prev };
-                delete next["new"];
-                return next;
-            });
-            setYearError("");
-            setShowForm(false);
             toast("Qualification saved successfully", "success");
         } catch (error) {
             console.error("Save error:", error);
+            // Remove temp entry on error
+            setEntries(prev => prev.filter(e => e.id !== tempId));
             toast("Failed to save qualification. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -251,12 +262,16 @@ export default function EducationPage() {
     };
 
     const handleDeleteEntry = async (id: string | undefined, index: number) => {
-        // If no database ID, it's a local entry not yet saved
         if (!id || id.startsWith('local-')) {
             setEntries(entries.filter((_, i) => i !== index));
             setIsDeleting(null);
             return;
         }
+
+        // Optimistic delete - remove from UI immediately
+        const deletedEntry = entries[index];
+        setEntries(entries.filter((_, i) => i !== index));
+        setIsDeleting(null);
 
         try {
             const response = await fetch(`/api/education/${id}`, {
@@ -264,22 +279,19 @@ export default function EducationPage() {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Failed to delete");
+                // Restore on error
+                setEntries(prev => [...prev, deletedEntry]);
+                throw new Error("Failed to delete");
             }
 
-            setEntries(entries.filter((_, i) => i !== index));
             toast("Qualification removed successfully.", "success");
         } catch (error) {
             console.error("Delete error:", error);
             toast("Failed to delete qualification. Please try again.", "error");
-        } finally {
-            setIsDeleting(null);
         }
     };
 
     const handleViewCert = async (certId: string) => {
-        // Handle Google Drive file IDs (alphanumeric, no http, usually ~33 chars)
         if (!certId.startsWith('http') && certId.length > 20 && !certId.startsWith('opfs')) {
             toast("Fetching from Google Drive...", "success");
             try {
@@ -311,7 +323,7 @@ export default function EducationPage() {
             toast("Please add at least one qualification", "error");
             return;
         }
-        
+
         toast("Education section completed successfully", "success");
         router.push("/rajya");
     };
@@ -334,7 +346,6 @@ export default function EducationPage() {
 
     return (
         <div className="flex flex-col min-h-screen relative p-6 pb-24">
-            {/* Header */}
             <div className="flex items-center gap-3 pt-8 mb-4">
                 <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                     <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -345,24 +356,21 @@ export default function EducationPage() {
                 </div>
             </div>
 
-            {/* YouTube Tutorial */}
             <div className="mb-4">
                 <VideoTutorialPlaceholder youtubeId="KNWL0uda_OA" label="Why education matters for your financial profile" />
             </div>
 
-            {/* Guide */}
             <div className="bg-[var(--color-rajya-accent)]/8 border border-[var(--color-rajya-accent)]/20 rounded-xl p-3 mb-5">
                 <p className="text-xs text-[var(--color-rajya-muted)]">
                     💡 Your education determines earning potential and links to any student loans. Add each degree separately — you can upload certificates too.
                 </p>
             </div>
 
-            {/* Existing entries */}
             {entries.length > 0 && (
                 <div className="space-y-3 mb-5">
                     <p className="text-[10px] text-white/30 uppercase tracking-wider">Your Qualifications ({entries.length})</p>
                     {entries.map((e, i) => (
-                        <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 relative group">
+                        <div key={e.id || i} className="bg-white/5 border border-white/10 rounded-xl p-4 relative group">
                             <button
                                 onClick={() => setIsDeleting(e.id || `local-${i}`)}
                                 className="absolute top-3 right-3 text-white/30 hover:text-red-400 transition-colors"
@@ -405,7 +413,6 @@ export default function EducationPage() {
                 </div>
             )}
 
-            {/* Add form */}
             <AnimatePresence mode="wait">
                 {showForm ? (
                     <motion.div
@@ -417,7 +424,6 @@ export default function EducationPage() {
                     >
                         <p className="text-xs text-white/40 uppercase tracking-wider">Add a Qualification</p>
 
-                        {/* Person selector */}
                         <div>
                             <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Certificate belongs to *</label>
                             <div className="relative">
@@ -440,7 +446,6 @@ export default function EducationPage() {
                             )}
                         </div>
 
-                        {/* Degree picker */}
                         <div>
                             <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Degree / Certificate *</label>
                             <select
@@ -453,7 +458,6 @@ export default function EducationPage() {
                             </select>
                         </div>
 
-                        {/* Institution */}
                         <div>
                             <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Institution / University *</label>
                             <input
@@ -465,7 +469,6 @@ export default function EducationPage() {
                             />
                         </div>
 
-                        {/* Year & Specialization */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Year</label>
@@ -490,7 +493,6 @@ export default function EducationPage() {
                             </div>
                         </div>
 
-                        {/* Education loan toggle */}
                         <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
                             <div>
                                 <p className="text-sm text-[var(--color-rajya-text)]">Education Loan?</p>
@@ -504,17 +506,16 @@ export default function EducationPage() {
                             </button>
                         </div>
 
-                        {/* Certificate upload */}
                         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
                             <h3 className="text-sm font-semibold text-white mb-2">Certificate Attachment</h3>
                             <p className="text-[10px] text-[var(--color-rajya-muted)] mb-4">Upload your degree/diploma certificate. Saved securely in your personal Google Drive.</p>
-                            
+
                             {isGoogleLinked === false ? (
                                 <div className="p-6 border-2 border-dashed border-blue-500/20 rounded-2xl bg-blue-500/5 text-center">
                                     <CloudOff className="w-8 h-8 text-blue-400 mx-auto mb-3" />
                                     <p className="text-sm text-white font-medium">Link Google Drive First</p>
                                     <p className="text-xs text-white/40 mt-1 mb-4">Education certificates are stored securely in your own Google Drive.</p>
-                                    <button 
+                                    <button
                                         onClick={() => window.location.href = '/api/auth/link-google'}
                                         className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
                                     >
@@ -531,7 +532,6 @@ export default function EducationPage() {
                             )}
                         </div>
 
-                        {/* Save entry */}
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={handleAddEntry}
@@ -557,7 +557,6 @@ export default function EducationPage() {
                         animate={{ opacity: 1 }}
                         className="space-y-3 mb-6"
                     >
-                        {/* Add another qualification */}
                         <button
                             onClick={() => setShowForm(true)}
                             className="w-full bg-white/5 border border-dashed border-white/20 rounded-xl p-4 flex items-center justify-center gap-2 text-sm text-[var(--color-rajya-muted)] hover:border-[var(--color-rajya-accent)]/40 transition-colors"
@@ -568,7 +567,6 @@ export default function EducationPage() {
                 )}
             </AnimatePresence>
 
-            {/* Loan alert */}
             {anyLoan && (
                 <div className="bg-[var(--color-rajya-danger)]/10 border border-[var(--color-rajya-danger)]/30 rounded-xl p-4 flex items-start gap-3 mb-5">
                     <ShieldAlert className="w-5 h-5 text-[var(--color-rajya-danger)] shrink-0 mt-0.5" />
@@ -581,7 +579,6 @@ export default function EducationPage() {
                 </div>
             )}
 
-            {/* Finish button */}
             {entries.length > 0 && !showForm && (
                 <button
                     onClick={handleFinish}
@@ -591,7 +588,6 @@ export default function EducationPage() {
                 </button>
             )}
 
-            {/* Delete Confirmation Modal */}
             <AnimatePresence>
                 {isDeleting && (
                     <motion.div

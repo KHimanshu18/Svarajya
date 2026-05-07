@@ -65,26 +65,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error }, { status: 400 });
     }
 
-    // CREATE USER IN PRISMA IMMEDIATELY (Reduces round-trips)
-    try {
-      const existingInPrisma = await prisma.user.findUnique({ where: { id: linkData.user.id } });
-      if (!existingInPrisma) {
-        await prisma.user.create({
-          data: {
-            id: linkData.user.id,
-            email: email.toLowerCase(),
-            name: name || '',
-            status: 'PENDING_VERIFICATION',
-            profileType: 'INDIVIDUAL_SALARIED',
-          }
-        });
-        console.log('[Signup] Created Prisma user in sync with Supabase signup:', linkData.user.id);
-      }
-    } catch (prismaErr) {
-      console.error('[Signup] Error creating Prisma user:', prismaErr);
-      // We don't fail the whole request if Prisma creation fails, but it's not ideal
-    }
-
     return NextResponse.json({ success: true, user: linkData.user });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

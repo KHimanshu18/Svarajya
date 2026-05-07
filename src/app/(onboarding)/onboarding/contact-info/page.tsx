@@ -7,8 +7,6 @@ import { MessageSquare, ArrowLeft } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { createClient } from "@/lib/supabase/client";
 import { validateControlledEmail, validateIndianMobile } from "@/lib/validators/contactValidator";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { useProfile } from "@/lib/hooks/useProfile";
 
 const MOCK_OTP = "1234";
 
@@ -24,10 +22,8 @@ function ProgressBar({ step }: { step: number }) {
 
 export default function ContactStep() {
     const router = useRouter();
-    const { user, isLoading: authLoading } = useAuth();
-    const { profile: profileData, isLoading: profileLoading } = useProfile();
-    const [mobile, setMobile] = useState(() => OnboardingStore.get().mobile || "");
-    const [email, setEmail] = useState(() => OnboardingStore.get().email || "");
+    const [mobile, setMobile] = useState("");
+    const [email, setEmail] = useState("");
     const [whatsapp, setWhatsapp] = useState(false);
     const [otpState, setOtpState] = useState<"none" | "sending" | "sent" | "verified">("none");
     const [otpInput, setOtpInput] = useState("");
@@ -37,33 +33,19 @@ export default function ContactStep() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Fetch existing user and auth data
     useEffect(() => {
-        if (authLoading || profileLoading) return;
-
-        const authEmail = user?.email || profileData?.email || "";
-        const profileMobile = profileData?.phone || "";
-        const profileWhatsapp = profileData?.whatsappEnabled ?? false;
-        const mobileVerified = profileData?.isMobileVerified ?? !!profileMobile;
-
-        setEmail(authEmail);
-        setWhatsapp(profileWhatsapp);
-        setMobile(profileMobile);
-
-        if (profileMobile && mobileVerified) {
+        // Load from local store immediately - no API call needed
+        const stored = OnboardingStore.get();
+        if (stored.mobile) {
+            setMobile(stored.mobile);
+            setEmail(stored.email || "");
+            setWhatsapp(stored.whatsappEnabled || false);
             setOtpState('verified');
             setUnlocked(true);
             setIsReadOnly(true);
         }
-
-        OnboardingStore.set({
-            email: authEmail,
-            mobile: profileMobile,
-            whatsappEnabled: profileWhatsapp,
-        }, { sync: false });
-        
         setIsLoading(false);
-    }, [user, authLoading, profileData, profileLoading]);
+    }, []);
 
     const handleSendOtp = async () => {
         const mobileResult = validateIndianMobile(mobile);
@@ -110,11 +92,24 @@ export default function ContactStep() {
         setOtpState("verified");
         setUnlocked(true);
         setIsReadOnly(true);
+
+        // Save to local store immediately
         OnboardingStore.set({
             mobile: mobileResult.normalized,
             email: normalizedEmail.normalized || "",
             whatsappEnabled: whatsapp,
         });
+
+        // Save to API in background (non-blocking)
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: mobileResult.normalized,
+                email: normalizedEmail.normalized || "",
+                whatsappEnabled: whatsapp
+            })
+        }).catch(err => console.error('Failed to save contact info:', err));
     };
 
     const handleSaveContinue = async () => {
@@ -124,13 +119,25 @@ export default function ContactStep() {
             const normalizedEmail = email.trim()
                 ? validateControlledEmail(email)
                 : { valid: true, normalized: "" };
-            
+
             OnboardingStore.set({
                 mobile: mobileResult.normalized,
                 email: normalizedEmail.normalized || "",
                 whatsappEnabled: whatsapp,
             });
-            
+
+            // Save to API in background
+            fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: mobileResult.normalized,
+                    email: normalizedEmail.normalized || "",
+                    whatsappEnabled: whatsapp,
+                    isFirstLogin: false
+                })
+            }).catch(err => console.error('Failed to save:', err));
+
             router.push("/onboarding/firstwin");
         } catch (error) {
             console.error('Error saving contact info:', error);

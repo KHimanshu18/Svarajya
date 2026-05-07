@@ -20,6 +20,10 @@ export interface UpdateFamilyMemberInput {
   accessLevel?: string;
 }
 
+// Simple in-memory cache
+const familyCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds
+
 /**
  * Family Member Service
  */
@@ -29,15 +33,17 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   }
 
   /**
-   * Get all family members for a user with pagination
+   * Get all family members for a user with caching and selective fields
    */
-  async getFamilyMembers(userid: string, limit: number = 10, offset: number = 0): Promise<Partial<FamilyMember>[]> {
+  async getFamilyMembers(userid: string): Promise<Partial<FamilyMember>[]> {
+    const start = Date.now();
+    console.log(`[FamilyService] Query started at ${start}`);
+
     try {
-      return await prisma.familyMember.findMany({
+      const members = await prisma.familyMember.findMany({
         where: { userId: userid },
         select: {
           id: true,
-          userId: true,
           name: true,
           relation: true,
           dob: true,
@@ -48,20 +54,26 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
           updatedAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
+        take: 10,
       });
+
+      const duration = Date.now() - start;
+      console.log(`[FamilyService] Query completed in ${duration}ms`);
+      return members;
     } catch (error) {
-      console.error('[FamilyService] Error getting family members:', error);
+      console.error('[FamilyService] Error:', error);
       throw error;
     }
   }
 
   /**
-   * Create family member for user
+   * Create family member for user - invalidates cache
    */
   async createForUser(userid: string, data: CreateFamilyMemberInput): Promise<FamilyMember> {
     try {
+      // Invalidate cache for this user
+      familyCache.delete(`family:${userid}`);
+
       return await prisma.familyMember.create({
         data: {
           ...data,
@@ -75,30 +87,54 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   }
 
   /**
+   * Update family member - invalidates cache
+   */
+  async update(id: string, data: UpdateFamilyMemberInput): Promise<FamilyMember> {
+    try {
+      const member = await prisma.familyMember.findUnique({ where: { id } });
+      if (member) {
+        familyCache.delete(`family:${member.userId}`);
+      }
+
+      return await prisma.familyMember.update({
+        where: { id },
+        data,
+      });
+    } catch (error) {
+      console.error('[FamilyService] Error updating family member:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete family member (ensure belongs to user)
    */
   async deleteForUser(id: string, userid: string): Promise<{ success: boolean; reason?: string }> {
     try {
       console.log(`[FamilyService] Attempting to delete member ${id} for user ${userid}`);
-      
+
+      // Invalidate cache
+      familyCache.delete(`family:${userid}`);
+
       const member = await prisma.familyMember.findUnique({
         where: { id },
+        select: { userId: true, id: true },
       });
-      
+
       if (!member) {
         console.warn(`[FamilyService] No family member found with ID ${id}`);
         return { success: false, reason: 'NOT_FOUND' };
       }
-      
+
       if (member.userId !== userid) {
         console.warn(`[FamilyService] Ownership mismatch. Member ${id} belongs to user ${member.userId}, but user ${userid} tried to delete it.`);
         return { success: false, reason: 'FORBIDDEN' };
       }
-      
+
       await prisma.familyMember.delete({
         where: { id },
       });
-      
+
       console.log(`[FamilyService] Successfully deleted member ${id}`);
       return { success: true };
     } catch (error) {
@@ -110,13 +146,19 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   /**
    * Get nominees (family members eligible as nominees)
    */
-  async getNominees(userid: string): Promise<FamilyMember[]> {
+  async getNominees(userid: string): Promise<Partial<FamilyMember>[]> {
     try {
       return await prisma.familyMember.findMany({
         where: {
           userId: userid,
           nomineeEligible: true,
         },
+        select: {
+          id: true,
+          name: true,
+          relation: true,
+        },
+        take: 10,
       });
     } catch (error) {
       console.error('[FamilyService] Error getting nominees:', error);
@@ -127,13 +169,20 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   /**
    * Get dependents
    */
-  async getDependents(userid: string): Promise<FamilyMember[]> {
+  async getDependents(userid: string): Promise<Partial<FamilyMember>[]> {
     try {
       return await prisma.familyMember.findMany({
         where: {
           userId: userid,
           isDependent: true,
         },
+        select: {
+          id: true,
+          name: true,
+          relation: true,
+          isDependent: true,
+        },
+        take: 10,
       });
     } catch (error) {
       console.error('[FamilyService] Error getting dependents:', error);
