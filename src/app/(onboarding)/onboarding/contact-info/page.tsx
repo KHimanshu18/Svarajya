@@ -94,9 +94,18 @@ export default function ContactStep() {
                 fetchContactInfo();
             }
         };
-        window.addEventListener('visibilitychange', handleVisibilityChange);
 
-        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
+        const handleFocus = () => {
+            fetchContactInfo();
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
+        };
     }, []);
 
     const handleSendOtp = async () => {
