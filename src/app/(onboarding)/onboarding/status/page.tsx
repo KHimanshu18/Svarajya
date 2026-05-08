@@ -26,12 +26,51 @@ export default function StatusStep() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Load from local store immediately - no API call needed
-        const storedStatus = OnboardingStore.get().maritalStatus;
-        if (storedStatus) {
-            setSelected(storedStatus);
-        }
-        setIsLoading(false);
+        const fetchStatus = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/profile', { cache: 'no-store' });
+                if (response.ok) {
+                    const json = await response.json();
+                    const profile = json?.data;
+                    const maritalStatus = profile?.maritalStatus || "";
+
+                    if (maritalStatus) {
+                        setSelected(maritalStatus);
+                        OnboardingStore.set({ maritalStatus }, { sync: false });
+                    } else {
+                        const storedStatus = OnboardingStore.get().maritalStatus;
+                        if (storedStatus) {
+                            setSelected(storedStatus);
+                        }
+                    }
+                } else {
+                    const storedStatus = OnboardingStore.get().maritalStatus;
+                    if (storedStatus) {
+                        setSelected(storedStatus);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+                const storedStatus = OnboardingStore.get().maritalStatus;
+                if (storedStatus) {
+                    setSelected(storedStatus);
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStatus();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchStatus();
+            }
+        };
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     const handleContinue = () => {
@@ -40,10 +79,8 @@ export default function StatusStep() {
             return;
         }
 
-        // Save to local store immediately
         OnboardingStore.set({ maritalStatus: selected });
 
-        // Save to API in background (non-blocking)
         fetch('/api/profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -89,7 +126,6 @@ export default function StatusStep() {
         <div className="flex flex-col min-h-screen p-6 relative">
             <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
             <div className="relative z-10 flex flex-col min-h-screen">
-                {/* Back + step */}
                 <div className="flex items-center gap-2 pt-10 mb-2">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                         <ArrowLeft className="w-4 h-4 text-white/60" />

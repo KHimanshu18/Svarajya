@@ -88,6 +88,15 @@ export default function ContactStep() {
         };
 
         fetchContactInfo();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchContactInfo();
+            }
+        };
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     const handleSendOtp = async () => {

@@ -26,13 +26,56 @@ export default function OccupationStep() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Load from local store immediately - no API call needed
-        const stored = OnboardingStore.get();
-        if (stored.occupationType) {
-            setSelected(stored.occupationType);
-            setOtherText(stored.occupationOther || "");
-        }
-        setIsLoading(false);
+        const fetchOccupation = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/profile', { cache: 'no-store' });
+                if (response.ok) {
+                    const json = await response.json();
+                    const profile = json?.data;
+                    const occupationType = profile?.occupationType || "";
+                    const occupationOther = profile?.occupationOther || "";
+
+                    if (occupationType) {
+                        setSelected(occupationType);
+                        setOtherText(occupationOther);
+                        OnboardingStore.set({ occupationType, occupationOther }, { sync: false });
+                    } else {
+                        const stored = OnboardingStore.get();
+                        if (stored.occupationType) {
+                            setSelected(stored.occupationType);
+                            setOtherText(stored.occupationOther || "");
+                        }
+                    }
+                } else {
+                    const stored = OnboardingStore.get();
+                    if (stored.occupationType) {
+                        setSelected(stored.occupationType);
+                        setOtherText(stored.occupationOther || "");
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch occupation:', error);
+                const stored = OnboardingStore.get();
+                if (stored.occupationType) {
+                    setSelected(stored.occupationType);
+                    setOtherText(stored.occupationOther || "");
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOccupation();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchOccupation();
+            }
+        };
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     const handleContinue = () => {
@@ -46,10 +89,8 @@ export default function OccupationStep() {
         }
         setError("");
 
-        // Save to local store immediately
         OnboardingStore.set({ occupationType: selected, occupationOther: otherText.trim() });
 
-        // Save to API in background (non-blocking)
         fetch('/api/profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -97,7 +138,6 @@ export default function OccupationStep() {
         <div className="flex flex-col min-h-screen p-6 relative">
             <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
             <div className="relative z-10 flex flex-col min-h-screen">
-                {/* Back + step */}
                 <div className="flex items-center gap-2 pt-10 mb-2">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -107,7 +147,6 @@ export default function OccupationStep() {
                 <ProgressBar step={4} />
 
                 <div className="flex-1 flex flex-col justify-center space-y-8">
-                    {/* Treasury SVG */}
                     <div className="flex justify-center">
                         <svg width="200" height="90" viewBox="0 0 200 90">
                             <rect x="20" y="30" width="160" height="50" rx="4" fill="rgba(251,191,36,0.05)" stroke="rgba(251,191,36,0.2)" strokeWidth="1" />
@@ -117,7 +156,7 @@ export default function OccupationStep() {
                                 </g>
                             ))}
                             <path d="M80 80 L80 52 Q100 38 120 52 L120 80" fill="rgba(10,22,40,1)" stroke="rgba(251,191,36,0.25)" strokeWidth="1" />
-                            {selected && <ellipse cx="100" cy="72" rx="25" ry="10" fill="rgba(251,191,36,0.12)" />}
+                            {selected && <ellipse cx="100" cy="72" rx="25" ry="15" fill="rgba(251,191,36,0.12)" />}
                         </svg>
                     </div>
 
