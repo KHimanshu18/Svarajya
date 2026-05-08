@@ -42,18 +42,15 @@ export default function ContactStep() {
                     const mobileValue = profile?.phone || "";
                     const emailValue = profile?.email || "";
                     const whatsappValue = profile?.whatsappEnabled ?? false;
-                    const isVerified = profile?.isMobileVerified === true;
 
                     setMobile(mobileValue);
                     setEmail(emailValue);
                     setWhatsapp(whatsappValue);
 
-                    if (mobileValue && isVerified) {
+                    if (mobileValue) {
                         setOtpState('verified');
                         setUnlocked(true);
                         setIsReadOnly(true);
-                    } else if (mobileValue) {
-                        setOtpState('none');
                     }
                 }
             } catch (error) {
@@ -96,8 +93,7 @@ export default function ContactStep() {
             body: JSON.stringify({
                 phone: mobile,
                 email: email,
-                whatsappEnabled: whatsapp,
-                isMobileVerified: true
+                whatsappEnabled: whatsapp
             })
         }).catch(err => console.error('Failed to save:', err));
     };

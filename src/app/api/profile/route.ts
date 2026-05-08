@@ -59,7 +59,6 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
 
     const userAny: any = user;
     const phoneValue = userAny.phone ?? userAny.primary_mobile ?? userAny.primaryMobile ?? null;
-    const isMobileVerified = userAny.is_mobile_verified ?? userAny.isMobileVerified ?? !!phoneValue;
 
     const response: UserResponse = {
       id: user.id,
@@ -78,7 +77,6 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       createdAt: userAny.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: userAny.updatedAt?.toISOString() || new Date().toISOString(),
       isFirstLogin: userAny.is_first_login ?? true,
-      isMobileVerified,
       familyMembers: [],
       education: [],
     };
@@ -192,16 +190,8 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
     } else {
       const existingAny: any = user;
       const isEmailVerified = existingAny.is_email_verified ?? existingAny.isEmailVerified ?? false;
-      const isMobileVerified = existingAny.is_mobile_verified ?? existingAny.isMobileVerified ?? false;
-
       if (data.email && !isEmailVerified) patch.email = data.email;
-      if (data.phone && !isMobileVerified) {
-        patch.phone = data.phone;
-        // also update verification flag if provided
-        if (data.isMobileVerified !== undefined) {
-          patch.is_mobile_verified = data.isMobileVerified;
-        }
-      }
+      if (data.phone) patch.phone = data.phone;
 
       user = await userService.update(authContext.userId, patch);
     }
