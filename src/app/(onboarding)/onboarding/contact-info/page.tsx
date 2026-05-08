@@ -68,20 +68,10 @@ export default function ContactStep() {
                         whatsappEnabled: whatsappValue,
                     });
                 } else {
-                    const stored = OnboardingStore.get();
-                    if (stored.mobile) {
-                        setMobile(stored.mobile);
-                        setEmail(stored.email || "");
-                        setWhatsapp(stored.whatsappEnabled || false);
-                    }
+
                 }
             } catch (error) {
-                console.error('Failed to fetch contact info:', error);
-                const stored = OnboardingStore.get();
-                if (stored.mobile) {
-                    setMobile(stored.mobile);
-                    setEmail(stored.email || "");
-                }
+
             } finally {
                 setIsLoading(false);
             }
