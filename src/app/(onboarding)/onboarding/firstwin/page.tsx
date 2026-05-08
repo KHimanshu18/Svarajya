@@ -42,7 +42,7 @@ function FirstWinContent() {
         const loadProfileCompletion = async () => {
             setIsLoading(true);
             try {
-                const profileResponse = await fetch('/api/profile');
+                const profileResponse = await fetch('/api/profile', { cache: 'no-store' });
                 const profileJson = profileResponse.ok ? await profileResponse.json() : null;
                 const profile = profileJson?.data;
 
@@ -54,12 +54,13 @@ function FirstWinContent() {
                     { label: "Date of Birth", done: !!profile?.dob },
                     { label: "Marital Status", done: !!profile?.maritalStatus },
                     { label: "Occupation", done: !!profile?.occupationType },
-                    { label: "Contact Info", done: !!(profile?.mobile && profile?.isMobileVerified === true) },
+                    { label: "Contact Info", done: !!(profile?.mobile) },
                 ];
 
                 setProgressChecks(checkData);
                 const completed = checkData.filter(c => c.done).length;
-                setProfileCompletion(Math.round((completed / checkData.length) * 100));
+                const percentage = Math.round((completed / checkData.length) * 100);
+                setProfileCompletion(percentage);
             } catch (error) {
                 console.error('Failed to load progress data:', error);
             } finally {
@@ -68,6 +69,15 @@ function FirstWinContent() {
         };
 
         loadProfileCompletion();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                loadProfileCompletion();
+            }
+        };
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     const handleGoToDashboard = async () => {

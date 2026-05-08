@@ -34,17 +34,57 @@ export default function ContactStep() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        // Load from local store immediately - no API call needed
-        const stored = OnboardingStore.get();
-        if (stored.mobile) {
-            setMobile(stored.mobile);
-            setEmail(stored.email || "");
-            setWhatsapp(stored.whatsappEnabled || false);
-            setOtpState('verified');
-            setUnlocked(true);
-            setIsReadOnly(true);
-        }
-        setIsLoading(false);
+        const fetchContactInfo = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/profile', { cache: 'no-store' });
+                if (response.ok) {
+                    const json = await response.json();
+                    const profile = json?.data;
+
+                    const mobileValue = profile?.phone || "";
+                    const emailValue = profile?.email || "";
+                    const whatsappValue = profile?.whatsappEnabled ?? false;
+                    const isVerified = profile?.isMobileVerified === true;
+
+                    setMobile(mobileValue);
+                    setEmail(emailValue);
+                    setWhatsapp(whatsappValue);
+
+                    if (mobileValue && isVerified) {
+                        setOtpState('verified');
+                        setUnlocked(true);
+                        setIsReadOnly(true);
+                    } else if (mobileValue) {
+                        setOtpState('none');
+                    }
+
+                    OnboardingStore.set({
+                        mobile: mobileValue,
+                        email: emailValue,
+                        whatsappEnabled: whatsappValue,
+                    });
+                } else {
+                    const stored = OnboardingStore.get();
+                    if (stored.mobile) {
+                        setMobile(stored.mobile);
+                        setEmail(stored.email || "");
+                        setWhatsapp(stored.whatsappEnabled || false);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch contact info:', error);
+                const stored = OnboardingStore.get();
+                if (stored.mobile) {
+                    setMobile(stored.mobile);
+                    setEmail(stored.email || "");
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchContactInfo();
     }, []);
 
     const handleSendOtp = async () => {
@@ -54,33 +94,31 @@ export default function ContactStep() {
             return;
         }
 
-        if (email.trim()) {
-            const emailResult = validateControlledEmail(email);
-            if (!emailResult.valid) {
-                setError(emailResult.message || "Enter a valid email.");
+        const normalizedMobile = mobileResult.normalized;
+
+        // Check if phone number already exists in database
+        try {
+            const checkResponse = await fetch(`/api/check-phone?phone=${normalizedMobile}`);
+            const checkResult = await checkResponse.json();
+
+            if (checkResult.exists) {
+                setError("This phone number is already registered with another account. Please use a different number.");
                 return;
             }
+        } catch (err) {
+            console.error('Error checking phone:', err);
         }
 
-        setMobile(mobileResult.normalized);
+        setMobile(normalizedMobile);
         setError("");
         setOtpState("sending");
         await new Promise(r => setTimeout(r, 1500));
         setOtpState("sent");
     };
-
-    const handleVerify = () => {
+    const handleVerify = async () => {
         const mobileResult = validateIndianMobile(mobile);
         if (!mobileResult.valid) {
             setError(mobileResult.message || "Enter a valid 10-digit mobile number.");
-            return;
-        }
-
-        const normalizedEmail = email.trim()
-            ? validateControlledEmail(email)
-            : { valid: true, normalized: "" };
-        if (!normalizedEmail.valid) {
-            setError(normalizedEmail.message || "Enter a valid email.");
             return;
         }
 
@@ -88,55 +126,87 @@ export default function ContactStep() {
             setError("Invalid code. Enter the 4-digit OTP sent to your mobile.");
             return;
         }
+
         setError("");
         setOtpState("verified");
         setUnlocked(true);
         setIsReadOnly(true);
 
-        // Save to local store immediately
+        const normalizedMobile = mobileResult.normalized;
+        const currentEmail = email;
+
+        // Update local store
         OnboardingStore.set({
-            mobile: mobileResult.normalized,
-            email: normalizedEmail.normalized || "",
+            mobile: normalizedMobile,
+            email: currentEmail,
             whatsappEnabled: whatsapp,
         });
 
-        // Save to API in background (non-blocking)
-        fetch('/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                phone: mobileResult.normalized,
-                email: normalizedEmail.normalized || "",
-                whatsappEnabled: whatsapp
-            })
-        }).catch(err => console.error('Failed to save contact info:', err));
+        // Save to API
+        try {
+            const response = await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: normalizedMobile,
+                    email: currentEmail,
+                    whatsappEnabled: whatsapp,
+                    isMobileVerified: true
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to save contact info:', await response.text());
+            } else {
+                console.log('Contact info saved successfully');
+            }
+        } catch (err) {
+            console.error('Error saving contact info:', err);
+        }
     };
 
     const handleSaveContinue = async () => {
         setIsSaving(true);
         try {
             const mobileResult = validateIndianMobile(mobile);
-            const normalizedEmail = email.trim()
-                ? validateControlledEmail(email)
-                : { valid: true, normalized: "" };
+            if (!mobileResult.valid) {
+                setError(mobileResult.message || "Enter a valid 10-digit mobile number.");
+                setIsSaving(false);
+                return;
+            }
+
+            const normalizedMobile = mobileResult.normalized;
+            const currentEmail = email;
 
             OnboardingStore.set({
-                mobile: mobileResult.normalized,
-                email: normalizedEmail.normalized || "",
+                mobile: normalizedMobile,
+                email: currentEmail,
                 whatsappEnabled: whatsapp,
             });
 
-            // Save to API in background
-            fetch('/api/profile', {
+            const response = await fetch('/api/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    phone: mobileResult.normalized,
-                    email: normalizedEmail.normalized || "",
+                    phone: normalizedMobile,
+                    email: currentEmail,
                     whatsappEnabled: whatsapp,
-                    isFirstLogin: false
+                    isFirstLogin: false,
+                    isMobileVerified: true
                 })
-            }).catch(err => console.error('Failed to save:', err));
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                // Display the error message on the page
+                if (result.error?.code === 'DUPLICATE_ENTRY') {
+                    setError("This phone number is already registered. Please use a different number.");
+                } else {
+                    setError(result.error?.message || "Failed to save contact information. Please try again.");
+                }
+                return;
+            }
 
             router.push("/onboarding/firstwin");
         } catch (error) {
@@ -179,7 +249,6 @@ export default function ContactStep() {
         <div className="flex flex-col min-h-screen p-6 relative">
             <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
             <div className="relative z-10 flex flex-col min-h-screen">
-                {/* Back + step */}
                 <div className="flex items-center gap-2 pt-10 mb-2">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -189,7 +258,6 @@ export default function ContactStep() {
                 <ProgressBar step={5} />
 
                 <div className="flex-1 flex flex-col justify-center space-y-6">
-                    {/* Gate SVG */}
                     <div className="flex justify-center">
                         <svg width="180" height="80" viewBox="0 0 180 80">
                             <rect x="15" y="10" width="150" height="60" rx="3" fill="rgba(251,191,36,0.04)" stroke="rgba(251,191,36,0.2)" strokeWidth="1.5" />
@@ -209,7 +277,6 @@ export default function ContactStep() {
                             <p className="text-xs text-white/40">We use this only for important alerts and financial reminders.</p>
                         </div>
 
-                        {/* Mobile */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
                                 <label className="text-xs text-white/50 uppercase tracking-wider">Mobile number</label>
@@ -233,7 +300,6 @@ export default function ContactStep() {
                             </div>
                         </div>
 
-                        {/* OTP Area */}
                         {otpState === "none" && !isReadOnly && (
                             <button onClick={handleSendOtp} className="w-full bg-white/8 border border-white/15 text-white/70 py-3 rounded-xl text-sm hover:bg-white/12 transition-colors">
                                 Send OTP to mobile
@@ -284,20 +350,19 @@ export default function ContactStep() {
                             </motion.button>
                         )}
 
-                        {/* Email (optional) */}
                         <div className="space-y-2">
-                            <label className="text-xs text-white/50 uppercase tracking-wider">Email <span className="text-white/25 normal-case">(optional)</span></label>
+                            <label className="text-xs text-white/50 uppercase tracking-wider">Email</label>
                             <input
                                 type="email"
                                 value={email}
-                                onChange={e => { setEmail(e.target.value.trim().toLowerCase()); setError(""); }}
-                                placeholder="yourname@email.com"
-                                className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-70"
+                                readOnly
                                 disabled
+                                placeholder="yourname@email.com"
+                                className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors text-sm cursor-not-allowed opacity-70"
                             />
+                            <p className="text-[10px] text-white/25">Email is synced from your login account and cannot be changed here.</p>
                         </div>
 
-                        {/* WhatsApp Toggle */}
                         <div className="flex items-start justify-between bg-white/5 border border-white/10 rounded-xl p-4">
                             <div className="flex items-start gap-3">
                                 <MessageSquare className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
