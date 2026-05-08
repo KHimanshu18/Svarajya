@@ -4,14 +4,18 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const phone = searchParams.get('phone');
+    const userId = searchParams.get('userId');
 
     if (!phone) {
         return NextResponse.json({ exists: false });
     }
 
     try {
-        const user = await prisma.user.findUnique({
-            where: { phone: phone },
+        const user = await prisma.user.findFirst({
+            where: { 
+                phone: phone,
+                NOT: userId ? { id: userId } : undefined
+            },
             select: { id: true }
         });
 

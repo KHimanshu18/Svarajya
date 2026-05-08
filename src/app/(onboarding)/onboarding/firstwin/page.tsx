@@ -54,7 +54,7 @@ function FirstWinContent() {
                     { label: "Date of Birth", done: !!profile?.dob },
                     { label: "Marital Status", done: !!profile?.maritalStatus },
                     { label: "Occupation", done: !!profile?.occupationType },
-                    { label: "Contact Info", done: !!(profile?.mobile) },
+                    { label: "Contact Info", done: !!(profile?.phone) },
                 ];
 
                 setProgressChecks(checkData);
@@ -89,7 +89,9 @@ function FirstWinContent() {
             await supabase.auth.updateUser({ data: { onboarding_completed: true } });
             await fetch("/api/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application / json"
+                },
                 body: JSON.stringify({ isFirstLogin: false })
             });
         } catch (e) {

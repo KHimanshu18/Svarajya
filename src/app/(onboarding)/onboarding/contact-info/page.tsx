@@ -94,27 +94,13 @@ export default function ContactStep() {
             return;
         }
 
-        const normalizedMobile = mobileResult.normalized;
-
-        // Check if phone number already exists in database
-        try {
-            const checkResponse = await fetch(`/api/check-phone?phone=${normalizedMobile}`);
-            const checkResult = await checkResponse.json();
-
-            if (checkResult.exists) {
-                setError("This phone number is already registered with another account. Please use a different number.");
-                return;
-            }
-        } catch (err) {
-            console.error('Error checking phone:', err);
-        }
-
-        setMobile(normalizedMobile);
+        setMobile(mobileResult.normalized);
         setError("");
         setOtpState("sending");
         await new Promise(r => setTimeout(r, 1500));
         setOtpState("sent");
     };
+
     const handleVerify = async () => {
         const mobileResult = validateIndianMobile(mobile);
         if (!mobileResult.valid) {
@@ -135,56 +121,50 @@ export default function ContactStep() {
         const normalizedMobile = mobileResult.normalized;
         const currentEmail = email;
 
-        // Update local store
+        // Update local store immediately
         OnboardingStore.set({
             mobile: normalizedMobile,
             email: currentEmail,
             whatsappEnabled: whatsapp,
         });
 
-        // Save to API
-        try {
-            const response = await fetch('/api/profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phone: normalizedMobile,
-                    email: currentEmail,
-                    whatsappEnabled: whatsapp,
-                    isMobileVerified: true
-                })
-            });
+        // Set flag for firstwin page
+        localStorage.setItem('onboarding_phone_verified', 'true');
+        localStorage.setItem('onboarding_phone', normalizedMobile);
 
-            if (!response.ok) {
-                console.error('Failed to save contact info:', await response.text());
-            } else {
-                console.log('Contact info saved successfully');
-            }
-        } catch (err) {
-            console.error('Error saving contact info:', err);
-        }
+        // Save to API in background (non-blocking)
+        fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: normalizedMobile,
+                email: currentEmail,
+                whatsappEnabled: whatsapp,
+                isMobileVerified: true
+            })
+        }).catch(err => console.error('Failed to save contact info:', err));
     };
 
     const handleSaveContinue = async () => {
         setIsSaving(true);
         try {
             const mobileResult = validateIndianMobile(mobile);
-            if (!mobileResult.valid) {
-                setError(mobileResult.message || "Enter a valid 10-digit mobile number.");
-                setIsSaving(false);
-                return;
-            }
-
             const normalizedMobile = mobileResult.normalized;
             const currentEmail = email;
 
+            // Update local store immediately
             OnboardingStore.set({
                 mobile: normalizedMobile,
                 email: currentEmail,
                 whatsappEnabled: whatsapp,
             });
 
-            const response = await fetch('/api/profile', {
+            // Set flag for firstwin page
+            localStorage.setItem('onboarding_phone_verified', 'true');
+            localStorage.setItem('onboarding_phone', normalizedMobile);
+
+            // Save to API in background (non-blocking)
+            fetch('/api/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -194,20 +174,9 @@ export default function ContactStep() {
                     isFirstLogin: false,
                     isMobileVerified: true
                 })
-            });
+            }).catch(err => console.error('Failed to save:', err));
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                // Display the error message on the page
-                if (result.error?.code === 'DUPLICATE_ENTRY') {
-                    setError("This phone number is already registered. Please use a different number.");
-                } else {
-                    setError(result.error?.message || "Failed to save contact information. Please try again.");
-                }
-                return;
-            }
-
+            // Navigate immediately
             router.push("/onboarding/firstwin");
         } catch (error) {
             console.error('Error saving contact info:', error);

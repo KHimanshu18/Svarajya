@@ -15,7 +15,7 @@ import { UserResponse } from '@/lib/types/api.types';
 
 // Per-user in-memory cache for profile data
 const profileCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 5000; // 5 seconds (reduced from 30 seconds for faster updates)
 
 /**
  * GET /api/profile
@@ -36,7 +36,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
 
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     const cachedResponse = successResponse(cached.data);
-    cachedResponse.headers.set('Cache-Control', 'private, max-age=30');
+    cachedResponse.headers.set('Cache-Control', 'no-store, max-age=0');
     return cachedResponse;
   }
 
@@ -83,7 +83,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
     profileCache.set(cacheKey, { data: response, timestamp: Date.now() });
 
     const finalResponse = successResponse(response);
-    finalResponse.headers.set('Cache-Control', 'private, max-age=30');
+    finalResponse.headers.set('Cache-Control', 'no-store, max-age=0');
     return finalResponse;
   } catch (error) {
     console.error('[Profile GET]', error);
