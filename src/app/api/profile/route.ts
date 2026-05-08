@@ -13,9 +13,10 @@ import {
 } from '@/lib/middleware/standardResponse';
 import { UserResponse } from '@/lib/types/api.types';
 
-// Per-user in-memory cache for profile data
+// Per-user in-memory cache for profile data (kept for possible future use)
 const profileCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5000; // 5 seconds (reduced from 30 seconds for faster updates)
+const CACHE_TTL = 5000; // 5 seconds
+
 
 /**
  * GET /api/profile
@@ -32,13 +33,16 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
   }
 
   const cacheKey = authContext.userId;
-  const cached = profileCache.get(cacheKey);
+  // Bypass cache – always fetch fresh data
+  // const cached = profileCache.get(cacheKey);
+  // if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  //   const cachedResponse = successResponse(cached.data);
+  //   cachedResponse.headers.set('Cache-Control', 'no-store, max-age=0');
+  //   return cachedResponse;
+  // }
 
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    const cachedResponse = successResponse(cached.data);
-    cachedResponse.headers.set('Cache-Control', 'no-store, max-age=0');
-    return cachedResponse;
-  }
+  // No cache usage – always fresh
+
 
   try {
     // Simple find by ID - no relations
@@ -79,12 +83,10 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       education: [],
     };
 
-    // Store in cache
-    profileCache.set(cacheKey, { data: response, timestamp: Date.now() });
-
     const finalResponse = successResponse(response);
     finalResponse.headers.set('Cache-Control', 'no-store, max-age=0');
     return finalResponse;
+
   } catch (error) {
     console.error('[Profile GET]', error);
     return handlePrismaError(error);
@@ -193,7 +195,13 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       const isMobileVerified = existingAny.is_mobile_verified ?? existingAny.isMobileVerified ?? false;
 
       if (data.email && !isEmailVerified) patch.email = data.email;
-      if (data.phone && !isMobileVerified) patch.phone = data.phone;
+      if (data.phone && !isMobileVerified) {
+        patch.phone = data.phone;
+        // also update verification flag if provided
+        if (data.isMobileVerified !== undefined) {
+          patch.is_mobile_verified = data.isMobileVerified;
+        }
+      }
 
       user = await userService.update(authContext.userId, patch);
     }
@@ -229,8 +237,9 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       isFirstLogin: userAny.is_first_login ?? true,
     };
 
-    // Update cache with new data
+    // Update cache with new data (optional)
     profileCache.set(authContext.userId, { data: response, timestamp: Date.now() });
+
 
     return successResponse(response, StatusCodes.CREATED, 'Profile updated');
   } catch (error: any) {
