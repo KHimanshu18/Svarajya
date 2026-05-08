@@ -284,6 +284,7 @@ export default function ContactStep() {
                                 <input
                                     type="tel"
                                     value={mobile}
+                                    autoComplete="off"
                                     onChange={e => { if (!isReadOnly && otpState !== 'verified') { setMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); } }}
                                     placeholder="10-digit number"
                                     maxLength={10}
