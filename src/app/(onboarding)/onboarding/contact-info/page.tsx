@@ -30,13 +30,11 @@ export default function ContactStep() {
     const [unlocked, setUnlocked] = useState(false);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const fetchContactInfo = async () => {
-            setIsLoading(true);
             try {
-                const response = await fetch('/api/profile', { cache: 'no-store' });
+                const response = await fetch('/api/profile');
                 if (response.ok) {
                     const json = await response.json();
                     const profile = json?.data;
@@ -54,6 +52,8 @@ export default function ContactStep() {
                         setOtpState('verified');
                         setUnlocked(true);
                         setIsReadOnly(true);
+                    } else if (mobileValue) {
+                        setOtpState('none');
                     }
                 }
             } catch (error) {
@@ -62,30 +62,72 @@ export default function ContactStep() {
                 setIsLoading(false);
             }
         };
-
         fetchContactInfo();
     }, []);
 
-    const handleSaveContinue = async () => {
-        setIsSaving(true);
-        try {
-            router.push("/onboarding/firstwin");
-        } catch (error) {
-            console.error('Error:', error);
-            setError('Failed to save. Please try again.');
-        } finally {
-            setIsSaving(false);
+    const handleSendOtp = async () => {
+        const mobileResult = validateIndianMobile(mobile);
+        if (!mobileResult.valid) {
+            setError(mobileResult.message || "Enter a valid 10-digit mobile number.");
+            return;
         }
+
+        setMobile(mobileResult.normalized);
+        setError("");
+        setOtpState("sending");
+        await new Promise(r => setTimeout(r, 1500));
+        setOtpState("sent");
+    };
+
+    const handleVerify = async () => {
+        if (otpInput !== MOCK_OTP) {
+            setError("Invalid code. Enter the 4-digit OTP sent to your mobile.");
+            return;
+        }
+
+        setError("");
+        setOtpState("verified");
+        setUnlocked(true);
+        setIsReadOnly(true);
+
+        await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: mobile,
+                email: email,
+                whatsappEnabled: whatsapp,
+                isMobileVerified: true
+            })
+        }).catch(err => console.error('Failed to save:', err));
+    };
+
+    const handleSaveContinue = async () => {
+        router.push("/onboarding/firstwin");
     };
 
     if (isLoading) {
         return (
             <div className="flex flex-col min-h-screen p-6 relative">
                 <div className="absolute inset-0 bg-linear-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
-                <div className="relative z-10 flex items-center justify-center min-h-screen">
-                    <div className="text-amber-400 text-center">
-                        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-white/60 text-sm">Loading...</p>
+                <div className="relative z-10 flex flex-col min-h-screen">
+                    <div className="flex items-center gap-2 pt-10 mb-2">
+                        <div className="w-9 h-9 rounded-xl bg-white/6 animate-pulse" />
+                        <div className="h-3 w-24 bg-white/10 rounded animate-pulse" />
+                    </div>
+                    <div className="h-1 w-full bg-white/10 rounded-full mt-3 animate-pulse" />
+                    <div className="flex-1 flex flex-col justify-center space-y-6 mt-12">
+                        <div className="flex justify-center">
+                            <div className="w-44 h-20 bg-white/6 rounded-xl animate-pulse" />
+                        </div>
+                        <div className="space-y-4">
+                            <div className="h-4 w-32 bg-white/10 rounded animate-pulse" />
+                            <div className="h-3 w-48 bg-white/5 rounded animate-pulse" />
+                        </div>
+                        <div className="space-y-3">
+                            <div className="h-4 w-24 bg-white/10 rounded animate-pulse" />
+                            <div className="h-12 w-full bg-white/6 rounded-xl animate-pulse" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -136,13 +178,49 @@ export default function ContactStep() {
                                 <input
                                     type="tel"
                                     value={mobile}
-                                    readOnly
-                                    disabled
+                                    autoComplete="off"
+                                    onChange={e => { if (!isReadOnly && otpState !== 'verified') { setMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); } }}
                                     placeholder="10-digit number"
-                                    className="flex-1 bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors opacity-70 cursor-not-allowed"
+                                    maxLength={10}
+                                    inputMode="numeric"
+                                    pattern="[0-9]{10}"
+                                    className="flex-1 bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isReadOnly || otpState === "verified"}
                                 />
                             </div>
                         </div>
+
+                        {!isReadOnly && otpState !== "verified" && (
+                            <>
+                                {otpState === "none" && (
+                                    <button onClick={handleSendOtp} className="w-full bg-white/8 border border-white/15 text-white/70 py-3 rounded-xl text-sm hover:bg-white/12 transition-colors">
+                                        Send OTP to mobile
+                                    </button>
+                                )}
+                                {otpState === "sending" && (
+                                    <p className="text-center text-white/40 text-sm animate-pulse">Sending OTP...</p>
+                                )}
+                                {otpState === "sent" && (
+                                    <div className="space-y-3">
+                                        <div className="bg-amber-400/10 border border-amber-400/25 rounded-xl p-3 text-center">
+                                            <p className="text-[10px] text-white/40 uppercase tracking-wider">Test OTP (Dev Mode)</p>
+                                            <p className="text-2xl font-mono font-bold tracking-[0.4em] text-amber-400 mt-1">{MOCK_OTP}</p>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            maxLength={4}
+                                            value={otpInput}
+                                            onChange={e => { setOtpInput(e.target.value); setError(""); }}
+                                            placeholder="Enter 4-digit OTP"
+                                            className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white focus:outline-none focus:border-amber-400/60"
+                                        />
+                                        <button onClick={handleVerify} className="w-full bg-amber-400 text-black font-semibold py-3 rounded-xl text-sm">
+                                            Verify OTP
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
 
                         {otpState === "verified" && (
                             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-emerald-400 text-sm">
@@ -152,15 +230,14 @@ export default function ContactStep() {
 
                         {error && <p className="text-red-400 text-xs">{error}</p>}
 
-                        <motion.button
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            onClick={handleSaveContinue}
-                            disabled={isSaving}
-                            className="w-full bg-amber-400 text-black font-semibold py-3 rounded-xl text-sm hover:bg-amber-300 transition-colors disabled:opacity-60 mt-4"
-                        >
-                            {isSaving ? "Saving..." : "Save & Continue"}
-                        </motion.button>
+                        {otpState === "verified" && (
+                            <button
+                                onClick={handleSaveContinue}
+                                className="w-full bg-amber-400 text-black font-semibold py-3 rounded-xl text-sm hover:bg-amber-300 transition-colors mt-4"
+                            >
+                                Save & Continue
+                            </button>
+                        )}
 
                         <div className="space-y-2">
                             <label className="text-xs text-white/50 uppercase tracking-wider">Email</label>
@@ -192,6 +269,14 @@ export default function ContactStep() {
                         </div>
                     </div>
                 </div>
+
+                {otpState === "none" && (
+                    <div className="pb-4">
+                        <button onClick={() => router.push("/onboarding/firstwin")} className="w-full text-amber-400/60 text-[10px] font-semibold uppercase tracking-wider py-3 hover:text-amber-400 transition-colors">
+                            Skip verification
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
