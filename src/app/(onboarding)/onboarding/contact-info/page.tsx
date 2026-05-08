@@ -34,7 +34,7 @@ export default function ContactStep() {
     useEffect(() => {
         const fetchContactInfo = async () => {
             try {
-                const response = await fetch('/api/profile');
+                const response = await fetch('/api/profile', { cache: 'no-store' });
                 if (response.ok) {
                     const json = await response.json();
                     const profile = json?.data;
