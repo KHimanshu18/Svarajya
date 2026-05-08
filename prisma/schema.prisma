@@ -35,6 +35,7 @@ model AdminUser {
   twoFactorSecret   String? // TOTP secret for 2FA
   inviteToken       String?
   inviteExpiresAt   DateTime?
+  previousPassword  String?  
   deletedAt         DateTime?
   twoFactorRecoveryCodes String?
   twoFactorEnabled  Boolean             @default(false)
