@@ -67,12 +67,13 @@ export default function ContactStep() {
                         email: emailValue,
                         whatsappEnabled: whatsappValue,
                     });
+                    
+                    setIsLoading(false);
                 } else {
-
+                    setIsLoading(false);
                 }
             } catch (error) {
-
-            } finally {
+                console.error('Failed to fetch contact info:', error);
                 setIsLoading(false);
             }
         };

@@ -290,7 +290,10 @@ export default function FoundationHub() {
                                 {profile?.occupationType || data.occupationType || "Occupation"} · {getLifePhase(profile?.dob || data.dob)} phase
                             </p>
                             {(profile?.phone || data.mobile) && (
-                                <div className="flex items-center gap-2">
+                                <div 
+                                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => window.location.href = "/onboarding/contact-info?t=" + Date.now()}
+                                >
                                     <p className="text-xs text-white/30 mt-0.5">+91 {profile?.phone || data.mobile}</p>
                                     {profile?.isMobileVerified && (
                                         <span className="text-emerald-400 text-[10px] uppercase tracking-[0.15em] font-medium">Verified</span>
