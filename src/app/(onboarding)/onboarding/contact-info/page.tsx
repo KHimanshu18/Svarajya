@@ -32,6 +32,7 @@ export default function ContactStep() {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [userId, setUserId] = useState("");
 
     useEffect(() => {
         const fetchContactInfo = async () => {
@@ -46,10 +47,12 @@ export default function ContactStep() {
                     const emailValue = profile?.email || "";
                     const whatsappValue = profile?.whatsappEnabled ?? false;
                     const isVerified = profile?.isMobileVerified === true;
+                    const userIdValue = profile?.id || "";
 
                     setMobile(mobileValue);
                     setEmail(emailValue);
                     setWhatsapp(whatsappValue);
+                    setUserId(userIdValue);
 
                     if (mobileValue && isVerified) {
                         setOtpState('verified');
@@ -94,7 +97,19 @@ export default function ContactStep() {
             return;
         }
 
-        setMobile(mobileResult.normalized);
+        const normalizedMobile = mobileResult.normalized;
+
+        // Check if phone number already exists for another user
+        if (userId) {
+            const checkResponse = await fetch(`/api/check-phone?phone=${normalizedMobile}&userId=${userId}`);
+            const checkResult = await checkResponse.json();
+            if (checkResult.exists) {
+                setError("This phone number is already registered with another account. Please use a different number.");
+                return;
+            }
+        }
+
+        setMobile(normalizedMobile);
         setError("");
         setOtpState("sending");
         await new Promise(r => setTimeout(r, 1500));
@@ -128,21 +143,21 @@ export default function ContactStep() {
             whatsappEnabled: whatsapp,
         });
 
-        // Set flag for firstwin page
-        localStorage.setItem('onboarding_phone_verified', 'true');
-        localStorage.setItem('onboarding_phone', normalizedMobile);
-
-        // Save to API in background (non-blocking)
-        fetch('/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                phone: normalizedMobile,
-                email: currentEmail,
-                whatsappEnabled: whatsapp,
-                isMobileVerified: true
-            })
-        }).catch(err => console.error('Failed to save contact info:', err));
+        // Save to API
+        try {
+            await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: normalizedMobile,
+                    email: currentEmail,
+                    whatsappEnabled: whatsapp,
+                    isMobileVerified: true
+                })
+            });
+        } catch (err) {
+            console.error('Failed to save contact info:', err);
+        }
     };
 
     const handleSaveContinue = async () => {
@@ -152,19 +167,13 @@ export default function ContactStep() {
             const normalizedMobile = mobileResult.normalized;
             const currentEmail = email;
 
-            // Update local store immediately
             OnboardingStore.set({
                 mobile: normalizedMobile,
                 email: currentEmail,
                 whatsappEnabled: whatsapp,
             });
 
-            // Set flag for firstwin page
-            localStorage.setItem('onboarding_phone_verified', 'true');
-            localStorage.setItem('onboarding_phone', normalizedMobile);
-
-            // Save to API in background (non-blocking)
-            fetch('/api/profile', {
+            await fetch('/api/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -174,9 +183,8 @@ export default function ContactStep() {
                     isFirstLogin: false,
                     isMobileVerified: true
                 })
-            }).catch(err => console.error('Failed to save:', err));
+            });
 
-            // Navigate immediately
             router.push("/onboarding/firstwin");
         } catch (error) {
             console.error('Error saving contact info:', error);
@@ -258,18 +266,18 @@ export default function ContactStep() {
                                 <input
                                     type="tel"
                                     value={mobile}
-                                    onChange={e => { if (!isReadOnly && otpState === 'none') { setMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); } }}
+                                    onChange={e => { if (!isReadOnly && otpState !== 'verified') { setMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); } }}
                                     placeholder="10-digit number"
                                     maxLength={10}
                                     inputMode="numeric"
                                     pattern="[0-9]{10}"
                                     className="flex-1 bg-white/6 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-amber-400/60 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                                    disabled={otpState !== "none" || isReadOnly}
+                                    disabled={isReadOnly || otpState === "verified"}
                                 />
                             </div>
                         </div>
 
-                        {otpState === "none" && !isReadOnly && (
+                        {otpState !== "verified" && otpState === "none" && !isReadOnly && (
                             <button onClick={handleSendOtp} className="w-full bg-white/8 border border-white/15 text-white/70 py-3 rounded-xl text-sm hover:bg-white/12 transition-colors">
                                 Send OTP to mobile
                             </button>
