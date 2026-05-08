@@ -59,7 +59,8 @@ function FirstWinContent() {
 
                 setProgressChecks(checkData);
                 const completed = checkData.filter(c => c.done).length;
-                setProfileCompletion(Math.round((completed / checkData.length) * 100));
+                const percentage = Math.round((completed / checkData.length) * 100);
+                setProfileCompletion(percentage);
             } catch (error) {
                 console.error('Failed to load progress data:', error);
             } finally {
@@ -69,13 +70,11 @@ function FirstWinContent() {
 
         loadProfileCompletion();
 
-        // Reload data when page becomes visible again (after editing from foundation)
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 loadProfileCompletion();
             }
         };
-
         window.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
