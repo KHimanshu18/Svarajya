@@ -236,8 +236,8 @@ export default function FoundationHub() {
                         <div className="relative shrink-0 group">
                             {photoUploaded && photoUrl ? (
                                 <div className="relative">
-                                    <img 
-                                        src={photoUrl} 
+                                    <img
+                                        src={photoUrl}
                                         alt="Profile"
                                         className="w-14 h-14 rounded-full object-cover border-2 border-amber-400"
                                     />
@@ -260,7 +260,7 @@ export default function FoundationHub() {
                                     </div>
                                 </div>
                             ) : (
-                                <div 
+                                <div
                                     onClick={() => document.getElementById("photo-upload")?.click()}
                                     className="w-14 h-14 rounded-full bg-white/8 border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-pointer hover:border-amber-400/50 transition-colors"
                                 >
@@ -281,9 +281,9 @@ export default function FoundationHub() {
                             />
                         </div>
 
-                        <div 
+                        <div
                             className="flex-1 min-w-0 cursor-pointer"
-                            onClick={() => router.push("/onboarding/name")}
+                            onClick={() => window.location.href = "/onboarding/name"}
                         >
                             <p className="font-semibold text-white truncate">{profile?.name || data.fullName || "Your Name"}</p>
                             <p className="text-xs text-white/40 mt-0.5">
@@ -298,24 +298,24 @@ export default function FoundationHub() {
                                 </div>
                             )}
                         </div>
-                        <button 
-                            onClick={() => router.push("/onboarding/name")}
+                        <button
+                            onClick={() => window.location.href = "/onboarding/name"}
                             className="text-xs text-black font-semibold bg-amber-400 px-3 py-1.5 rounded-full shrink-0 uppercase tracking-wide hover:bg-amber-500 transition-colors"
                         >
                             Edit
                         </button>
                     </div>
-                    
+
                     {/* Upload error message */}
                     {uploadError && (
                         <p className="text-red-400 text-xs mt-3 text-center">{uploadError}</p>
                     )}
-                    
+
                     {/* Uploading indicator */}
                     {uploading && (
                         <p className="text-amber-400 text-xs mt-3 text-center">Uploading...</p>
                     )}
-                    
+
                     {!photoUploaded && !uploadError && (
                         <p className="text-xs text-white/25 mt-3 text-center">Tap the circle above to add your photo (Max 2MB)</p>
                     )}
