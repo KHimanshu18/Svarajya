@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, User as UserIcon, ShieldAlert, Pencil } from "lucide-react";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 
+const currentYear = new Date().getFullYear();
+
 export type FamilyMember = {
     id: string;
     name: string;
@@ -137,11 +139,12 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
         // Age/Date validations
         const currentYear = new Date().getFullYear();
-
-        if (targetBirthYear > currentYear) {
-            setErrorMsg("Birth year cannot be in the future.");
+        const today = new Date().toISOString().split("T")[0];
+        if (formData.dob > today) {
+            setErrorMsg("Date of Birth cannot be in the future.");
             return;
         }
+
         if (targetBirthYear < 1900) {
             setErrorMsg("Birth year seems invalid (minimum 1900).");
             return;
@@ -389,6 +392,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                     onChange={e => setFormData({ ...formData, dob: e.target.value })} 
                                     inputMode="numeric"
                                     pattern="[0-9]{4}"
+                                    max={new Date().toISOString().split("T")[0]}
                                     className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]" 
                                 />
                                 <select value={formData.relationship} onChange={e => setFormData({ ...formData, relationship: e.target.value })} className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-[var(--color-rajya-text)] focus:outline-none focus:border-[var(--color-rajya-accent)]">

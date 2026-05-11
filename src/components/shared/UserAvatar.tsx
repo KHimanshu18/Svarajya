@@ -7,6 +7,8 @@ interface UserAvatarProps {
     size?: "sm" | "md" | "lg";
     showName?: boolean;
     className?: string;
+    src?: string | null;
+    fallback?: string;
 }
 
 const SIZE_MAP = {
@@ -15,45 +17,60 @@ const SIZE_MAP = {
     lg: { img: "w-14 h-14", text: "w-14 h-14 text-lg", font: "text-base" },
 };
 
-export function UserAvatar({ size = "md", showName = false, className = "" }: UserAvatarProps) {
+export function UserAvatar({ 
+    size = "md", 
+    showName = false, 
+    className = "",
+    src,
+    fallback 
+}: UserAvatarProps) {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [fullName, setFullName] = useState<string>("");
     const [initials, setInitials] = useState<string>("?");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!src);
 
     useEffect(() => {
+        // Only fetch if src is not provided
+        if (src) {
+            setAvatarUrl(src);
+            if (fallback) setInitials(fallback);
+            setLoading(false);
+            return;
+        }
+
         const fetchUser = async () => {
             try {
                 const supabase = createClient();
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // Try to get avatar from OAuth metadata (Google, etc.)
-                const metaAvatar = user.user_metadata?.avatar_url as string | undefined;
+                // Try to get avatar from metadata
+                const metaAvatar = (user.user_metadata?.profile_photo || user.user_metadata?.avatar_url) as string | undefined;
                 if (metaAvatar) setAvatarUrl(metaAvatar);
 
-                // Get name from DB profile (most accurate)
+                // Get name from DB profile
                 const res = await fetch("/api/profile", { cache: "no-store" });
                 if (res.ok) {
-                    const profile = await res.json();
-                    const name: string = profile?.fullName || user.user_metadata?.full_name || user.email || "";
+                    const result = await res.json();
+                    const profile = result?.data;
+                    const name: string = profile?.name || user.user_metadata?.full_name || user.email || "";
                     setFullName(name);
                     if (name) {
                         const parts = name.split(" ").filter(Boolean);
                         const computed = parts.length >= 2
                             ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-                            : name.slice(0, 2).toUpperCase();
+                            : name.slice(0, 1).toUpperCase();
                         setInitials(computed);
                     }
                 }
             } catch {
-                // silently fail — avatar is non-critical
+                // silently fail
             } finally {
                 setLoading(false);
             }
         };
         fetchUser();
-    }, []);
+    }, [src, fallback]);
 
     const s = SIZE_MAP[size];
 
@@ -68,11 +85,11 @@ export function UserAvatar({ size = "md", showName = false, className = "" }: Us
                     <img
                         src={avatarUrl}
                         alt={fullName || "User"}
-                        className={`${s.img} rounded-full object-cover border-2 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.2)]`}
+                        className={`${s.img} rounded-full object-cover border-2 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]`}
                     />
                 ) : (
-                    <div className={`${s.text} rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center font-bold text-black shadow-[0_0_12px_rgba(251,191,36,0.25)] border-2 border-amber-400/40`}>
-                        {initials}
+                    <div className={`${s.text} rounded-full bg-amber-400/20 flex items-center justify-center font-bold text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.1)] border border-amber-400/20 uppercase`}>
+                        {fallback || initials}
                     </div>
                 )}
                 {/* Online indicator */}
@@ -80,10 +97,10 @@ export function UserAvatar({ size = "md", showName = false, className = "" }: Us
             </div>
 
             {/* Name (optional) */}
-            {showName && fullName && (
+            {showName && (fullName || fallback) && (
                 <div className="min-w-0">
                     <p className={`font-semibold text-[var(--color-rajya-text)] truncate ${s.font}`}>
-                        {fullName.split(" ")[0]}
+                        {fullName ? fullName.split(" ")[0] : (fallback ? "User" : "")}
                     </p>
                     <p className="text-[10px] text-amber-400/70 uppercase tracking-widest">Rajya Admin</p>
                 </div>

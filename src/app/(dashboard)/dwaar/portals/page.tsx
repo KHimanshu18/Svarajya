@@ -21,10 +21,26 @@ function crossDeps() {
 
 export default function KeyChamberHub() {
     const router = useRouter();
-    const [, setHydrated] = useState(false);
-    useEffect(() => { CredentialStore.hydrate().then(() => setHydrated(true)); }, []);
+    const [portals, setPortals] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [renderTime] = useState(() => Date.now());
-    const portals = CredentialStore.getPortals();
+
+    useEffect(() => {
+        const fetchPortals = async () => {
+            try {
+                // We also call hydrate to ensure the store is in sync for health scores
+                await CredentialStore.hydrate();
+                const fresh = CredentialStore.getPortals();
+                setPortals(fresh);
+            } catch (err) {
+                console.error("Failed to load portals:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchPortals();
+    }, []);
+
     const deps = crossDeps();
     const health = CredentialStore.getCredentialHealth(deps);
     const readiness = CredentialStore.getEmergencyReadiness(deps);
@@ -34,7 +50,7 @@ export default function KeyChamberHub() {
 
     const [showPassModal, setShowPassModal] = useState<"create" | "unlock" | null>(null);
 
-    const grouped: Record<string, typeof portals> = {};
+    const grouped: Record<string, any[]> = {};
     for (const portal of portals) {
         if (!grouped[portal.category]) grouped[portal.category] = [];
         grouped[portal.category].push(portal);
@@ -115,6 +131,9 @@ export default function KeyChamberHub() {
                         {insights.portalsNotReviewed > 0 && (
                             <p className="text-xs text-red-400/70">⚠ {insights.portalsNotReviewed} portal{insights.portalsNotReviewed > 1 ? "s" : ""} not reviewed in over 1 year</p>
                         )}
+                        {insights.insuranceMissingAwareness > 0 && (
+                            <p className="text-xs text-amber-400/70">🛡️ {insights.insuranceMissingAwareness} insurance portal{insights.insuranceMissingAwareness > 1 ? "s" : ""} lacking nominee awareness</p>
+                        )}
                     </div>
                 )}
 
@@ -146,7 +165,12 @@ export default function KeyChamberHub() {
 
                 {/* Portal List */}
                 <div className="flex-1 mt-5 space-y-4">
-                    {portals.length === 0 ? (
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mb-4" />
+                            <p className="text-xs text-white/40">Opening your vault...</p>
+                        </div>
+                    ) : portals.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16">
                             <Key className="w-10 h-10 text-white/10 mb-3" />
                             <p className="text-sm text-white/50 mb-1 font-medium">No Portals Added Yet</p>

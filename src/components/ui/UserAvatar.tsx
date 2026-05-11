@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from 'swr';
 import { createClient } from "@/lib/supabase/client";
+import { fetcher } from "@/lib/utils/fetcher";
 
 interface UserAvatarProps {
     size?: "sm" | "md" | "lg";
     showName?: boolean;
     className?: string;
+    src?: string | null;
+    fallback?: string;
 }
 
 const SIZE_MAP = {
@@ -15,63 +19,53 @@ const SIZE_MAP = {
     lg: { img: "w-14 h-14", text: "w-14 h-14 text-lg", font: "text-base" },
 };
 
-export function UserAvatar({ size = "md", showName = false, className = "" }: UserAvatarProps) {
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [fullName, setFullName] = useState<string>("");
-    const [initials, setInitials] = useState<string>("?");
-    const [loading, setLoading] = useState(true);
+export function UserAvatar({
+    size = "md",
+    showName = false,
+    className = "",
+    src,
+    fallback
+}: UserAvatarProps) {
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(src || null);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const supabase = createClient();
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+    // Use SWR for caching - only one API call across all components
+    const { data: profile, isLoading } = useSWR('/api/profile', fetcher, {
+        dedupingInterval: 60000, // Cache for 60 seconds
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+    });
 
-                // Try to get avatar from OAuth metadata (Google, etc.)
-                const metaAvatar = user.user_metadata?.avatar_url as string | undefined;
-                if (metaAvatar) setAvatarUrl(metaAvatar);
+    // Get user data from SWR response
+    const userData = profile?.data;
+    const fullName = userData?.name || "";
+    const profilePhoto = userData?.photo || src;
 
-                // Get name from DB profile (most accurate)
-                const res = await fetch("/api/profile", { cache: "no-store" });
-                if (res.ok) {
-                    const profile = await res.json();
-                    const name: string = profile?.fullName || user.user_metadata?.full_name || user.email || "";
-                    setFullName(name);
-                    if (name) {
-                        const parts = name.split(" ").filter(Boolean);
-                        const computed = parts.length >= 2
-                            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-                            : name.slice(0, 2).toUpperCase();
-                        setInitials(computed);
-                    }
-                }
-            } catch {
-                // silently fail — avatar is non-critical
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUser();
-    }, []);
+    // Compute initials from name - only first letter (as per Sir's instruction)
+    let initials = "?";
+    if (fullName) {
+        initials = fullName.trim().charAt(0).toUpperCase();
+    } else if (fallback) {
+        initials = fallback;
+    }
 
     const s = SIZE_MAP[size];
+    const displayPhoto = profilePhoto || avatarUrl;
 
     return (
         <div className={`flex items-center gap-3 ${className}`}>
             {/* Avatar circle */}
             <div className="relative shrink-0">
-                {loading ? (
+                {isLoading ? (
                     <div className={`${s.text} rounded-full bg-white/10 animate-pulse`} />
-                ) : avatarUrl ? (
+                ) : displayPhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                        src={avatarUrl}
+                        src={displayPhoto}
                         alt={fullName || "User"}
-                        className={`${s.img} rounded-full object-cover border-2 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.2)]`}
+                        className={`${s.img} rounded-full object-cover border-2 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]`}
                     />
                 ) : (
-                    <div className={`${s.text} rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center font-bold text-black shadow-[0_0_12px_rgba(251,191,36,0.25)] border-2 border-amber-400/40`}>
+                    <div className={`${s.text} rounded-full bg-amber-400/20 flex items-center justify-center font-bold text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.1)] border border-amber-400/20 uppercase`}>
                         {initials}
                     </div>
                 )}
@@ -79,13 +73,22 @@ export function UserAvatar({ size = "md", showName = false, className = "" }: Us
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[var(--color-rajya-bg)]" />
             </div>
 
-            {/* Name (optional) */}
-            {showName && fullName && (
+            {/* Name - shows loading skeleton instead of "User" */}
+            {showName && (
                 <div className="min-w-0">
-                    <p className={`font-semibold text-[var(--color-rajya-text)] truncate ${s.font}`}>
-                        {fullName.split(" ")[0]}
-                    </p>
-                    <p className="text-[10px] text-amber-400/70 uppercase tracking-widest">Rajya Admin</p>
+                    {isLoading ? (
+                        <div className="space-y-1">
+                            <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
+                            <div className="h-2 w-12 bg-white/5 rounded animate-pulse" />
+                        </div>
+                    ) : (
+                        <>
+                            <p className={`font-semibold text-[var(--color-rajya-text)] truncate ${s.font}`}>
+                                {fullName ? fullName.split(" ")[0] : (fallback || "User")}
+                            </p>
+                            <p className="text-[10px] text-amber-400/70 uppercase tracking-widest">Rajya Admin</p>
+                        </>
+                    )}
                 </div>
             )}
         </div>

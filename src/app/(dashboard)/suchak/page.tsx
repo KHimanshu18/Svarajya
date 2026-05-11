@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -8,7 +8,7 @@ import {
     ChevronRight, Sun, Moon, Info, Droplets
 } from "lucide-react";
 import { IdentityStore } from "@/lib/stores/identityStore";
-import { CredentialStore } from "@/lib/stores/credentialStore";
+import { CredentialStore } from "@/lib/credentialStore";
 import { IncomeStore, formatRupee } from "@/lib/stores/incomeStore";
 import { ExpenseStore } from "@/lib/stores/expenseStore";
 import { BankStore } from "@/lib/stores/bankStore";

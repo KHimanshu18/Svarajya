@@ -10,8 +10,8 @@ import { OnboardingStore } from "@/lib/onboardingStore";
 
 // Primary tabs always visible
 const PRIMARY_TABS = [
-    { id: "dashboard", label: "Home", icon: Home, route: "/dashboard" },
-    { id: "mandals", label: "Mandals", icon: LayoutGrid, route: "/dashboard" },
+    { id: "dashboard", label: "Home", icon: Home, route: "/rajya" },
+    { id: "mandals", label: "Mandals", icon: LayoutGrid, route: "/rajya" },
     { id: "alerts", label: "Alerts", icon: Bell, route: "/notifications" },
     { id: "vault", label: "Nidhi", icon: FolderLock, route: "/vault" },
 ];
@@ -22,9 +22,9 @@ const SECONDARY_TABS = [
     { id: "alerts-sec", label: "Alerts", icon: Bell, route: "/notifications" },
     { id: "emergency", label: "Emergency Access", icon: ShieldAlert, route: "/dwaar/portals/access" },
     { id: "backup", label: "Backup / Sync", icon: Cloud, route: "/vault" },
-    { id: "privacy", label: "Privacy", icon: Lock, route: "/dashboard" },
-    { id: "settings", label: "Settings", icon: Settings, route: "/dashboard" },
-    { id: "support", label: "Help & Support", icon: HelpCircle, route: "/dashboard" },
+    { id: "privacy", label: "Privacy", icon: Lock, route: "/rajya" },
+    { id: "settings", label: "Settings", icon: Settings, route: "/rajya" },
+    { id: "support", label: "Help & Support", icon: HelpCircle, route: "/rajya" },
 ];
 
 // Pages where the bottom nav should NOT appear (onboarding, splash, etc.)
@@ -71,6 +71,15 @@ export function BottomNav() {
 
     const isTabActive = (route: string) => pathname === route || pathname.startsWith(route + "/");
 
+    const safeNavigate = (route: string) => {
+        try {
+            router.push(route);
+            setShowMore(false);
+        } catch (error) {
+            console.error(`Navigation failed for route ${route}:`, error);
+        }
+    };
+
     return (
         <>
             {/* More menu overlay */}
@@ -85,7 +94,7 @@ export function BottomNav() {
                                 return (
                                     <button
                                         key={item.id}
-                                        onClick={() => { router.push(item.route); setShowMore(false); }}
+                                        onClick={() => safeNavigate(item.route)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive ? "bg-amber-400/10 text-amber-400" : "text-white/50 hover:bg-white/5"}`}
                                     >
                                         <div className="relative">
@@ -134,7 +143,7 @@ export function BottomNav() {
                         return (
                             <button
                                 key={item.id}
-                                onClick={() => { router.push(item.route); setShowMore(false); }}
+                                onClick={() => safeNavigate(item.route)}
                                 className={`relative flex flex-col items-center gap-0.5 py-2.5 px-2 transition-colors ${isActive ? "text-amber-400" : "text-white/30 hover:text-white/55"
                                     }`}
                             >

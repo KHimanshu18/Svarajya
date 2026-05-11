@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import {
@@ -26,30 +26,26 @@ export default function AddPortalPage() {
     const [appLink, setAppLink] = useState("");
 
     // Seed contacts
-    IdentityStore.seedFromOnboarding();
-    const initialContacts = IdentityStore.getContacts();
-    const initialMobiles = initialContacts.filter(c => c.type === "mobile");
-    const initialEmails = initialContacts.filter(c => c.type === "email");
+    const [contacts, setContacts] = useState(IdentityStore.getContacts());
+    const mobiles = contacts.filter(c => c.type === "mobile");
+    const emails = contacts.filter(c => c.type === "email");
 
     // Step 2 — Credentials & Category-specific
     const [loginId, setLoginId] = useState("");
-    const [registeredMobileId, setRegisteredMobileId] = useState(initialMobiles[0]?.id || "");
-    const [registeredEmailId, setRegisteredEmailId] = useState(initialEmails[0]?.id || "");
+    const [registeredMobileId, setRegisteredMobileId] = useState("");
+    const [registeredEmailId, setRegisteredEmailId] = useState("");
     const [registrationDate, setRegistrationDate] = useState("");
-    
-    // Contacts state
-    const [contacts, setContacts] = useState(initialContacts);
+
+    // Family members
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [linkedFamilyId, setLinkedFamilyId] = useState("");
+
     const [newMobile, setNewMobile] = useState("");
     const [newEmail, setNewEmail] = useState("");
     const [passwordMode, setPasswordMode] = useState<PasswordStorageMode>("not_stored");
     const [rawPassword, setRawPassword] = useState("");
     const [twoFA, setTwoFA] = useState<TwoFAStatus>("unknown");
     const [twoFAType, setTwoFAType] = useState<TwoFAType>("unknown");
-
-    // Family members
-    const familyMembers = OnboardingStore.get().familyMembers || [];
-    const defaultExecutor = familyMembers.find(f => f.accessRole === "Executor") || familyMembers[0];
-    const [linkedFamilyId, setLinkedFamilyId] = useState(defaultExecutor ? defaultExecutor.id : "");
 
     const [notes, setNotes] = useState("");
 
@@ -75,8 +71,65 @@ export default function AddPortalPage() {
     const [savedHealthScore, setSavedHealthScore] = useState(0);
     const [showPassModal, setShowPassModal] = useState<"create" | "unlock" | null>(null);
 
-    const mobiles = contacts.filter(c => c.type === "mobile");
-    const emails = contacts.filter(c => c.type === "email");
+    // Initial load and sync
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const res = await fetch('/api/profile', { cache: 'no-store' });
+                if (!res.ok) return;
+                const json = await res.json();
+                const profile = json.data;
+                if (!profile) return;
+
+                // Seed IdentityStore with these profile fields so it becomes source of truth
+                // Initialize seenValues with whatever is already in IdentityStore
+                const seenValues = new Set<string>(
+                    IdentityStore.getContacts().map(c => c.value.toLowerCase())
+                );
+                
+                const addIfUnique = (type: "mobile" | "email", value: string | null | undefined, label: string) => {
+                    if (!value) return;
+                    const val = value.trim().toLowerCase();
+                    if (seenValues.has(val)) return;
+                    
+                    try {
+                        IdentityStore.addContact(type, val, label);
+                        seenValues.add(val);
+                    } catch (e) {
+                        // If IdentityStore already has it from a previous visit/session
+                        seenValues.add(val);
+                    }
+                };
+
+                addIfUnique("mobile", profile.phone, "Phone");
+                addIfUnique("email", profile.email, "Email");
+                addIfUnique("mobile", profile.primaryMobile, "Primary Mobile");
+                addIfUnique("mobile", profile.secondaryMobile, "Secondary Mobile");
+                addIfUnique("email", profile.primaryEmail, "Primary Email");
+                addIfUnique("email", profile.recoveryEmail, "Recovery Email");
+
+                const currentContacts = IdentityStore.getContacts();
+                setContacts(currentContacts);
+
+                const m = currentContacts.filter(c => c.type === "mobile");
+                const e = currentContacts.filter(c => c.type === "email");
+                if (m.length > 0) setRegisteredMobileId(m[0].id);
+                if (e.length > 0) setRegisteredEmailId(e[0].id);
+
+                // Filter family members: accessLevel is 'write' OR 'EXECUTOR' AND NOT child
+                const allMembers = profile.familyMembers || [];
+                const filteredMembers = allMembers.filter((f: any) => 
+                    (f.accessLevel === "write" || f.accessLevel === "EXECUTOR") && 
+                    !f.relation.toLowerCase().includes("child")
+                );
+                setFamilyMembers(filteredMembers);
+                // Removed auto-selection: setLinkedFamilyId(filteredMembers[0].id);
+            } catch (err) {
+                console.error("Failed to load profile for Kunji:", err);
+            }
+        };
+        loadData();
+    }, []);
 
     const handleAddMobile = () => {
         const result = validateIndianMobile(newMobile);
@@ -169,7 +222,7 @@ export default function AddPortalPage() {
             };
         }
 
-        CredentialStore.addPortal({
+        const savedPortal = CredentialStore.addPortal({
             platformName: platformName.trim(),
             category: category as PortalCategory,
             subcategory: subcategory || undefined,
@@ -183,7 +236,7 @@ export default function AddPortalPage() {
             passwordStorageMode: passwordMode,
             encryptedPassword,
             twoFAStatus: twoFA,
-            twoFAType: twoFAType !== "unknown" ? twoFAType : undefined,
+            twoFAType: twoFAType,
             notes: notes.trim() || undefined,
             lastReviewedDate: new Date().toISOString().split("T")[0],
             // Category-specific
@@ -199,6 +252,8 @@ export default function AddPortalPage() {
             billingCycle: (category === "other" || category === "subscription" || category === "utility") ? (billingCycle || undefined) : undefined,
             paymentAssignee: (category === "other" || category === "subscription" || category === "utility") ? paymentAssignee.trim() || undefined : undefined,
         });
+
+
 
         const deps = {
             contactPointExists: (id: string) => !!IdentityStore.getContact(id),
@@ -264,9 +319,9 @@ export default function AddPortalPage() {
                     )}
 
                     <div className="w-full max-w-sm space-y-3">
-                        <button onClick={() => router.push("/dwaar/portals/access")}
+                        <button onClick={() => router.push("/dwaar/portals")}
                             className="w-full bg-amber-400 text-black font-semibold py-4 rounded-xl text-sm">
-                            Assign Access
+                            View Vault
                         </button>
                         <button onClick={() => { setSaved(false); setStep(1); setPlatformName(""); setCategory(""); setSubcategory(""); setLoginId(""); setError(""); }}
                             className="w-full bg-white/8 border border-white/15 text-white/70 py-3 rounded-xl text-sm">
@@ -479,12 +534,12 @@ export default function AddPortalPage() {
                             <select value={registeredMobileId === "add_new" ? "add_new" : registeredMobileId} onChange={e => setRegisteredMobileId(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                 <option value="">Select mobile</option>
-                                {mobiles.map(c => <option key={c.id} value={c.id}>{c.value} {c.label ? `(${c.label})` : ""}</option>)}
+                                {mobiles.map(c => <option key={c.id} value={c.id}>{c.value}</option>)}
                                 <option value="add_new">+ Add New Mobile</option>
                             </select>
                             {registeredMobileId === "add_new" && (
                                 <div className="flex gap-2">
-                                    <input type="text" placeholder="Enter new mobile" value={newMobile} onChange={e => { setNewMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }} 
+                                    <input type="text" placeholder="Enter new mobile" value={newMobile} onChange={e => { setNewMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
                                         inputMode="numeric" pattern="[0-9]{10}" maxLength={10}
                                         className="flex-1 bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400/60" />
                                     <button type="button" onClick={handleAddMobile}
@@ -499,12 +554,12 @@ export default function AddPortalPage() {
                             <select value={registeredEmailId === "add_new" ? "add_new" : registeredEmailId} onChange={e => setRegisteredEmailId(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                 <option value="">Select email</option>
-                                {emails.map(c => <option key={c.id} value={c.id}>{c.value} {c.label ? `(${c.label})` : ""}</option>)}
+                                {emails.map(c => <option key={c.id} value={c.id}>{c.value}</option>)}
                                 <option value="add_new">+ Add New Email</option>
                             </select>
                             {registeredEmailId === "add_new" && (
                                 <div className="flex gap-2">
-                                    <input type="email" placeholder="Enter new email" value={newEmail} onChange={e => { setNewEmail(e.target.value.trim().toLowerCase()); setError(""); }} 
+                                    <input type="email" placeholder="Enter new email" value={newEmail} onChange={e => { setNewEmail(e.target.value.trim().toLowerCase()); setError(""); }}
                                         className="flex-1 bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400/60" />
                                     <button type="button" onClick={handleAddEmail}
                                         className="bg-amber-400/20 text-amber-400 px-3 py-2 rounded-xl text-sm border border-amber-400/40">Add</button>
@@ -520,25 +575,27 @@ export default function AddPortalPage() {
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400/60" />
                         </div>
 
+                        {/* 2FA Type (General) */}
+                        <div className="space-y-2">
+                            <label className="text-xs text-white/40">2FA Type</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {(["otp", "token", "biometric", "none"] as TwoFAType[]).map(t => (
+                                    <button key={t} onClick={() => { setTwoFAType(t); setTwoFA(t === "none" ? "disabled" : "enabled"); }}
+                                        className={`px-3 py-2 rounded-lg border text-xs transition-all ${twoFAType === t
+                                            ? "bg-amber-400/15 border-amber-400 text-amber-400"
+                                            : "bg-white/5 border-white/10 text-white/40"}`}>
+                                        {t === "otp" ? "OTP" : t === "token" ? "Token" : t === "biometric" ? "Biometric" : "None"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* ——— BANK-specific fields ——— */}
                         {category === "bank" && (
                             <>
                                 <div className="space-y-2">
                                     <label className="text-xs text-white/40">Linked Bank Account <span className="text-white/20">(Module 6)</span></label>
                                     <p className="text-[10px] text-white/25">Bank account linking will be available after Module 6 setup.</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs text-white/40">2FA Type</label>
-                                    <div className="flex gap-2 flex-wrap">
-                                        {(["otp", "token", "biometric", "none"] as TwoFAType[]).map(t => (
-                                            <button key={t} onClick={() => { setTwoFAType(t); setTwoFA(t === "none" ? "disabled" : "enabled"); }}
-                                                className={`px-3 py-2 rounded-lg border text-xs transition-all ${twoFAType === t
-                                                    ? "bg-amber-400/15 border-amber-400 text-amber-400"
-                                                    : "bg-white/5 border-white/10 text-white/40"}`}>
-                                                {t === "otp" ? "OTP" : t === "token" ? "Token" : t === "biometric" ? "Biometric" : "None"}
-                                            </button>
-                                        ))}
-                                    </div>
                                 </div>
                             </>
                         )}
@@ -703,18 +760,29 @@ export default function AddPortalPage() {
                         {/* Linked Family Member */}
                         <div className="space-y-2">
                             <label className="text-xs text-white/40">Linked Family Member <span className="text-white/20">(Executor)</span></label>
-                            <select value={linkedFamilyId} onChange={e => setLinkedFamilyId(e.target.value)}
-                                className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
-                                <option value="">Select family member</option>
-                                {familyMembers.filter(f => f.accessRole === "Executor" && f.relationship !== "Child").map(f => (
-                                    <option key={f.id} value={f.id}>{f.name} ({f.relationship})</option>
-                                ))}
-                                <option value="add_new">+ Add valid Executor</option>
-                            </select>
-                            {linkedFamilyId === "add_new" && (
-                                <p className="text-[10px] text-amber-400">
-                                    Please go to <button onClick={() => router.push("/foundation/family")} className="underline font-bold">Foundation &gt; Family</button> to add a valid Executor (cannot be a child).
+                            {familyMembers.length === 0 ? (
+                                <p className="text-xs text-amber-400 bg-amber-400/10 p-3 rounded-xl border border-amber-400/20">
+                                    No eligible family members. Add an adult with Executor access in Family Management
                                 </p>
+                            ) : (
+                                <>
+                                    <select value={linkedFamilyId} onChange={e => setLinkedFamilyId(e.target.value)}
+                                        className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                        <option value="">Select family member</option>
+                                        {familyMembers.map(f => {
+                                            const baseRelation = f.relation.split(' ')[0].toLowerCase();
+                                            return (
+                                                <option key={f.id} value={f.id}>{f.name} ({baseRelation})</option>
+                                            );
+                                        })}
+                                        <option value="add_new">+ Add valid Executor</option>
+                                    </select>
+                                    {linkedFamilyId === "add_new" && (
+                                        <p className="text-[10px] text-amber-400">
+                                            Please go to <button onClick={() => router.push("/foundation/family")} className="underline font-bold">Foundation &gt; Family</button> to add a valid Executor (cannot be a child).
+                                        </p>
+                                    )}
+                                </>
                             )}
                             <p className="text-[10px] text-white/20">Only non-child members with Executor access appear here.</p>
                         </div>

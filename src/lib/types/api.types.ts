@@ -42,6 +42,10 @@ export interface UserResponse {
   isFirstLogin: boolean;
   isMobileVerified?: boolean;
   mobile?: string | null;
+  primaryMobile?: string | null;
+  secondaryMobile?: string | null;
+  primaryEmail?: string | null;
+  recoveryEmail?: string | null;
   familyMembers?: any[];
   education?: any[];
 }
@@ -164,6 +168,9 @@ export interface CredentialRecordResponse {
   storageMode: string;
   linkedMemberId?: string | null;
   registrationDate?: string | null;
+  twoFAStatus?: string | null;
+  twoFAType?: string | null;
+  nomineeAwareness?: boolean | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -179,6 +186,9 @@ export interface CreateCredentialRecordRequest {
   password?: string;
   linkedMemberId?: string;
   registrationDate?: string;
+  twoFAStatus?: string;
+  twoFAType?: string;
+  nomineeAwareness?: boolean;
 }
 
 export interface UpdateCredentialRecordRequest {
@@ -189,6 +199,9 @@ export interface UpdateCredentialRecordRequest {
   registeredMobile?: string;
   password?: string;
   linkedMemberId?: string;
+  registrationDate?: string;
+  twoFAStatus?: string;
+  twoFAType?: string;
 }
 
 // ============================================================================

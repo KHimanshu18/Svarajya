@@ -862,6 +862,7 @@ model User {
   panMasked         String?
   aadhaarMasked     String?
   primaryMobile     String?
+  secondaryMobile   String?
   primaryEmail      String?
   recoveryEmail     String?
   address           String?
@@ -920,6 +921,7 @@ model User {
   consentRecords    ConsentRecord[]
   cohorts           UserCohort[]
   rajyaScore        RajyaScore?
+
 
   @@index([email])
   @@index([phone])
@@ -981,6 +983,7 @@ model FamilyMember {
   nomineeIn       NomineeMapping[]
   coveredBy       InsuranceCoverage[]
   education       Education[]
+
 
   @@index([userId])
   @@map("family_members")
@@ -1066,15 +1069,21 @@ model CredentialRecord {
   encryptedPassword String? // Only if user chooses encrypted storage
   linkedMemberId  String? // Family member ID if applicable
   registrationDate DateTime? @db.Date
+  twoFAStatus     String?   @default("unknown")
+  twoFAType       String?   @default("none")
+  nomineeAwareness Boolean? @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+
   @@index([userId])
   @@index([portalType])
   @@map("credential_records")
 }
+
+
 
 // ----------------------------------------------------------------------------
 // Income Management

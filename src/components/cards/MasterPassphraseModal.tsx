@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Lock, Unlock, ShieldAlert } from "lucide-react";
-import { CredentialStore, EncryptedSecret } from "@/lib/stores/credentialStore";
+import { CredentialStore, EncryptedSecret } from "@/lib/credentialStore";
 import { encryptString, verifyPassphrase } from "@/lib/utils/crypto";
 
 interface MasterPassphraseModalProps {

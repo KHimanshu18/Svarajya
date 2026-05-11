@@ -239,7 +239,7 @@ export default function FoundationHub() {
                                     <img
                                         src={photoUrl}
                                         alt="Profile"
-                                        className="w-14 h-14 rounded-full object-cover border-2 border-amber-400"
+                                        className="w-14 h-14 rounded-full object-cover border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
                                     />
                                     <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                                         <button
@@ -262,10 +262,15 @@ export default function FoundationHub() {
                             ) : (
                                 <div
                                     onClick={() => document.getElementById("photo-upload")?.click()}
-                                    className="w-14 h-14 rounded-full bg-white/8 border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-pointer hover:border-amber-400/50 transition-colors"
+                                    className="w-14 h-14 rounded-full bg-amber-400/20 border-2 border-amber-400/20 flex items-center justify-center cursor-pointer hover:border-amber-400/40 transition-all shadow-[0_0_15px_rgba(251,191,36,0.1)] group-hover:bg-amber-400/30"
                                 >
-                                    <Camera className="w-5 h-5 text-white/30" />
-                                    <span className="text-[9px] text-white/30">Photo</span>
+                                    <span className="text-xl font-bold text-amber-400">
+                                        {(profile?.name || data.fullName || user?.user_metadata?.full_name || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    {/* Small camera icon overlay on hover */}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Camera className="w-4 h-4 text-white/70" />
+                                    </div>
                                 </div>
                             )}
                             {/* Hidden file input */}

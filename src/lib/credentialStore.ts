@@ -1,5 +1,5 @@
 // Module 3: Credential Store — in-memory data layer for portal records,
-// access mappings, credential health scoring, and insights.
+// credential health scoring, and insights.
 // Uses dependency injection for cross-module integration (Module 1 Family, Module 2 Identity).
 
 export type PortalCategory =
@@ -14,8 +14,6 @@ export type TwoFAType = "otp" | "token" | "biometric" | "none" | "unknown";
 
 export type PasswordStorageMode = "encrypted" | "not_stored";
 export type TwoFAStatus = "enabled" | "disabled" | "unknown";
-export type AccessLevel = "viewer" | "executor" | "emergency_only" | "no_access";
-export type EmergencyRule = "manual" | "after_7d" | "after_30d" | "after_90d";
 
 export interface EncryptedSecret {
     version: 1;
@@ -39,6 +37,8 @@ export interface PortalRecord {
     loginId: string;
     registeredMobileId?: string;       // ContactPoint.id from Module 2
     registeredEmailId?: string;        // ContactPoint.id from Module 2
+    registeredMobile?: string;         // Plain value from DB
+    registeredEmail?: string;          // Plain value from DB
     registrationDate?: string;
     linkedFamilyMemberId?: string;     // FamilyMember.id from Module 1
     passwordStorageMode: PasswordStorageMode;
@@ -66,17 +66,6 @@ export interface PortalRecord {
     rechargeDate?: string;             // Next recharge/payment due date
     billingCycle?: "monthly" | "quarterly" | "half_yearly" | "yearly" | "one_time" | "custom";
     paymentAssignee?: string;          // Who pays for this? (family member name)
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface AccessMapping {
-    id: string;
-    portalId: string;
-    familyMemberId: string;
-    accessLevel: AccessLevel;
-    emergencyRule: EmergencyRule;
-    lastReviewedDate?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -149,7 +138,6 @@ export interface CrossModuleDeps {
 
 // ——— In-memory storage ———
 let _portals: PortalRecord[] = [];
-let _accessMappings: AccessMapping[] = [];
 
 // Master passphrase verification blob (encrypted "VERIFY" string)
 let _masterVerifyBlob: EncryptedSecret | null = null;
@@ -167,7 +155,6 @@ function now(): string {
 // ——— Per-portal health score ———
 function calcPortalHealth(
     portal: PortalRecord,
-    accessMappings: AccessMapping[],
     deps: CrossModuleDeps
 ): number {
     const today = deps.now || new Date();
@@ -188,9 +175,8 @@ function calcPortalHealth(
         score += 20;
     }
 
-    // +20: Has access mapping with at least 1 non-"no_access" family member
-    const portalAccess = accessMappings.filter(a => a.portalId === portal.id && a.accessLevel !== "no_access");
-    if (portalAccess.length > 0) score += 20;
+    // +20: Has linked family member (executor)
+    if (portal.linkedFamilyMemberId) score += 20;
 
     // +20: Reviewed within 365 days
     if (portal.lastReviewedDate) {
@@ -205,12 +191,9 @@ function calcPortalHealth(
 // ——— Emergency readiness per portal ———
 function isEmergencyReady(
     portal: PortalRecord,
-    accessMappings: AccessMapping[],
     deps: CrossModuleDeps
 ): boolean {
-    const hasExecutor = accessMappings.some(
-        a => a.portalId === portal.id && (a.accessLevel === "executor" || a.accessLevel === "emergency_only")
-    );
+    const hasExecutor = !!portal.linkedFamilyMemberId;
     const hasPasswordStrategy = portal.passwordStorageMode !== undefined;
     const hasContact = (portal.registeredMobileId && deps.contactPointExists(portal.registeredMobileId)) ||
         (portal.registeredEmailId && deps.contactPointExists(portal.registeredEmailId));
@@ -229,7 +212,33 @@ export const CredentialStore = {
         _portals.push(portal);
 
         if (typeof window !== 'undefined') {
-            const { id: _cid, ...payload } = portal;
+            // Map frontend fields to API fields
+            const payload: any = {
+                portalName: portal.platformName,
+                portalType: portal.category,
+                portalUrl: portal.websiteUrl,
+                loginId: portal.loginId,
+                storageMode: portal.passwordStorageMode,
+                password: portal.encryptedPassword,
+                linkedMemberId: portal.linkedFamilyMemberId,
+                registrationDate: portal.registrationDate,
+                twoFAStatus: portal.twoFAStatus,
+                twoFAType: portal.twoFAType,
+                nomineeAwareness: portal.nomineeAwareness,
+            };
+
+            // Resolve contact point IDs to actual values for DB storage
+            if (portal.registeredMobileId) {
+                const { IdentityStore } = require("./identityStore");
+                const cp = IdentityStore.getContact(portal.registeredMobileId);
+                if (cp) payload.registeredMobile = cp.value;
+            }
+            if (portal.registeredEmailId) {
+                const { IdentityStore } = require("./identityStore");
+                const cp = IdentityStore.getContact(portal.registeredEmailId);
+                if (cp) payload.registeredEmail = cp.value;
+            }
+
             fetch('/api/credentials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -237,8 +246,11 @@ export const CredentialStore = {
             }).then(async (res) => {
                 if (res.ok) {
                     const saved = await res.json();
-                    const idx = _portals.findIndex(p => p.id === portal.id);
-                    if (idx !== -1) _portals[idx].id = saved.id;
+                    const realId = saved.data?.id || saved.id;
+                    if (realId) {
+                        const idx = _portals.findIndex(p => p.id === portal.id);
+                        if (idx !== -1) _portals[idx].id = realId;
+                    }
                 }
             }).catch(e => console.warn("Credential sync err", e));
         }
@@ -252,10 +264,38 @@ export const CredentialStore = {
         _portals[idx] = { ..._portals[idx], ...patch, updatedAt: now() };
 
         if (typeof window !== 'undefined') {
+            const portal = _portals[idx];
+            const payload: any = {
+                id: portal.id,
+                portalName: portal.platformName,
+                portalType: portal.category,
+                portalUrl: portal.websiteUrl,
+                loginId: portal.loginId,
+                storageMode: portal.passwordStorageMode,
+                password: portal.encryptedPassword,
+                linkedMemberId: portal.linkedFamilyMemberId,
+                registrationDate: portal.registrationDate,
+                twoFAStatus: portal.twoFAStatus,
+                twoFAType: portal.twoFAType,
+                nomineeAwareness: portal.nomineeAwareness,
+            };
+
+            // Resolve contact point IDs
+            if (portal.registeredMobileId) {
+                const { IdentityStore } = require("./identityStore");
+                const cp = IdentityStore.getContact(portal.registeredMobileId);
+                if (cp) payload.registeredMobile = cp.value;
+            }
+            if (portal.registeredEmailId) {
+                const { IdentityStore } = require("./identityStore");
+                const cp = IdentityStore.getContact(portal.registeredEmailId);
+                if (cp) payload.registeredEmail = cp.value;
+            }
+
             fetch('/api/credentials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(_portals[idx])
+                body: JSON.stringify(payload)
             }).catch(e => console.warn("Credential sync err", e));
         }
 
@@ -265,47 +305,15 @@ export const CredentialStore = {
     deletePortal(id: string): boolean {
         const before = _portals.length;
         _portals = _portals.filter(p => p.id !== id);
-        _accessMappings = _accessMappings.filter(a => a.portalId !== id);
+
+        fetch(`/api/credentials/${id}`, { method: 'DELETE' })
+            .catch(e => console.warn("Credential delete err", e));
+
         return _portals.length < before;
     },
 
     getPortals(): PortalRecord[] { return [..._portals]; },
     getPortalById(id: string): PortalRecord | undefined { return _portals.find(p => p.id === id); },
-
-    // ——— Access Mappings ———
-    addAccess(partial: Omit<AccessMapping, "id" | "createdAt" | "updatedAt">): AccessMapping {
-        const mapping: AccessMapping = {
-            id: genId(),
-            ...partial,
-            createdAt: now(),
-            updatedAt: now(),
-        };
-        _accessMappings.push(mapping);
-        return mapping;
-    },
-
-    updateAccess(id: string, patch: Partial<Omit<AccessMapping, "id" | "createdAt">>): AccessMapping | null {
-        const idx = _accessMappings.findIndex(a => a.id === id);
-        if (idx === -1) return null;
-        _accessMappings[idx] = { ..._accessMappings[idx], ...patch, updatedAt: now() };
-        return _accessMappings[idx];
-    },
-
-    deleteAccess(id: string): boolean {
-        const before = _accessMappings.length;
-        _accessMappings = _accessMappings.filter(a => a.id !== id);
-        return _accessMappings.length < before;
-    },
-
-    getAccessForPortal(portalId: string): AccessMapping[] {
-        return _accessMappings.filter(a => a.portalId === portalId);
-    },
-
-    getAccessForFamilyMember(familyMemberId: string): AccessMapping[] {
-        return _accessMappings.filter(a => a.familyMemberId === familyMemberId);
-    },
-
-    getAllAccess(): AccessMapping[] { return [..._accessMappings]; },
 
     // ——— Credential Health Score ———
     getCredentialHealth(deps: CrossModuleDeps): { overall: number; perPortal: Record<string, number> } {
@@ -313,7 +321,7 @@ export const CredentialStore = {
         const perPortal: Record<string, number> = {};
         let total = 0;
         for (const portal of _portals) {
-            const score = calcPortalHealth(portal, _accessMappings, deps);
+            const score = calcPortalHealth(portal, deps);
             perPortal[portal.id] = score;
             total += score;
         }
@@ -324,7 +332,7 @@ export const CredentialStore = {
     getEmergencyReadiness(deps: CrossModuleDeps): Record<string, boolean> {
         const result: Record<string, boolean> = {};
         for (const portal of _portals) {
-            result[portal.id] = isEmergencyReady(portal, _accessMappings, deps);
+            result[portal.id] = isEmergencyReady(portal, deps);
         }
         return result;
     },
@@ -333,28 +341,26 @@ export const CredentialStore = {
     getInsights(deps: CrossModuleDeps): {
         totalPortals: number;
         byCategory: Record<PortalCategory, number>;
-        portalsMissingAccess: number;
         portalsNotReviewed: number;
         portalsWithNoExecutor: number;
         portalsWithUnknown2FA: number;
+        insuranceMissingAwareness: number;
     } {
         const today = deps.now || new Date();
         const byCategory: Record<string, number> = {};
         PORTAL_CATEGORIES.forEach(c => { byCategory[c.id] = 0; });
 
-        let missingAccess = 0;
         let notReviewed = 0;
         let noExecutor = 0;
         let unknown2FA = 0;
+        let insuranceMissingAwareness = 0;
 
         for (const portal of _portals) {
             byCategory[portal.category] = (byCategory[portal.category] || 0) + 1;
 
-            const portalAccess = _accessMappings.filter(a => a.portalId === portal.id && a.accessLevel !== "no_access");
-            if (portalAccess.length === 0) missingAccess++;
-
-            const hasExecutor = _accessMappings.some(a => a.portalId === portal.id && a.accessLevel === "executor");
-            if (!hasExecutor) noExecutor++;
+            if (!portal.linkedFamilyMemberId) {
+                noExecutor++;
+            }
 
             if (!portal.lastReviewedDate) {
                 notReviewed++;
@@ -364,28 +370,32 @@ export const CredentialStore = {
             }
 
             if (!portal.twoFAStatus || portal.twoFAStatus === "unknown") unknown2FA++;
+
+            if (portal.category === "insurance" && portal.nomineeAwareness === false) {
+                insuranceMissingAwareness++;
+            }
         }
 
         return {
             totalPortals: _portals.length,
             byCategory: byCategory as Record<PortalCategory, number>,
-            portalsMissingAccess: missingAccess,
             portalsNotReviewed: notReviewed,
             portalsWithNoExecutor: noExecutor,
             portalsWithUnknown2FA: unknown2FA,
+            insuranceMissingAwareness,
         };
     },
 
     // ——— Milestones ———
     getMilestones(): { id: string; label: string; unlocked: boolean }[] {
-        const accessCount = _accessMappings.filter(a => a.accessLevel !== "no_access").length;
+        const executorCount = _portals.filter(p => !!p.linkedFamilyMemberId).length;
         const health = _portals.length > 0
             ? this.getCredentialHealth({ contactPointExists: () => true, familyMemberExists: () => true })
             : { overall: 0 };
 
         return [
             { id: "first_portal", label: "Access Logged", unlocked: _portals.length >= 1 },
-            { id: "first_access", label: "Shared Authority", unlocked: accessCount >= 1 },
+            { id: "first_access", label: "Shared Authority", unlocked: executorCount >= 1 },
             { id: "five_portals", label: "Structured Keeper", unlocked: _portals.length >= 5 },
             { id: "stable_chamber", label: "Stable Key Chamber", unlocked: health.overall >= 80 },
         ];
@@ -431,7 +441,6 @@ export const CredentialStore = {
     // ——— Full reset ———
     reset() {
         _portals = [];
-        _accessMappings = [];
         _masterVerifyBlob = null;
         _vaultUnlockedUntil = 0;
     },
@@ -439,18 +448,33 @@ export const CredentialStore = {
     async hydrate() {
         if (typeof window === 'undefined') return;
         try {
+            // Fetch portals
             const res = await fetch('/api/credentials', { cache: 'no-store' });
             if (!res.ok) return;
-            const dbPortals = await res.json();
-            if (!Array.isArray(dbPortals) || dbPortals.length === 0) return;
-            _portals = dbPortals.map((d: Record<string, unknown>) => ({
-                ...d,
-                registrationDate: d.registrationDate ? String(d.registrationDate).split('T')[0] : undefined,
-                lastReviewedDate: d.lastReviewedDate ? String(d.lastReviewedDate) : undefined,
-                renewalDate: d.renewalDate ? String(d.renewalDate).split('T')[0] : undefined,
-                createdAt: d.createdAt ? String(d.createdAt) : now(),
-                updatedAt: d.updatedAt ? String(d.updatedAt) : now(),
-            })) as PortalRecord[];
+            const json = await res.json();
+            const dbPortals = json.data || json;
+            if (Array.isArray(dbPortals)) {
+                _portals = dbPortals.map((d: any) => ({
+                    id: d.id,
+                    platformName: d.portalName,
+                    category: d.portalType,
+                    websiteUrl: d.portalUrl,
+                    loginId: d.loginId,
+                    passwordStorageMode: d.storageMode,
+                    encryptedPassword: d.password,
+                    linkedFamilyMemberId: d.linkedMemberId,
+                    registeredMobile: d.registeredMobile,
+                    registeredEmail: d.registeredEmail,
+                    registrationDate: d.registrationDate ? String(d.registrationDate).split('T')[0] : undefined,
+                    lastReviewedDate: d.lastReviewedDate ? String(d.lastReviewedDate) : undefined,
+                    renewalDate: d.renewalDate ? String(d.renewalDate).split('T')[0] : undefined,
+                    createdAt: d.createdAt ? String(d.createdAt) : now(),
+                    updatedAt: d.updatedAt ? String(d.updatedAt) : now(),
+                    twoFAStatus: d.twoFAStatus || "unknown",
+                    twoFAType: d.twoFAType || "none",
+                    nomineeAwareness: d.nomineeAwareness !== null && d.nomineeAwareness !== undefined ? d.nomineeAwareness : true,
+                })) as PortalRecord[];
+            }
         } catch (err) {
             console.warn("Failed to hydrate credentials", err);
         }

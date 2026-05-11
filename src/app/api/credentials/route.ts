@@ -40,6 +40,9 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       storageMode: record.storageMode,
       linkedMemberId: record.linkedMemberId,
       registrationDate: record.registrationDate?.toISOString() || null,
+      twoFAStatus: record.twoFAStatus,
+      twoFAType: record.twoFAType,
+      nomineeAwareness: record.nomineeAwareness,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     }));
@@ -89,6 +92,10 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         registeredMobile: data.registeredMobile,
         encryptedPassword: data.password,
         linkedMemberId: data.linkedMemberId,
+        twoFAStatus: data.twoFAStatus,
+        twoFAType: data.twoFAType,
+        nomineeAwareness: data.nomineeAwareness,
+        registrationDate: data.registrationDate ? new Date(data.registrationDate) : undefined,
       });
     } else {
       // Create new
@@ -103,6 +110,9 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         encryptedPassword: data.password,
         linkedMemberId: data.linkedMemberId,
         registrationDate: data.registrationDate ? new Date(data.registrationDate) : undefined,
+        twoFAStatus: data.twoFAStatus,
+        twoFAType: data.twoFAType,
+        nomineeAwareness: data.nomineeAwareness,
       });
     }
 
@@ -118,6 +128,9 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       storageMode: record.storageMode,
       linkedMemberId: record.linkedMemberId,
       registrationDate: record.registrationDate?.toISOString() || null,
+      twoFAStatus: record.twoFAStatus,
+      twoFAType: record.twoFAType,
+      nomineeAwareness: record.nomineeAwareness,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

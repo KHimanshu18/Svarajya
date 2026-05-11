@@ -14,7 +14,7 @@ const PROTECTED_PREFIXES = [
     "/raksha", "/rin", "/mitra", "/leakage", "/foundation", "/suchak",
     "/beej", "/bhoomi", "/kar", "/lakshya", "/mantri", "/raj-mantri",
     "/doot", "/sampatti", "/granthagaar", "/suraksha",
-    "/onboarding",
+    "/onboarding", "/notifications", "/vault"
 ];
 
 export function AuthSync() {

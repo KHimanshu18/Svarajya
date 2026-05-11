@@ -45,12 +45,12 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
 
 
   try {
-    // Simple find by ID - no relations
-    let user = await userService.findById(authContext.userId);
+    // Fetch user with relations
+    let user = await userService.getUserWithProfile(authContext.userId);
 
     if (!user) {
       await userService.syncUserWithSupabase(authContext.userId, authContext.email || '', '');
-      user = await userService.findById(authContext.userId);
+      user = await userService.getUserWithProfile(authContext.userId);
 
       if (!user) {
         return successResponse({ isFirstLogin: true } as any);
@@ -58,13 +58,17 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
     }
 
     const userAny: any = user;
-    const phoneValue = userAny.phone ?? userAny.primary_mobile ?? userAny.primaryMobile ?? null;
+    const phoneValue = userAny.phone ?? userAny.primaryMobile ?? null;
 
     const response: UserResponse = {
       id: user.id,
       email: user.email,
-      phone: phoneValue,
-      mobile: phoneValue,
+      phone: userAny.phone ?? null,
+      mobile: userAny.phone ?? userAny.primaryMobile ?? null,
+      primaryMobile: userAny.primaryMobile ?? null,
+      secondaryMobile: userAny.secondaryMobile ?? null,
+      primaryEmail: userAny.primaryEmail ?? null,
+      recoveryEmail: userAny.recoveryEmail ?? null,
       name: userAny.name,
       dob: userAny.dob?.toISOString() || null,
       gender: userAny.gender,
@@ -77,8 +81,16 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       createdAt: userAny.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: userAny.updatedAt?.toISOString() || new Date().toISOString(),
       isFirstLogin: userAny.is_first_login ?? true,
-      familyMembers: [],
-      education: [],
+      familyMembers: (userAny.familyMembers || []).map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        relation: m.relation,
+        dob: m.dob,
+        isDependent: m.isDependent,
+        nomineeEligible: m.nomineeEligible,
+        accessLevel: m.accessLevel,
+      })),
+      education: userAny.education || [],
     };
 
     const finalResponse = successResponse(response);

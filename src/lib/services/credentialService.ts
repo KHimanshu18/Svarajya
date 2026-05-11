@@ -13,6 +13,9 @@ export interface CreateCredentialRecordInput {
   encryptedPassword?: string;
   linkedMemberId?: string;
   registrationDate?: Date;
+  twoFAStatus?: string;
+  twoFAType?: string;
+  nomineeAwareness?: boolean;
 }
 
 export interface UpdateCredentialRecordInput {
@@ -23,6 +26,10 @@ export interface UpdateCredentialRecordInput {
   registeredMobile?: string;
   encryptedPassword?: string;
   linkedMemberId?: string;
+  twoFAStatus?: string;
+  twoFAType?: string;
+  registrationDate?: Date;
+  nomineeAwareness?: boolean;
 }
 
 /**

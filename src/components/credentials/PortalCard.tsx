@@ -13,8 +13,7 @@ interface PortalCardProps {
 export function PortalCard({ portal, healthScore, emergencyReady, nowMs }: PortalCardProps) {
     const router = useRouter();
     const catMeta = PORTAL_CATEGORIES.find(c => c.id === portal.category);
-    const access = CredentialStore.getAccessForPortal(portal.id);
-    const hasExecutor = access.some(a => a.accessLevel === "executor");
+    const hasExecutor = !!portal.linkedFamilyMemberId;
     const maskedLogin = CredentialStore.maskLoginId(portal.loginId);
 
     // Last reviewed text

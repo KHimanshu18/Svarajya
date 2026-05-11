@@ -10,15 +10,21 @@ const HIDDEN_PATHS = ["/", "/start", "/intro"];
 
 export function GlobalTopRightMenu() {
     const pathname = usePathname();
-    const [theme, setTheme] = useState<ThemeMode>(() => {
-        if (typeof window !== "undefined") {
-            ThemeStore.init();
-            return ThemeStore.get();
-        }
-        return "dark";
-    });
+    const [mounted, setMounted] = useState(false);
+    const [theme, setTheme] = useState<ThemeMode>("dark");
+
+    useEffect(() => {
+        ThemeStore.init();
+        setTheme(ThemeStore.get());
+        setMounted(true);
+    }, []);
 
     if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/onboarding") || pathname === "/dashboard") {
+        return null;
+    }
+
+    // Don't render anything until mounted on client (prevents hydration mismatch)
+    if (!mounted) {
         return null;
     }
 
@@ -36,7 +42,6 @@ export function GlobalTopRightMenu() {
             localStorage.removeItem("svarajya_treasury_v1");
             localStorage.removeItem("svarajya_onboarding_v1");
             localStorage.removeItem("svarajya_last_login");
-            // Hard redirect â€” forces middleware to re-evaluate auth cookies
             window.location.href = "/start";
         }
     };

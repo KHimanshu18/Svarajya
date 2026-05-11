@@ -13,14 +13,34 @@ import { NotificationStore } from "@/lib/notificationStore";
 import { useState, useEffect } from "react";
 import { IncomeStore, formatRupee } from "@/lib/incomeStore";
 import { IdentityStore } from "@/lib/identityStore";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 const HIDDEN_PATHS = ["/", "/start", "/intro"];
 
 export function DesktopSidebar() {
     const router = useRouter();
     const pathname = usePathname();
+    const { user: authUser } = useAuth();
+    const [user, setUser] = useState(authUser);
     const [theme, setTheme] = useState<ThemeMode>("dark");
     const [mounted, setMounted] = useState(false);
+
+    // Sync local user with auth user
+    useEffect(() => {
+        setUser(authUser);
+    }, [authUser]);
+
+    // Refresh user data on focus
+    useEffect(() => {
+        const refreshUser = async () => {
+            const supabase = createClient();
+            const { data: { user: freshUser } } = await supabase.auth.getUser();
+            if (freshUser) setUser(freshUser);
+        };
+
+        window.addEventListener("focus", refreshUser);
+        return () => window.removeEventListener("focus", refreshUser);
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -34,6 +54,14 @@ export function DesktopSidebar() {
     if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/onboarding")) return null;
 
     const isActive = (route: string) => pathname === route || pathname.startsWith(route + "/");
+
+    const safeNavigate = (route: string) => {
+        try {
+            router.push(route);
+        } catch (error) {
+            console.error(`Navigation failed for route ${route}:`, error);
+        }
+    };
 
     const handleLogout = async () => {
         const supabase = createClient();
@@ -61,10 +89,15 @@ export function DesktopSidebar() {
     ];
 
     const APP_NAV = [
-        { label: "Rajya Map", icon: Home, route: "/dashboard", badge: 0 },
+        { label: "Rajya Map", icon: Home, route: "/rajya", badge: 0 },
         { label: "Notifications", icon: Bell, route: "/notifications", badge: alertCount },
         { label: "Nidhi Vault", icon: FolderLock, route: "/vault", badge: 0 },
     ];
+
+    // User data for avatar
+    const profilePhoto = user?.user_metadata?.profile_photo || user?.user_metadata?.avatar_url || null;
+    const fullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User";
+    const fallbackLetter = fullName.charAt(0).toUpperCase();
 
     return (
         <aside className="hidden lg:flex flex-col w-64 shrink-0 min-h-screen sticky top-0 h-screen border-r border-white/8 bg-[var(--color-rajya-bg)] overflow-y-auto">
@@ -76,7 +109,12 @@ export function DesktopSidebar() {
 
             {/* User Avatar */}
             <div className="px-5 py-5 border-b border-white/8">
-                <UserAvatar size="md" showName={true} />
+                <UserAvatar 
+                    size="md" 
+                    showName={true} 
+                    src={profilePhoto} 
+                    fallback={fallbackLetter}
+                />
             </div>
 
             {/* Quick Stats — Kingdom Snapshot */}
@@ -108,7 +146,7 @@ export function DesktopSidebar() {
                         return (
                             <button
                                 key={item.route}
-                                onClick={() => router.push(item.route)}
+                                onClick={() => safeNavigate(item.route)}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                                     active ? "bg-amber-400/10 text-amber-400" : "text-white/45 hover:bg-white/5 hover:text-white/80"
                                 }`}
@@ -128,7 +166,7 @@ export function DesktopSidebar() {
 
             {/* Rajya Health Score mini-card */}
             <div className="px-4 pb-3">
-                <div className="px-3 py-3 rounded-xl bg-amber-400/6 border border-amber-400/15 cursor-pointer hover:bg-amber-400/10 transition-colors" onClick={() => router.push("/dashboard")}>
+                <div className="px-3 py-3 rounded-xl bg-amber-400/6 border border-amber-400/15 cursor-pointer hover:bg-amber-400/10 transition-colors" onClick={() => safeNavigate("/rajya")}>
                     <p className="text-[9px] text-amber-400/60 uppercase tracking-widest mb-1">Rajya Health</p>
                     <p className="text-2xl font-display text-amber-400 leading-none">View →</p>
                     <p className="text-[10px] text-white/25 mt-1">Open Dashboard for full score</p>
@@ -149,3 +187,4 @@ export function DesktopSidebar() {
         </aside>
     );
 }
+
