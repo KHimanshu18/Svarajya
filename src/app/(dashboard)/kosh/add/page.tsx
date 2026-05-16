@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { IncomeStore, IncomeType, Frequency, RiskLevel, FREQUENCIES } from "@/lib/incomeStore";
@@ -9,6 +9,7 @@ import { NumberInputRupee } from "@/components/treasury/NumberInputRupee";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { maskAccountNumber } from "@/lib/bankApi";
 import type { BankAccount } from "@/lib/bankStore";
+import React from 'react';
 
 export default function AddIncomePage() {
     const router = useRouter();
