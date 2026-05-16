@@ -56,8 +56,10 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${cinzel.variable}`} suppressHydrationWarning>
       <head>
         {/* Pre-hydration theme script — runs before React, no flash */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
+        <script
+          id="theme-initializer"
+          dangerouslySetInnerHTML={{
+            __html: `
           (function() {
             try {
               var t = localStorage.getItem('rajya-theme');

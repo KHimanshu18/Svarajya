@@ -30,13 +30,15 @@ type SaveAccountInput = {
     id?: string;
     bankName: string;
     accountType: AccountType;
+    accountNumber?: string;  // Optional - not required by PRD
     accountLast4: string;
     nickname?: string;
     openingBalance: number;
-    latestBalance: number;
+    currentBalance: number;
     latestBalanceAsOf: string;
-    status?: "active" | "dormant" | "closed";
-    auditNote?: string;
+    status?: "ACTIVE" | "DORMANT" | "CLOSED" | "active" | "dormant" | "closed";
+    isPrimary?: boolean;
+    notes?: string;
 };
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -44,6 +46,9 @@ async function readJson<T>(response: Response): Promise<T> {
     if (!response.ok) {
         const message = payload?.error || "Request failed";
         throw new Error(message);
+    }
+    if (payload && payload.success !== undefined && 'data' in payload) {
+        return payload.data as T;
     }
     return payload as T;
 }
@@ -90,6 +95,8 @@ export async function saveLiquiditySettings(input: LiquiditySettings): Promise<L
 }
 
 export function checkDuplicateAccounts(accounts: BankAccount[], bankName: string, type: AccountType, last4: string, nickname?: string) {
+    if (!accounts || !Array.isArray(accounts)) return { exact: false, possible: false };
+
     const normalizedBank = bankName.toLowerCase().trim();
     const normalizedNickname = nickname?.toLowerCase().trim();
 

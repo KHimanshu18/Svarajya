@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import { IncomeStore, formatRupee } from "@/lib/incomeStore";
+import { ExpenseStore } from "@/lib/expenseStore";
 import { NumberInputRupee } from "@/components/treasury/NumberInputRupee";
 import { PageGuide } from "@/components/ui/PageGuide";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
@@ -81,6 +82,20 @@ export default function DisposablePage() {
     const [calculated, setCalculated] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // Fetch cross-module data
+    useEffect(() => {
+        const fetchExpenses = async () => {
+            if (ExpenseStore.getEntries().length === 0) {
+                await ExpenseStore.hydrate();
+            }
+            const monthlyExpenses = ExpenseStore.getMonthlyTotal();
+            if (monthlyExpenses > 0) {
+                setExpenses(monthlyExpenses);
+            }
+        };
+        fetchExpenses();
+    }, []);
+
     const handleCalculate = () => {
         const errs: Record<string, string> = {};
         if (expenses <= 0) errs.expenses = "Please enter your monthly expenses.";
@@ -146,8 +161,8 @@ export default function DisposablePage() {
                     <>
                         {/* Input section */}
                         <div className="space-y-5 mb-6">
+                            <NumberInputRupee label="💧 Jal — Monthly Living Expenses (Auto-fetched from Vyaya)" value={expenses} onChange={setExpenses} placeholder="Rent, food, bills, transport..." error={errors.expenses} />
                             <NumberInputRupee label="🌍 Prithvi — Fixed EMIs & Loans" value={emi} onChange={setEmi} placeholder="Home EMI, car EMI, education loan..." optional error={errors.emi} />
-                            <NumberInputRupee label="💧 Jal — Monthly Living Expenses" value={expenses} onChange={setExpenses} placeholder="Rent, food, bills, transport..." error={errors.expenses} />
                             <NumberInputRupee label="🔥 Agni — Savings & Investment Target" value={savingsTarget} onChange={setSavingsTarget} placeholder="SIP, FD, PPF target..." optional />
                         </div>
 

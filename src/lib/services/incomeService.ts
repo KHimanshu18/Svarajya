@@ -10,7 +10,16 @@ export interface CreateIncomeStreamInput {
   deductions?: number;
   amountNet: number;
   creditedAccountId?: string;
+  riskLevel?: string;
+  expectedGrowthPct?: number;
+  historicalIncome?: any;
+  notes?: string;
+  allocationMonths?: number;
+  tdsAmount?: number;
+  description?: string;
   isPrimary?: boolean;
+  familyMemberId?: string;
+  lastReviewedAt?: Date | string | null;
 }
 
 export interface UpdateIncomeStreamInput {
@@ -21,7 +30,16 @@ export interface UpdateIncomeStreamInput {
   deductions?: number;
   amountNet?: number;
   creditedAccountId?: string;
+  riskLevel?: string;
+  expectedGrowthPct?: number;
+  historicalIncome?: any;
+  notes?: string;
+  allocationMonths?: number;
+  tdsAmount?: number;
+  description?: string;
   isPrimary?: boolean;
+  familyMemberId?: string;
+  lastReviewedAt?: Date | string | null;
 }
 
 /**
@@ -64,6 +82,7 @@ class IncomeService extends BaseService<IncomeStream, CreateIncomeStreamInput, U
         data: {
           ...data,
           userId,
+          frequency: data.frequency?.toUpperCase() || 'MONTHLY',
           deductions: data.deductions || 0,
         },
       });

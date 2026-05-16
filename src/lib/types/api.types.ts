@@ -218,7 +218,16 @@ export interface IncomeStreamResponse {
   deductions: number;
   amountNet: number;
   creditedAccountId?: string | null;
+  riskLevel?: string | null;
+  expectedGrowthPct?: number | null;
+  historicalIncome?: any | null;
+  notes?: string | null;
+  allocationMonths?: number | null;
+  tdsAmount?: number | null;
+  description?: string | null;
   isPrimary: boolean;
+  familyMemberId?: string | null;
+  lastReviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -231,12 +240,16 @@ export interface CreateIncomeRequest {
   deductions?: number;
   amountNet: number;
   creditedAccountId?: string;
+  riskLevel?: string;
+  expectedGrowthPct?: number;
+  historicalIncome?: any;
+  notes?: string;
+  allocationMonths?: number;
+  tdsAmount?: number;
+  description?: string;
   isPrimary?: boolean;
-  amount?: number; // Legacy support
-  date?: string; // Legacy support
-  isRecurring?: boolean; // Legacy support
-  accountId?: string; // Legacy support
-  description?: string; // Legacy support
+  familyMemberId?: string;
+  lastReviewedAt?: string | number;
 }
 
 export interface UpdateIncomeRequest {
@@ -247,7 +260,16 @@ export interface UpdateIncomeRequest {
   deductions?: number;
   amountNet?: number;
   creditedAccountId?: string;
+  riskLevel?: string;
+  expectedGrowthPct?: number;
+  historicalIncome?: any;
+  notes?: string;
+  allocationMonths?: number;
+  tdsAmount?: number;
+  description?: string;
   isPrimary?: boolean;
+  familyMemberId?: string;
+  lastReviewedAt?: string | number;
 }
 
 // ============================================================================
@@ -329,3 +351,53 @@ export interface UpdateBankAccountRequest {
   latestBalance?: number;
   latestBalanceAsOf?: string;
 }
+
+// ============================================================================
+// INSURANCE POLICIES
+// ============================================================================
+
+export interface InsurancePolicyResponse {
+  id: string;
+  userId: string;
+  type: string;
+  policyNumber: string;
+  insurerName?: string | null;
+  sumAssured: number;
+  premium: number;
+  premiumFrequency: string;
+  dueDate: string;
+  maturityDate?: string | null;
+  nomineeId?: string | null;
+  agentContact?: string | null;
+  status: string;
+  documentId?: string | null;
+  reminderId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  coverage?: {
+    id: string;
+    memberId: string;
+    member: {
+      id: string;
+      name: string;
+      relation: string;
+    };
+  }[];
+}
+
+export interface CreateInsuranceRequest {
+  type: string;
+  policyNumber: string;
+  insurerName?: string;
+  sumAssured: number;
+  premium: number;
+  premiumFrequency?: string;
+  dueDate: string;
+  maturityDate?: string;
+  nomineeId?: string;
+  agentContact?: string;
+  status?: string;
+  coveredMemberIds?: string[];
+}
+
+export interface UpdateInsuranceRequest extends Partial<CreateInsuranceRequest> {}

@@ -158,6 +158,26 @@ export const IncomeStore = {
         if (patch.grossIncome !== undefined || patch.deductions !== undefined) {
             rec.netIncome = rec.grossIncome - rec.deductions;
         }
+
+        // Sync to API if it's a real database ID
+        if (typeof window !== 'undefined' && !id.startsWith('inc-')) {
+            const payload: any = {};
+            if (patch.riskLevel) payload.riskLevel = patch.riskLevel.toUpperCase();
+            if (patch.expectedGrowthPct !== undefined) payload.expectedGrowthPct = patch.expectedGrowthPct;
+            if (patch.historicalIncome !== undefined) payload.historicalIncome = patch.historicalIncome;
+            if (patch.notes !== undefined) payload.notes = patch.notes;
+            if (patch.lastReviewedAt !== undefined) payload.lastReviewedAt = patch.lastReviewedAt;
+            if (patch.grossIncome !== undefined) payload.amountGross = patch.grossIncome;
+            if (patch.sourceName) payload.source = patch.sourceName;
+            if (patch.frequency) payload.frequency = patch.frequency.toUpperCase();
+
+            fetch(`/api/income/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(e => console.warn('Income update sync err', e));
+        }
+
         return rec;
     },
 

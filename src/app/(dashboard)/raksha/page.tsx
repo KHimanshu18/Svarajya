@@ -15,10 +15,20 @@ const RAKSHA_TYPES = [
     { id: 'property', label: 'Property', icon: <Home /> },
 ];
 
+import { useRakshaStore } from "@/lib/stores/rakshaStore";
+import { useEffect } from "react";
+import { ChevronRight, List } from "lucide-react";
+
 export default function RakshaModule() {
     const router = useRouter();
+    const { policies, fetchPolicies } = useRakshaStore();
+
     const [selectedPolicies, setSelectedPolicies] = useState<string[]>([]);
     const [step, setStep] = useState<"identify" | "review">("identify");
+
+    useEffect(() => {
+        fetchPolicies();
+    }, [fetchPolicies]);
 
     const handleIdentify = (ids: string[]) => {
         setSelectedPolicies(ids);
@@ -26,8 +36,7 @@ export default function RakshaModule() {
     };
 
     const handleFinish = () => {
-        console.log("Raksha Array:", selectedPolicies);
-        router.push('/rajya');
+        router.push('/raksha/policies/add');
     };
 
     const hasLifeHealth = selectedPolicies.includes('term') && selectedPolicies.includes('health');
@@ -111,6 +120,24 @@ export default function RakshaModule() {
                     <p className="text-[10px] text-white/30 uppercase tracking-wider mb-3">🎓 Learn More</p>
                     <VideoTutorialPlaceholder youtubeId="3Ob3stTkGLs" label="Term insurance & health insurance explained for beginners" />
                 </div>
+
+                {/* Floating Manage Button */}
+                {policies.length > 0 && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-6"
+                    >
+                        <button 
+                            onClick={() => router.push('/raksha/policies')}
+                            className="w-full bg-white/10 backdrop-blur-xl border border-white/20 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-2xl hover:bg-white/15 transition-all"
+                        >
+                            <List className="w-5 h-5 text-[var(--color-rajya-accent)]" />
+                            Manage {policies.length} Shields
+                            <ChevronRight className="w-4 h-4 text-white/40" />
+                        </button>
+                    </motion.div>
+                )}
             </div>
         </div>
     );

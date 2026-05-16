@@ -26,7 +26,7 @@ export interface IncomeRecord {
     notes?: string;
     historicalIncome?: number;   // 4B: previous year
     expectedGrowthPct?: number;  // 4B: user estimate
-    riskLevel: RiskLevel;        // 4B: self-declared
+    riskLevel?: RiskLevel;        // 4B: self-declared
     lastReviewedAt?: number;     // timestamp of last review
     createdAt: number;
     updatedAt: number;
@@ -125,25 +125,30 @@ export const IncomeStore = {
 
         if (typeof window !== 'undefined' && rec.status === 'finalized') {
             const { id: _cid, ...rest } = rec;
-            const meta = JSON.stringify({ incomeType: rest.incomeType, deductions: rest.deductions, tdsAmount: rest.tdsAmount, riskLevel: rest.riskLevel, allocationMonths: rest.allocationMonths, expectedGrowthPct: rest.expectedGrowthPct, historicalIncome: rest.historicalIncome, notes: rest.notes });
             fetch('/api/income', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: rest.incomeType,
                     source: rest.sourceName,
-                    frequency: rest.frequency,
+                    frequency: rest.frequency ? rest.frequency.toUpperCase() : "MONTHLY",
                     amountGross: rest.grossIncome,
                     deductions: rest.deductions,
                     amountNet: rest.grossIncome - (rest.deductions || 0),
                     creditedAccountId: rest.creditedAccountId,
-                    description: `META:${meta}`,
+                    riskLevel: rest.riskLevel ? rest.riskLevel.toUpperCase() : "LOW",
+                    expectedGrowthPct: rest.expectedGrowthPct,
+                    historicalIncome: rest.historicalIncome,
+                    notes: rest.notes,
+                    allocationMonths: rest.allocationMonths,
+                    tdsAmount: rest.tdsAmount,
+                    familyMemberId: rest.linkedFamilyMemberId,
                 })
             }).then(async (res) => {
                 if (res.ok) {
-                    const saved = await res.json();
+                    const result = await res.json();
                     const idx = _records.findIndex(r => r.id === rec.id);
-                    if (idx !== -1) _records[idx].id = saved.id;
+                    if (idx !== -1) _records[idx].id = result.data.id;
                 }
             }).catch(e => console.warn('Income sync err', e));
         }
@@ -159,6 +164,35 @@ export const IncomeStore = {
         if (patch.grossIncome !== undefined || patch.deductions !== undefined) {
             rec.netIncome = rec.grossIncome - rec.deductions;
         }
+
+        // Sync to API if it's a real database ID
+        if (typeof window !== 'undefined' && !id.startsWith('inc-')) {
+            const payload: any = {};
+            if (patch.incomeType) payload.type = patch.incomeType;
+            if (patch.sourceName) payload.source = patch.sourceName;
+            if (patch.frequency) payload.frequency = patch.frequency.toUpperCase();
+            if (patch.grossIncome !== undefined) payload.amountGross = patch.grossIncome;
+            if (patch.deductions !== undefined) payload.deductions = patch.deductions;
+            if (patch.grossIncome !== undefined || patch.deductions !== undefined) {
+                payload.amountNet = (patch.grossIncome ?? rec.grossIncome) - (patch.deductions ?? rec.deductions);
+            }
+            if (patch.creditedAccountId !== undefined) payload.creditedAccountId = patch.creditedAccountId;
+            if (patch.riskLevel) payload.riskLevel = patch.riskLevel.toUpperCase();
+            if (patch.expectedGrowthPct !== undefined) payload.expectedGrowthPct = patch.expectedGrowthPct;
+            if (patch.historicalIncome !== undefined) payload.historicalIncome = patch.historicalIncome;
+            if (patch.notes !== undefined) payload.notes = patch.notes;
+            if (patch.allocationMonths !== undefined) payload.allocationMonths = patch.allocationMonths;
+            if (patch.tdsAmount !== undefined) payload.tdsAmount = patch.tdsAmount;
+            if (patch.linkedFamilyMemberId !== undefined) payload.familyMemberId = patch.linkedFamilyMemberId;
+            if (patch.lastReviewedAt !== undefined) payload.lastReviewedAt = patch.lastReviewedAt;
+
+            fetch(`/api/income/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(e => console.warn('Income update sync err', e));
+        }
+
         return rec;
     },
 
@@ -166,27 +200,34 @@ export const IncomeStore = {
         const rec = this.updateRecord(id, { status: "finalized" });
 
         if (rec && typeof window !== 'undefined') {
-            const meta = JSON.stringify({ incomeType: rec.incomeType, deductions: rec.deductions, tdsAmount: rec.tdsAmount, riskLevel: rec.riskLevel, allocationMonths: rec.allocationMonths, expectedGrowthPct: rec.expectedGrowthPct, historicalIncome: rec.historicalIncome, notes: rec.notes });
             const payload: Record<string, unknown> = {
                 type: rec.incomeType,
                 source: rec.sourceName,
-                frequency: rec.frequency,
+                frequency: rec.frequency ? rec.frequency.toUpperCase() : "MONTHLY",
                 amountGross: rec.grossIncome,
                 deductions: rec.deductions,
                 amountNet: rec.grossIncome - (rec.deductions || 0),
                 creditedAccountId: rec.creditedAccountId,
-                description: `META:${meta}`,
+                riskLevel: rec.riskLevel ? rec.riskLevel.toUpperCase() : "LOW",
+                expectedGrowthPct: rec.expectedGrowthPct,
+                historicalIncome: rec.historicalIncome,
+                notes: rec.notes,
+                allocationMonths: rec.allocationMonths,
+                tdsAmount: rec.tdsAmount,
+                familyMemberId: rec.linkedFamilyMemberId,
+                lastReviewedAt: rec.lastReviewedAt,
             };
             if (rec.id && !rec.id.startsWith('inc-')) payload.id = rec.id;
+
             fetch('/api/income', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }).then(async (res) => {
                 if (res.ok) {
-                    const saved = await res.json();
+                    const result = await res.json();
                     const idx = _records.findIndex(r => r.id === rec.id);
-                    if (idx !== -1) _records[idx].id = saved.id;
+                    if (idx !== -1) _records[idx].id = result.data.id;
                 }
             }).catch(e => console.warn('Income finalize sync err', e));
         }
@@ -197,6 +238,12 @@ export const IncomeStore = {
     deleteRecord(id: string): boolean {
         const idx = _records.findIndex(r => r.id === id);
         if (idx === -1) return false;
+
+        if (typeof window !== 'undefined' && !id.startsWith('inc-')) {
+            fetch(`/api/income/${id}`, { method: 'DELETE' })
+                .catch(e => console.warn('Income delete sync err', e));
+        }
+
         _records.splice(idx, 1);
         return true;
     },
@@ -542,33 +589,15 @@ export const IncomeStore = {
         try {
             const res = await fetch('/api/income', { cache: 'no-store' });
             if (!res.ok) return;
-            const dbEntries = await res.json();
+            const result = await res.json();
+            const dbEntries = result.data;
             if (!Array.isArray(dbEntries) || dbEntries.length === 0) return;
-            _records = dbEntries.map((d: Record<string, unknown>) => {
-                let incomeType: IncomeType = 'other';
-                let deductions = 0;
-                let tdsAmount: number | undefined;
-                let riskLevel: RiskLevel = 'medium';
-                let allocationMonths: number | undefined;
-                let expectedGrowthPct: number | undefined;
-                let historicalIncome: number | undefined;
-                let notes: string | undefined;
-                const desc = String(d.description || '');
-                if (desc.startsWith('META:')) {
-                    try {
-                        const meta = JSON.parse(desc.slice(5));
-                        incomeType = meta.incomeType || 'other';
-                        deductions = meta.deductions || 0;
-                        tdsAmount = meta.tdsAmount;
-                        riskLevel = meta.riskLevel || 'medium';
-                        allocationMonths = meta.allocationMonths;
-                        expectedGrowthPct = meta.expectedGrowthPct;
-                        historicalIncome = meta.historicalIncome;
-                        notes = meta.notes;
-                    } catch { /* ignore parse errors */ }
-                }
-                const gross = Number(d.amount) || 0;
-                const freq = (d.isRecurring && d.frequency) ? String(d.frequency) as Frequency : (d.isRecurring ? 'monthly' : 'one_time');
+            _records = dbEntries.map((d: any) => {
+                const incomeType: IncomeType = (d.type || 'other').toLowerCase() as IncomeType;
+                const deductions = d.deductions || 0;
+                const gross = d.amountGross || 0;
+                const freq = (d.frequency || 'MONTHLY').toLowerCase() as Frequency;
+
                 return {
                     id: String(d.id),
                     status: 'finalized' as RecordStatus,
@@ -578,14 +607,17 @@ export const IncomeStore = {
                     grossIncome: gross,
                     deductions,
                     netIncome: gross - deductions,
-                    allocationMonths,
-                    tdsAmount,
-                    riskLevel,
-                    expectedGrowthPct,
-                    historicalIncome,
-                    notes,
+                    allocationMonths: d.allocationMonths,
+                    tdsAmount: d.tdsAmount,
+                    riskLevel: (d.riskLevel || 'medium') as RiskLevel,
+                    expectedGrowthPct: d.expectedGrowthPct,
+                    historicalIncome: d.historicalIncome,
+                    notes: d.notes,
+                    creditedAccountId: d.creditedAccountId,
+                    linkedFamilyMemberId: d.familyMemberId,
+                    lastReviewedAt: d.lastReviewedAt ? new Date(d.lastReviewedAt as string).getTime() : undefined,
                     createdAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
-                    updatedAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
+                    updatedAt: d.updatedAt ? new Date(d.updatedAt as string).getTime() : Date.now(),
                 };
             }) as IncomeRecord[];
         } catch (err) {

@@ -43,7 +43,7 @@ export function IncomeCard({ record, contribution }: IncomeCardProps) {
             </div>
             <div className="flex items-center gap-3 mt-2">
                 <span className={`text-[10px] font-medium ${riskColors[record.riskLevel]}`}>
-                    Risk: {record.riskLevel.charAt(0).toUpperCase() + record.riskLevel.slice(1)}
+                    Risk: {record.riskLevel ? record.riskLevel.charAt(0).toUpperCase() + record.riskLevel.slice(1) : "Not set"}
                 </span>
                 {record.frequency === "one_time" && !record.allocationMonths && (
                     <span className="text-[10px] text-[var(--color-rajya-muted)]">Not in monthly</span>

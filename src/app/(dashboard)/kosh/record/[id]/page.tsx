@@ -1,25 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { IncomeStore, INCOME_TYPES, FREQUENCIES, formatRupee, RiskLevel } from "@/lib/incomeStore";
 import { NumberInputRupee } from "@/components/treasury/NumberInputRupee";
+import { useEffect } from "react";
 
 export default function RecordDetailPage() {
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
     const id = params.id as string;
     const record = IncomeStore.getRecord(id);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editing, setEditing] = useState(false);
     const [now] = useState(() => Date.now());
 
+    useEffect(() => {
+        if (searchParams.get('edit') === 'true') setEditing(true);
+        if (searchParams.get('delete') === 'true') setShowDeleteConfirm(true);
+    }, [searchParams]);
+
     // Edit state
     const [grossIncome, setGrossIncome] = useState(record?.grossIncome || 0);
     const [deductions, setDeductions] = useState(record?.deductions || 0);
     const [riskLevel, setRiskLevel] = useState<RiskLevel>(record?.riskLevel || "low");
     const [tdsAmount, setTdsAmount] = useState(record?.tdsAmount || 0);
+    const [expectedGrowth, setExpectedGrowth] = useState(record?.expectedGrowthPct || 0);
+    const [historicalIncome, setHistoricalIncome] = useState(record?.historicalIncome as number || 0);
     const [notes, setNotes] = useState(record?.notes || "");
 
     if (!record) {
@@ -42,6 +51,8 @@ export default function RecordDetailPage() {
             deductions,
             riskLevel,
             tdsAmount: tdsAmount || undefined,
+            expectedGrowthPct: expectedGrowth || undefined,
+            historicalIncome: historicalIncome || undefined,
             notes: notes.trim() || undefined,
         });
         setEditing(false);
@@ -160,6 +171,18 @@ export default function RecordDetailPage() {
                         </div>
 
                         <NumberInputRupee label="TDS Amount" value={tdsAmount} onChange={setTdsAmount} optional />
+                        
+                        <div>
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Expected Growth (%)</label>
+                            <input
+                                type="number"
+                                value={expectedGrowth || ""}
+                                onChange={e => setExpectedGrowth(e.target.value ? parseInt(e.target.value) : 0)}
+                                className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none"
+                            />
+                        </div>
+
+                        <NumberInputRupee label="Historical Income (Last Year)" value={historicalIncome} onChange={setHistoricalIncome} optional />
 
                         <div>
                             <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">Notes</label>

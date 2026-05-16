@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 // import { Info } from "lucide-react"; // unused
 // import { Shield } from "lucide-react"; // unused
@@ -27,6 +27,39 @@ export default function AnalyticsPage() {
     const contributions = IncomeStore.getSourceContributions();
 
     const [expandedPillar, setExpandedPillar] = useState<string | null>(null);
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetch('/api/family').then(res => res.json()).then(data => {
+            if (data.data) setFamilyMembers(data.data);
+        }).catch(err => console.error(err));
+    }, []);
+
+    // Calculate family income split
+    const familySplit = records.reduce((acc, r) => {
+        const id = r.linkedFamilyMemberId || "self";
+        const net = (r.grossIncome - r.deductions);
+        const monthly = r.frequency === "monthly" ? net : 
+                       r.frequency === "quarterly" ? net / 3 :
+                       r.frequency === "annual" ? net / 12 :
+                       (r.allocationMonths ? net / r.allocationMonths : 0);
+        if (monthly > 0) {
+            acc[id] = (acc[id] || 0) + monthly;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+
+    const totalMonthlyFamily = Object.values(familySplit).reduce((a, b) => a + b, 0);
+
+    const familySplitData = Object.entries(familySplit).map(([id, amount]) => {
+        const name = id === "self" ? "Self" : familyMembers.find(f => f.id === id)?.name || "Unknown Member";
+        return {
+            id,
+            name,
+            amount: Math.round(amount),
+            percentage: totalMonthlyFamily > 0 ? Math.round((amount / totalMonthlyFamily) * 100) : 0
+        };
+    }).sort((a, b) => b.amount - a.amount);
 
     // Stable timestamp — captured at module load to satisfy react-hooks/purity
     const now = PAGE_LOAD_NOW;
@@ -311,6 +344,49 @@ export default function AnalyticsPage() {
                         {diversity.uniqueTypes < 3 ? "At least 3 diversified streams reduce structural risk." : "✓ Good type diversity."}
                     </p>
                 </div>
+
+                {/* ——— FAMILY INCOME SPLIT ——— */}
+                {familySplitData.length > 0 && (
+                    <div className="bg-white/4 border border-white/8 rounded-xl p-4 mb-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-[var(--color-rajya-text)]">Family Income Split</p>
+                            <span className="text-[10px] text-[var(--color-rajya-muted)]">Total: {formatRupee(totalMonthlyFamily)}/mo</span>
+                        </div>
+
+                        {/* Progress Bar Chart */}
+                        <div className="flex h-3 rounded-full overflow-hidden mb-4">
+                            {familySplitData.map((d, i) => {
+                                const colors = ["bg-emerald-500", "bg-amber-500", "bg-blue-500", "bg-purple-500", "bg-pink-500"];
+                                return (
+                                    <div 
+                                        key={d.id} 
+                                        style={{ width: `${d.percentage}%` }} 
+                                        className={`${colors[i % colors.length]} transition-all`}
+                                        title={`${d.name}: ${d.percentage}%`}
+                                    />
+                                );
+                            })}
+                        </div>
+
+                        <div className="space-y-3">
+                            {familySplitData.map((d, i) => {
+                                const colors = ["bg-emerald-500", "bg-amber-500", "bg-blue-500", "bg-purple-500", "bg-pink-500"];
+                                return (
+                                    <div key={d.id} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-3 h-3 rounded-full ${colors[i % colors.length]}`} />
+                                            <span className="text-xs text-[var(--color-rajya-text)]">{d.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-[var(--color-rajya-muted)]">{formatRupee(d.amount)}/mo</span>
+                                            <span className="text-sm font-bold text-[var(--color-rajya-accent)]">{d.percentage}%</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* ——— ACTIONS ——— */}
                 <div className="space-y-2">

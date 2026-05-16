@@ -7,6 +7,8 @@ import { IncomeStore, IncomeType, Frequency, RiskLevel, FREQUENCIES } from "@/li
 import { IncomeTypeChips } from "@/components/treasury/IncomeTypeChips";
 import { NumberInputRupee } from "@/components/treasury/NumberInputRupee";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
+import { maskAccountNumber } from "@/lib/bankApi";
+import type { BankAccount } from "@/lib/bankStore";
 
 export default function AddIncomePage() {
     const router = useRouter();
@@ -21,6 +23,20 @@ export default function AddIncomePage() {
     const [deductions, setDeductions] = useState(0);
     const [allocationMonths, setAllocationMonths] = useState<number | undefined>(undefined);
     const [creditedBank, setCreditedBank] = useState("");
+    const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+
+    useEffect(() => {
+        const fetchBankAccounts = async () => {
+            try {
+                const res = await fetch("/api/bank");
+                const data = await res.json();
+                setBankAccounts(data?.data?.accounts || []);
+            } catch (err) {
+                console.error("Failed to fetch bank accounts", err);
+            }
+        };
+        void fetchBankAccounts();
+    }, []);
 
     // Step 2 fields
     const [riskLevel, setRiskLevel] = useState<RiskLevel>("low");
@@ -68,15 +84,15 @@ export default function AddIncomePage() {
         }
 
         const record = IncomeStore.addRecord({
-            status: "finalized",
+            status: "draft",
             incomeType: incomeType!,
             sourceName: sourceName.trim(),
             frequency,
             grossIncome,
             deductions,
             allocationMonths: frequency === "one_time" ? allocationMonths : undefined,
-            tdsAmount: undefined,
-            riskLevel: "low",
+            tdsAmount: tdsAmount || undefined,
+            // riskLevel will be saved in Step 2
             lastReviewedAt: Date.now(),
             creditedAccountId: creditedBank.trim() || undefined,
         });
@@ -87,12 +103,13 @@ export default function AddIncomePage() {
 
     const handleSaveStep2 = () => {
         if (savedRecordId) {
-            const patch: Record<string, unknown> = { riskLevel };
+            const patch: Partial<IncomeRecord> = { riskLevel };
             if (historicalIncome > 0) patch.historicalIncome = historicalIncome;
             if (expectedGrowth !== 0) patch.expectedGrowthPct = expectedGrowth;
             if (tdsAmount > 0) patch.tdsAmount = tdsAmount;
             if (notes.trim()) patch.notes = notes.trim();
             IncomeStore.updateRecord(savedRecordId, patch);
+            IncomeStore.finalizeRecord(savedRecordId);
         }
         router.push("/kosh");
     };
@@ -197,15 +214,20 @@ export default function AddIncomePage() {
                             <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">
                                 Credited Bank Account <span className="opacity-50">(Optional)</span>
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 value={creditedBank}
                                 onChange={e => setCreditedBank(e.target.value)}
-                                placeholder="e.g. SBI Salary Account, HDFC Current A/C"
-                                className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none"
-                            />
+                                className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
+                            >
+                                <option value="" className="bg-slate-900">Select bank account</option>
+                                {bankAccounts.map(acc => (
+                                    <option key={acc.id} value={acc.id} className="bg-slate-900">
+                                        {acc.nickname || acc.bankName} - {maskAccountNumber(acc.accountLast4)} (₹{acc.latestBalance?.toLocaleString("en-IN")})
+                                    </option>
+                                ))}
+                            </select>
                             <p className="text-[10px] text-[var(--color-rajya-muted)] mt-1">
-                                🏦 Name the bank account where this income is credited. In Module 5 you can add full bank details and link them.
+                                🏦 Link the Pravah bank account where this income is credited.
                             </p>
                         </div>
 
@@ -252,7 +274,12 @@ export default function AddIncomePage() {
                                 Add Strength Details
                             </button>
                             <button
-                                onClick={() => router.push("/kosh")}
+                                onClick={() => {
+                                    if (savedRecordId) {
+                                        IncomeStore.finalizeRecord(savedRecordId);
+                                    }
+                                    router.push("/kosh");
+                                }}
                                 className="w-full text-center text-xs text-white/50 py-2"
                             >
                                 Skip for now

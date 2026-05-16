@@ -1,16 +1,48 @@
-﻿import { BankAccount } from '@prisma/client';
+import { BankAccount } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { BaseService } from './baseService';
+import crypto from 'node:crypto';
+
+// Encryption setup
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '12345678901234567890123456789012'; // 32 bytes
+const ALGORITHM = 'aes-256-cbc';
+
+function encryptNumber(text: string): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptNumber(text: string): string {
+  try {
+    const textParts = text.split(':');
+    if (textParts.length !== 2) return text;
+    const iv = Buffer.from(textParts[0], 'hex');
+    const encryptedText = Buffer.from(textParts[1], 'hex');
+    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (e) {
+    return text;
+  }
+}
+
 
 export interface CreateBankAccountInput {
   bankName: string;
   accountType: string;
-  accountNumber: string;
+  accountNumber?: string;  // Optional - encrypted if provided
+  accountLast4: string;
   nickname?: string;
   status?: string;
   openingBalance: number;
   currentBalance: number;
   latestBalanceAsOf: Date;
+  isPrimary?: boolean;
+  notes?: string;
 }
 
 export interface UpdateBankAccountInput {
@@ -18,8 +50,10 @@ export interface UpdateBankAccountInput {
   accountType?: string;
   status?: string;
   nickname?: string;
-  latestBalance?: number;
+  currentBalance?: number;
   latestBalanceAsOf?: Date;
+  isPrimary?: boolean;
+  notes?: string;
 }
 
 /**
@@ -46,6 +80,22 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
   }
 
   /**
+   * Get bank account by id
+   */
+  async getById(id: string, userId: string): Promise<BankAccount | null> {
+    try {
+      const acc = await prisma.bankAccount.findFirst({
+        where: { id, userId },
+      });
+      if (acc && acc.accountNumber) acc.accountNumber = decryptNumber(acc.accountNumber);
+      return acc;
+    } catch (error) {
+      console.error('[BankService] Error getting account by id:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create bank account for user
    */
   async createForUser(userId: string, data: CreateBankAccountInput): Promise<BankAccount> {
@@ -53,8 +103,9 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
       return await prisma.bankAccount.create({
         data: {
           ...data,
+          accountNumber: data.accountNumber ? encryptNumber(data.accountNumber) : null,
           userId,
-          status: data.status || 'active',
+          status: (data.status || 'ACTIVE').toUpperCase(),
         },
       });
     } catch (error) {
@@ -71,7 +122,7 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
       return await prisma.bankAccount.findMany({
         where: {
           userId,
-          status: 'active',
+          status: 'ACTIVE',
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -87,11 +138,11 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
   async getTotalBalance(userId: string): Promise<number> {
     try {
       const result = await prisma.bankAccount.aggregate({
-        where: { userId },
+        where: { userId, status: { not: 'CLOSED' } },
         _sum: { currentBalance: true },
       });
 
-      return result._sum.latestBalance || 0;
+      return result._sum.currentBalance || 0;
     } catch (error) {
       console.error('[BankService] Error calculating total balance:', error);
       throw error;
@@ -106,12 +157,12 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
       const result = await prisma.bankAccount.aggregate({
         where: {
           userId,
-          status: 'active',
+          status: 'ACTIVE',
         },
         _sum: { currentBalance: true },
       });
 
-      return result._sum.latestBalance || 0;
+      return result._sum.currentBalance || 0;
     } catch (error) {
       console.error('[BankService] Error calculating active balance:', error);
       throw error;
@@ -168,18 +219,38 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
     accountNumber: string
   ): Promise<BankAccount | null> {
     try {
-      return await prisma.bankAccount.findFirst({
+      const accounts = await prisma.bankAccount.findMany({
         where: {
           userId,
           bankName: {
             mode: 'insensitive',
           },
           accountType,
-          accountLast4,
+          status: { not: 'CLOSED' },
+        },
+      });
+      // Filter by decrypted account number
+      return accounts.find((a) => decryptNumber(a.accountNumber) === accountNumber) || null;
+    } catch (error) {
+      console.error('[BankService] Error checking duplicate:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Soft delete bank account
+   */
+  async delete(id: string, userId: string): Promise<BankAccount> {
+    try {
+      return await prisma.bankAccount.update({
+        where: { id, userId },
+        data: {
+          status: 'CLOSED',
+          currentBalance: 0,
         },
       });
     } catch (error) {
-      console.error('[BankService] Error checking duplicate:', error);
+      console.error('[BankService] Error deleting account:', error);
       throw error;
     }
   }

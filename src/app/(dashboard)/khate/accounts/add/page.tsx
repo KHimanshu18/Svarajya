@@ -22,6 +22,8 @@ export default function AddBankAccount() {
     const [balanceAsOf, setBalanceAsOf] = useState(new Date().toISOString().split("T")[0]);
 
     const [status, _setStatus] = useState<"active" | "dormant" | "closed">("active");
+    const [isPrimary, setIsPrimary] = useState(false);
+    const [notes, setNotes] = useState("");
 
     const [error, setError] = useState("");
     const [duplicateWarning, setDuplicateWarning] = useState(false);
@@ -31,7 +33,7 @@ export default function AddBankAccount() {
 
     useEffect(() => {
         fetchBankSummary()
-            .then((summary) => setExistingAccounts(summary.accounts))
+            .then((summary) => setExistingAccounts(summary?.accounts || []))
             .catch(() => undefined);
     }, []);
 
@@ -81,9 +83,11 @@ export default function AddBankAccount() {
                 accountLast4: last4,
                 nickname: nickname || undefined,
                 openingBalance: openBal,
-                latestBalance: currBal,
+                currentBalance: currBal,
                 latestBalanceAsOf: balanceAsOf,
-                status,
+                status: status.toUpperCase() as "ACTIVE" | "DORMANT" | "CLOSED",
+                isPrimary,
+                notes: notes || undefined,
             });
         } catch (err: unknown) {
             setSaving(false);
@@ -122,13 +126,16 @@ export default function AddBankAccount() {
             ]}
             onDataCaptureUnlock={() => { }}
         >
-            <div className="bg-black text-white min-h-screen px-6 py-6 pb-24 font-sans animate-fade-in relative">
-                <button onClick={() => router.back()} className="w-10 h-10 bg-white/5 hover:bg-white/10 transition-colors rounded-full flex items-center justify-center mb-6">
-                    <ArrowLeft className="w-5 h-5 text-white/50" />
-                </button>
-
-                <h1 className="text-2xl font-bold mb-1">Add Bank Account</h1>
-                <p className="text-sm text-white/50 mb-8">Enter basic details. You can update balances anytime.</p>
+            <div className="pb-24 font-sans animate-fade-in relative">
+                <div className="flex items-center gap-3 mb-8">
+                    <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
+                        <ArrowLeft className="w-4 h-4 text-white/60" />
+                    </button>
+                    <div>
+                        <h1 className="text-lg font-semibold text-white">Add Bank Account</h1>
+                        <p className="text-xs text-white/50 mt-0.5">Enter basic details. You can update balances anytime.</p>
+                    </div>
+                </div>
 
                 {error && (
                     <div className="p-3 mb-6 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2">
@@ -232,22 +239,38 @@ export default function AddBankAccount() {
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50" />
                         </div>
                     </div>
+
+                    <div className="space-y-4">
+                        <label className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
+                            <input type="checkbox" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded bg-white/10 border-white/20" />
+                            <div>
+                                <p className="text-sm font-semibold text-white">Make this my primary account</p>
+                                <p className="text-[10px] text-white/50">Used as default for incoming transactions</p>
+                            </div>
+                        </label>
+                        
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">Notes</label>
+                            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any specific purpose or branch details..."
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 resize-none" />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/90 to-transparent">
-                    <button
-                        disabled={saving || (duplicateWarning && !error)}
-                        onClick={() => {
-                            if (saving || (duplicateWarning && !error)) return;
-                            void handleSave();
-                        }}
-                        className={`w-full py-4 rounded-xl font-bold shadow-xl transition-all ${duplicateWarning && !error ? "bg-white/10 text-white/30 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
-                            }`}
-                    >
-                        {duplicateWarning && !error ? "Resolve Warning Above" : saving ? "Saving..." : "Save Account"}
-                    </button>
+                    <div className="pt-8">
+                        <button
+                            disabled={saving || (duplicateWarning && !error)}
+                            onClick={() => {
+                                if (saving || (duplicateWarning && !error)) return;
+                                void handleSave();
+                            }}
+                            className={`w-full py-4 rounded-xl font-bold shadow-xl transition-all ${duplicateWarning && !error ? "bg-white/10 text-white/30 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
+                                }`}
+                        >
+                            {duplicateWarning && !error ? "Resolve Warning Above" : saving ? "Saving..." : "Save Account"}
+                        </button>
+                    </div>
                 </div>
-            </div>
         </MicroLearningWrapper>
     );
 }

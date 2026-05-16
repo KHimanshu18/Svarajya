@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,9 +9,9 @@ import { ArrowLeft, Scale, ArrowRight, CheckCircle2, SlidersHorizontal, ShieldAl
 export default function IdleMoneyEngine() {
     const router = useRouter();
 
-    const [threshold, setThreshold] = useState("");
+    const [threshold, setThreshold] = useState<number>(0);
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
-    const [outflow, setOutflow] = useState(0);
+    const [outflow, setOutflow] = useState<number>(0);
     const [settings, setSettings] = useState<LiquiditySettings | null>(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
@@ -23,10 +23,10 @@ export default function IdleMoneyEngine() {
         fetchBankSummary()
             .then((summary) => {
                 if (!active) return;
-                setAccounts(summary.accounts.filter((account) => account.status === "active"));
-                setSettings(summary.settings);
-                setThreshold(summary.settings.idleThresholdAmount.toString());
-                setOutflow(summary.metrics.flow.outflow);
+                setAccounts(summary?.accounts?.filter((account) => account.status === "active" || account.status === "ACTIVE") || []);
+                setSettings(summary?.settings || null);
+                setThreshold(summary?.settings?.idleThresholdAmount || 0);
+                setOutflow(summary?.metrics?.flow?.outflow || 0);
             })
             .catch((err: unknown) => {
                 if (!active) return;
@@ -41,11 +41,10 @@ export default function IdleMoneyEngine() {
         };
     }, []);
 
-    const activeThreshold = parseInt(threshold || "0", 10);
     const targetMonths = settings?.emergencyFundTargetMonths || 6;
 
     const handleSave = async () => {
-        if (activeThreshold < 0 || isNaN(activeThreshold)) {
+        if (threshold < 0 || isNaN(threshold)) {
             setError("Threshold must be 0 or greater.");
             return;
         }
@@ -55,7 +54,7 @@ export default function IdleMoneyEngine() {
         try {
             await saveLiquiditySettings({
                 ...settings,
-                idleThresholdAmount: activeThreshold,
+                idleThresholdAmount: threshold,
             });
         } catch (err: unknown) {
             setSaving(false);
@@ -73,7 +72,7 @@ export default function IdleMoneyEngine() {
     // Analyze accounts based on the dynamic preview threshold
     const analyzedAccounts = accounts.map(a => {
         const excessIdle = Math.max(0, a.latestBalance - (outflow * targetMonths));
-        const isFlagged = excessIdle > activeThreshold;
+        const isFlagged = excessIdle > threshold;
         return { ...a, excessIdle, isFlagged };
     }).sort((a, b) => {
         if (a.isFlagged && !b.isFlagged) return -1;
@@ -118,7 +117,7 @@ export default function IdleMoneyEngine() {
 
                     <div className="relative mb-3">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400/50 text-xl font-medium">₹</span>
-                        <input type="number" value={threshold} onChange={e => { setThreshold(e.target.value); setError(""); }} placeholder="0"
+                        <input type="number" value={threshold || ""} onChange={e => { setThreshold(Number(e.target.value)); setError(""); }} placeholder="0"
                             className="w-full bg-white/5 border border-purple-500/30 rounded-xl pl-10 pr-4 py-4 text-purple-100 placeholder-white/20 focus:outline-none focus:border-purple-400/60 font-bold text-2xl tracking-tight transition-colors" />
                     </div>
 
@@ -163,7 +162,7 @@ export default function IdleMoneyEngine() {
                                         {acc.isFlagged ? (
                                             <div className="mt-3 pt-3 border-t border-purple-500/20">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <p className="text-xs text-purple-300 font-medium">Exceeds idle threshold of ₹ {activeThreshold.toLocaleString("en-IN")}.</p>
+                                                    <p className="text-xs text-purple-300 font-medium">Exceeds idle threshold of ₹ {threshold.toLocaleString("en-IN")}.</p>
                                                 </div>
                                                 <button className="w-full py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-xs font-semibold text-purple-300 transition-colors flex items-center justify-center gap-1.5 mt-2">
                                                     Review Allocation <ArrowRight className="w-3 h-3" />
