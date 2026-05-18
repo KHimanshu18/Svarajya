@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+
+import React, { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { ExpenseStore, PAYMENT_MODES, PaymentMode, ExpenseFrequency, formatRupee } from "@/lib/stores/expenseStore";
