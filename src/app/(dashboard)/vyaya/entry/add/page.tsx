@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,8 +12,8 @@ export default function AddExpensePage() {
     // Fast fields
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [amount, setAmount] = useState("");
-    const [categoryId, setCategoryId] = useState("");
-    const [paymentMode, setPaymentMode] = useState<PaymentMode>("upi");
+    const [category, setCategory] = useState("");
+    const [mode, setMode] = useState<PaymentMode>("UPI");
     const [recurring, setRecurring] = useState(false);
     const [recurringFrequency, setRecurringFrequency] = useState<ExpenseFrequency>("monthly");
 
@@ -21,8 +21,24 @@ export default function AddExpensePage() {
     const [showOptional, setShowOptional] = useState(false);
     const [description, setDescription] = useState("");
     const [linkedFamilyId, setLinkedFamilyId] = useState("");
-    // const [paidFromAccount, setPaidFromAccount] = useState(""); // unused â€” Module 6 not yet connected
-    const [paidFromAccount] = useState("");
+    // const [paidFromAccount, setPaidFromAccount] = useState(""); // unused — Module 6 not yet connected
+    const [paidFromAccount, setPaidFromAccount] = useState("");
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchFamily = async () => {
+            try {
+                const res = await fetch('/api/family');
+                if (res.ok) {
+                    const json = await res.json();
+                    setFamilyMembers(json.data || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch family members", err);
+            }
+        };
+        fetchFamily();
+    }, []);
 
     // UI
     const [error, setError] = useState("");
@@ -41,14 +57,14 @@ export default function AddExpensePage() {
         if (!amt || amt <= 0) { setError("Amount must be greater than 0."); return; }
 
         // If no category chosen, default to "other"
-        const finalCategory = categoryId || "other";
+        const finalCategory = category || "other";
 
         setError("");
         ExpenseStore.addEntry({
             date,
             amount: amt,
-            categoryId: finalCategory,
-            paymentMode,
+            category: finalCategory,
+            mode,
             recurring,
             recurringFrequency: recurring ? recurringFrequency : undefined,
             description: description.trim() || undefined,
@@ -86,7 +102,7 @@ export default function AddExpensePage() {
                     )}
 
                     {/* Classify prompt if category was auto-defaulted to Other */}
-                    {!categoryId && (
+                    {!category && (
                         <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl p-3 mt-3 w-full max-w-sm">
                             <p className="text-xs text-amber-400">ðŸ“‹ This expense was saved as &quot;Other&quot;. Classify it for better clarity.</p>
                             <button onClick={() => router.push("/vyaya/categories")} className="text-[10px] text-amber-400 underline mt-1">Set up categories</button>
@@ -94,7 +110,7 @@ export default function AddExpensePage() {
                     )}
 
                     <div className="w-full max-w-sm space-y-3 mt-6">
-                        <button onClick={() => { setSaved(false); setAmount(""); setCategoryId(""); setDescription(""); }}
+                        <button onClick={() => { setSaved(false); setAmount(""); setCategory(""); setDescription(""); }}
                             className="w-full bg-amber-400 text-black font-semibold py-4 rounded-xl text-sm">
                             Add Another Expense
                         </button>
@@ -162,10 +178,10 @@ export default function AddExpensePage() {
                         <input type="text" placeholder="Search categories..." value={categorySearch}
                             onChange={e => setCategorySearch(e.target.value)}
                             className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-amber-400/60" />
-                        <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                        <div className="flex flex-wrap gap-2 pt-1">
                             {filteredCategories.map(c => (
-                                <button key={c.id} onClick={() => { setCategoryId(c.id); setCategorySearch(""); }}
-                                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] transition-all ${categoryId === c.id
+                                <button key={c.id} onClick={() => { setCategory(c.id); setCategorySearch(""); }}
+                                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] transition-all ${category === c.id
                                         ? "bg-amber-400/15 border-amber-400 text-amber-400"
                                         : "bg-white/5 border-white/10 text-white/40"}`}>
                                     {c.emoji} {c.name}
@@ -179,8 +195,8 @@ export default function AddExpensePage() {
                         <label className="text-xs font-medium text-white/70">Payment Mode</label>
                         <div className="flex flex-wrap gap-2">
                             {PAYMENT_MODES.map(m => (
-                                <button key={m.id} onClick={() => setPaymentMode(m.id)}
-                                    className={`px-2.5 py-2 rounded-lg border text-[11px] transition-all ${paymentMode === m.id
+                                <button key={m.id} onClick={() => setMode(m.id)}
+                                    className={`px-2.5 py-2 rounded-lg border text-[11px] transition-all ${mode === m.id
                                         ? "bg-amber-400/15 border-amber-400 text-amber-400"
                                         : "bg-white/5 border-white/10 text-white/40"}`}>
                                     {m.emoji} {m.label}
@@ -238,6 +254,9 @@ export default function AddExpensePage() {
                             <select value={linkedFamilyId} onChange={e => setLinkedFamilyId(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                 <option value="">Select family member</option>
+                                {familyMembers.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
                             </select>
                             <p className="text-[11px] text-white/40">Family members from Foundation module appear here.</p>
                         </div>

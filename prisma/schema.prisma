@@ -910,6 +910,7 @@ model User {
   incomeStreams      IncomeStream[]
   expenses           ExpenseEntry[]
   budgetPlans        BudgetPlan[]
+  expenseCategories  ExpenseCategory[]
   bankAccounts       BankAccount[]
   investments        InvestmentHolding[]
   insurancePolicies  InsurancePolicy[]
@@ -1143,6 +1144,7 @@ model ExpenseEntry {
   amount      Float
   category    String // "FOOD", "TRANSPORT", "HOUSING", "UTILITIES", etc.
   mode        String? // "CASH", "CARD", "UPI", "BANK_TRANSFER"
+  frequency   String? // "MONTHLY", "QUARTERLY", "ANNUAL"
   accountId   String? // BankAccount ID if applicable
   description String?
   isRecurring Boolean  @default(false)
@@ -1155,6 +1157,21 @@ model ExpenseEntry {
   @@index([category])
   @@map("expense_entries")
 }
+
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  emoji     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("expense_categories")
+}
+
 
 model BudgetPlan {
   id             String   @id @default(uuid())

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, BarChart3, Settings, CreditCard, Scissors } from "lucide-react";
+import { Plus, BarChart3, Settings, CreditCard, Scissors, ArrowLeft } from "lucide-react";
 import { ExpenseStore, formatRupee } from "@/lib/expenseStore";
 import { IncomeStore } from "@/lib/incomeStore";
 import { PageGuide } from "@/components/ui/PageGuide";
@@ -23,6 +23,7 @@ export default function VyayaHub() {
     const maturity = ExpenseStore.getMaturity();
     const entryCount = ExpenseStore.getEntryCount();
     const subTotal = ExpenseStore.getMonthlySubscriptionTotal();
+    const leakageIndex = ExpenseStore.getLeakageIndex();
     const balance = monthlyIncome - monthlyExpense;
 
     // Matka water level: % of income remaining
@@ -34,12 +35,14 @@ export default function VyayaHub() {
             <div className="relative z-10">
 
                 {/* Header */}
-                <div className="flex items-center justify-between pt-8 mb-4">
+                <div className="flex items-center gap-3 pt-8 mb-4">
+                    <button onClick={() => router.push("/rajya")} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
+                        <ArrowLeft className="w-4 h-4 text-white/60" />
+                    </button>
                     <div>
                         <h1 className="text-xl font-semibold text-white">Vyaya <span className="text-white/40 text-sm font-normal">(Expenses)</span></h1>
                         <p className="text-xs text-white/50 mt-0.5">Track, control, and stop silent drains.</p>
                     </div>
-                    <button onClick={() => router.push("/rajya")} className="text-xs text-white/40">← Rajya</button>
                 </div>
 
                 {/* Guide */}
@@ -155,13 +158,24 @@ export default function VyayaHub() {
                     </div>
                 )}
 
-                {/* Subscription total */}
-                {subTotal > 0 && (
-                    <div className="bg-white/3 border border-white/8 rounded-xl p-3 mb-4 flex justify-between items-center">
-                        <span className="text-xs text-white/40">📦 Subscriptions</span>
+                {/* Subscription & Leakage total */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-3 flex flex-col justify-between">
+                        <span className="text-[10px] text-white/30 uppercase tracking-wider mb-1">📦 Subscriptions</span>
                         <span className="text-xs font-bold text-white/70">{formatRupee(subTotal)}/mo</span>
                     </div>
-                )}
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-3 flex flex-col justify-between">
+                        <span className="text-[10px] text-white/30 uppercase tracking-wider mb-1">📉 Leakage Index</span>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold ${leakageIndex > 50 ? "text-red-400" : leakageIndex > 20 ? "text-amber-400" : "text-emerald-400"}`}>
+                                {leakageIndex}/100
+                            </span>
+                            <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${leakageIndex > 50 ? "bg-red-400" : leakageIndex > 20 ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${leakageIndex}%` }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Maturity Bar */}
                 <div className="bg-white/3 border border-white/8 rounded-xl p-3 mb-5">

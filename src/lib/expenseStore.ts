@@ -1,22 +1,22 @@
 // Module 5: Expense Store — Vyaya Mandal
 // In-memory data layer for expense entries, categories, subscriptions, budgets, and analytics.
-// Follows same pattern as incomeStore.ts.
+// Persisted to Prisma via API.
 
 import { IncomeStore, formatRupee } from "./incomeStore";
 export { formatRupee };
 
 // ——— Types ———
 
-export type PaymentMode = "cash" | "upi" | "debit_card" | "credit_card" | "bank_transfer" | "wallet";
-export type ExpenseFrequency = "monthly" | "quarterly" | "annual";
+export type PaymentMode = "CASH" | "UPI" | "DEBIT_CARD" | "CREDIT_CARD" | "BANK_TRANSFER" | "WALLET";
+export type ExpenseFrequency = "MONTHLY" | "QUARTERLY" | "ANNUAL";
 
 export const PAYMENT_MODES: { id: PaymentMode; label: string; emoji: string }[] = [
-    { id: "cash", label: "Cash", emoji: "💵" },
-    { id: "upi", label: "UPI", emoji: "📱" },
-    { id: "debit_card", label: "Debit Card", emoji: "💳" },
-    { id: "credit_card", label: "Credit Card", emoji: "💳" },
-    { id: "bank_transfer", label: "Bank Transfer", emoji: "🏦" },
-    { id: "wallet", label: "Wallet", emoji: "👛" },
+    { id: "CASH", label: "Cash", emoji: "💵" },
+    { id: "UPI", label: "UPI", emoji: "📱" },
+    { id: "DEBIT_CARD", label: "Debit Card", emoji: "💳" },
+    { id: "CREDIT_CARD", label: "Credit Card", emoji: "💳" },
+    { id: "BANK_TRANSFER", label: "Bank Transfer", emoji: "🏦" },
+    { id: "WALLET", label: "Wallet", emoji: "👛" },
 ];
 
 // ——— Preset Expense Categories ———
@@ -43,7 +43,7 @@ export const PRESET_CATEGORIES: Omit<ExpenseCategoryDef, "active" | "budgetAmoun
     { id: "entertainment", name: "Entertainment", emoji: "🎬" },
     { id: "subscriptions", name: "Subscriptions", emoji: "📦" },
     { id: "miscellaneous", name: "Miscellaneous", emoji: "📋" },
-    { id: "other", name: "Other", emoji: "📎" },
+    { id: "other", name: "Other", emoji: "💭" },
 ];
 
 // ——— Expense Entry ———
@@ -52,13 +52,13 @@ export interface ExpenseEntry {
     id: string;
     date: string;                // YYYY-MM-DD
     amount: number;
-    categoryId: string;          // links to ExpenseCategoryDef.id
-    paymentMode: PaymentMode;
+    category: string;            // matches Prisma 'category'
+    mode: PaymentMode;           // matches Prisma 'mode'
     recurring: boolean;
-    recurringFrequency?: ExpenseFrequency;
+    frequency?: ExpenseFrequency; // matches Prisma 'frequency'
     description?: string;
     linkedFamilyMemberId?: string;
-    paidFromAccountId?: string;  // Module 6 link
+    accountId?: string;          // matches Prisma 'accountId'
     createdAt: number;
     updatedAt: number;
 }
@@ -68,11 +68,11 @@ export interface ExpenseEntry {
 export interface Subscription {
     id: string;
     name: string;
-    categoryId: string;
+    category: string;
     amount: number;
-    renewalDate?: string;         // YYYY-MM-DD
-    autoDebitBank?: string;
+    renewalDate: string;         // YYYY-MM-DD
     lastUsedDate?: string;        // YYYY-MM-DD
+    isActive: boolean;
     createdAt: number;
     updatedAt: number;
 }
@@ -89,6 +89,8 @@ let _categories: ExpenseCategoryDef[] = PRESET_CATEGORIES.map(c => ({
 
 let _entries: ExpenseEntry[] = [];
 let _subscriptions: Subscription[] = [];
+let _budgetTotal: number = 0;
+let _categoryBudgets: Record<string, number> = {};
 
 function genId(): string {
     return `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -107,10 +109,10 @@ function getEntryMonth(entry: ExpenseEntry): string {
 
 function toMonthlyAmount(entry: ExpenseEntry): number {
     if (!entry.recurring) return entry.amount;
-    switch (entry.recurringFrequency) {
-        case "monthly": return entry.amount;
-        case "quarterly": return entry.amount / 3;
-        case "annual": return entry.amount / 12;
+    switch (entry.frequency) {
+        case "MONTHLY": return entry.amount;
+        case "QUARTERLY": return entry.amount / 3;
+        case "ANNUAL": return entry.amount / 12;
         default: return entry.amount;
     }
 }
@@ -139,7 +141,11 @@ export const ExpenseStore = {
 
     setCategoryBudget(id: string, amount: number): void {
         const cat = _categories.find(c => c.id === id);
-        if (cat) cat.budgetAmount = Math.max(0, amount);
+        if (cat) {
+            cat.budgetAmount = Math.max(0, amount);
+            _categoryBudgets[id] = cat.budgetAmount;
+            this.syncBudget();
+        }
     },
 
     setCategoryThreshold(id: string, threshold: number): void {
@@ -147,20 +153,27 @@ export const ExpenseStore = {
         if (cat) cat.alertThreshold = Math.max(0, Math.min(1, threshold));
     },
 
-    addCustomCategory(name: string, emoji: string = "📌"): ExpenseCategoryDef {
+    async addCustomCategory(name: string, emoji: string = "📌"): Promise<ExpenseCategoryDef> {
         const id = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         const cat: ExpenseCategoryDef = {
             id, name, emoji, active: true, budgetAmount: 0, alertThreshold: 0.8, isCustom: true,
         };
         _categories.push(cat);
-        return cat;
-    },
 
-    deleteCustomCategory(id: string): boolean {
-        const idx = _categories.findIndex(c => c.id === id && c.isCustom);
-        if (idx === -1) return false;
-        _categories.splice(idx, 1);
-        return true;
+        if (typeof window !== 'undefined') {
+            fetch('/api/expense-categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, emoji })
+            }).then(async res => {
+                if (res.ok) {
+                    const json = await res.json();
+                    const idx = _categories.findIndex(c => c.id === id);
+                    if (idx !== -1) _categories[idx].id = json.data.id;
+                }
+            });
+        }
+        return cat;
     },
 
     // ——— Expense Entries ———
@@ -174,26 +187,24 @@ export const ExpenseStore = {
         _entries.push(entry);
 
         if (typeof window !== 'undefined') {
-            const { id: _cid, ...rest } = entry;
             fetch('/api/expenses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount: rest.amount,
-                    date: rest.date,
-                    categoryId: rest.categoryId,
-                    paymentMode: rest.paymentMode,
-                    isRecurring: rest.recurring,
-                    frequency: rest.recurringFrequency,
-                    description: rest.description,
-                    linkedFamilyMemberId: rest.linkedFamilyMemberId,
-                    paidFromAccountId: rest.paidFromAccountId,
+                    amount: entry.amount,
+                    date: entry.date,
+                    category: entry.category,
+                    mode: entry.mode,
+                    isRecurring: entry.recurring,
+                    frequency: entry.frequency,
+                    description: entry.description,
+                    accountId: entry.accountId,
                 })
             }).then(async (res) => {
                 if (res.ok) {
-                    const saved = await res.json();
+                    const json = await res.json();
                     const idx = _entries.findIndex(e => e.id === entry.id);
-                    if (idx !== -1) _entries[idx].id = saved.id;
+                    if (idx !== -1) _entries[idx].id = json.data.id;
                 }
             }).catch(e => console.warn('Expense sync err', e));
         }
@@ -207,22 +218,20 @@ export const ExpenseStore = {
         Object.assign(entry, patch, { updatedAt: Date.now() });
 
         if (typeof window !== 'undefined' && !entry.id.startsWith('exp-')) {
-            fetch('/api/expenses', {
-                method: 'POST',
+            fetch(`/api/expenses/${entry.id}`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: entry.id,
                     amount: entry.amount,
                     date: entry.date,
-                    categoryId: entry.categoryId,
-                    paymentMode: entry.paymentMode,
+                    category: entry.category,
+                    mode: entry.mode,
                     isRecurring: entry.recurring,
-                    frequency: entry.recurringFrequency,
+                    frequency: entry.frequency,
                     description: entry.description,
-                    linkedFamilyMemberId: entry.linkedFamilyMemberId,
-                    paidFromAccountId: entry.paidFromAccountId,
+                    accountId: entry.accountId,
                 })
-            }).catch(e => console.warn('Expense sync err', e));
+            }).catch(e => console.warn('Expense update sync err', e));
         }
 
         return entry;
@@ -231,12 +240,18 @@ export const ExpenseStore = {
     deleteEntry(id: string): boolean {
         const idx = _entries.findIndex(e => e.id === id);
         if (idx === -1) return false;
+        const entry = _entries[idx];
         _entries.splice(idx, 1);
+
+        if (typeof window !== 'undefined' && !entry.id.startsWith('exp-')) {
+            fetch(`/api/expenses/${entry.id}`, { method: 'DELETE' })
+                .catch(e => console.warn('Expense delete sync err', e));
+        }
         return true;
     },
 
     getEntries(): ExpenseEntry[] {
-        return [..._entries].sort((a, b) => b.createdAt - a.createdAt);
+        return [..._entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     },
 
     getEntry(id: string): ExpenseEntry | undefined {
@@ -247,71 +262,125 @@ export const ExpenseStore = {
         return _entries.length;
     },
 
-    // ——— Subscriptions ———
-    addSubscription(partial: Omit<Subscription, "id" | "createdAt" | "updatedAt">): Subscription {
+    addSubscription(partial: Omit<Subscription, "id" | "createdAt" | "updatedAt" | "isActive">): Subscription {
         const sub: Subscription = {
             ...partial,
             id: genId(),
+            isActive: true,
             createdAt: Date.now(),
             updatedAt: Date.now(),
         };
         _subscriptions.push(sub);
-        return sub;
-    },
 
-    updateSubscription(id: string, patch: Partial<Omit<Subscription, "id" | "createdAt">>): Subscription | null {
-        const sub = _subscriptions.find(s => s.id === id);
-        if (!sub) return null;
-        Object.assign(sub, patch, { updatedAt: Date.now() });
+        if (typeof window !== 'undefined') {
+            // Send only required fields, not the whole sub object
+            fetch('/api/subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: sub.name,
+                    amount: sub.amount,
+                    category: sub.category,
+                    renewalDate: sub.renewalDate,
+                    lastUsedDate: sub.lastUsedDate,
+                })
+            }).then(async res => {
+                if (res.ok) {
+                    const json = await res.json();
+                    const idx = _subscriptions.findIndex(s => s.id === sub.id);
+                    if (idx !== -1) _subscriptions[idx].id = json.data.id;
+                }
+            }).catch(e => console.warn('Subscription sync err', e));
+        }
         return sub;
     },
 
     deleteSubscription(id: string): boolean {
         const idx = _subscriptions.findIndex(s => s.id === id);
         if (idx === -1) return false;
+        const sub = _subscriptions[idx];
         _subscriptions.splice(idx, 1);
+
+        if (typeof window !== 'undefined' && !sub.id.startsWith('exp-')) {
+            fetch(`/api/subscriptions/${sub.id}`, { method: 'DELETE' });
+        }
         return true;
     },
 
     getSubscriptions(): Subscription[] {
-        return [..._subscriptions].sort((a, b) => b.createdAt - a.createdAt);
+        return [..._subscriptions].sort((a, b) => new Date(b.renewalDate).getTime() - new Date(a.renewalDate).getTime());
     },
 
     getDormantSubscriptions(): Subscription[] {
         const now = Date.now();
         const d90 = 90 * 24 * 60 * 60 * 1000;
         return _subscriptions.filter(s => {
-            if (!s.lastUsedDate) return true; // never used = dormant
+            if (!s.lastUsedDate) return true;
             return (now - new Date(s.lastUsedDate).getTime()) > d90;
+        });
+    },
+
+    getAnnualLeakageEstimate(): number {
+        const subscriptions = this.getSubscriptions();
+        return subscriptions.reduce((total, sub) => {
+            const amount = sub.amount || 0;
+            const freq = (sub as any).frequency || 'monthly';
+            switch (String(freq).toLowerCase()) {
+                case 'monthly': return total + (amount * 12);
+                case 'quarterly': return total + (amount * 4);
+                case 'annual': return total + amount;
+                default: return total + (amount * 12);
+            }
+        }, 0);
+    },
+
+    // ——— Budget ———
+    setTotalBudget(amount: number) {
+        _budgetTotal = amount;
+        this.syncBudget();
+    },
+
+    getTotalBudget(): number {
+        return _budgetTotal;
+    },
+
+    async syncBudget() {
+        if (typeof window === 'undefined') return;
+        fetch('/api/budget', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                totalMonthly: _budgetTotal,
+                categories: _categoryBudgets
+            })
         });
     },
 
     // ——— Derived Calculations ———
 
-    /** Monthly total expense (current month entries + recurring prorated) */
     getMonthlyTotal(): number {
         const month = getCurrentMonth();
         let total = 0;
         for (const e of _entries) {
             if (e.recurring) {
                 total += toMonthlyAmount(e);
-            } else if (getEntryMonth(e) === month) {
+            } else if (e.date.startsWith(month)) {
                 total += e.amount;
             }
         }
         return Math.round(total);
     },
 
-    /** Category-wise breakdown for current month */
     getCategoryBreakdown(): { categoryId: string; name: string; emoji: string; amount: number; percentage: number }[] {
         const month = getCurrentMonth();
         const totals: Record<string, number> = {};
 
         for (const e of _entries) {
+            const catId = e.category;
             if (e.recurring) {
-                totals[e.categoryId] = (totals[e.categoryId] || 0) + toMonthlyAmount(e);
-            } else if (getEntryMonth(e) === month) {
-                totals[e.categoryId] = (totals[e.categoryId] || 0) + e.amount;
+                totals[catId] = (totals[catId] || 0) + toMonthlyAmount(e);
+            } else if (e.date.startsWith(month)) {
+                totals[catId] = (totals[catId] || 0) + e.amount;
             }
         }
 
@@ -330,10 +399,9 @@ export const ExpenseStore = {
             .sort((a, b) => b.amount - a.amount);
     },
 
-    /** Expense-to-income ratio. Returns null if no income data (graceful degradation). */
     getExpenseToIncomeRatio(): { ratio: number; label: string; color: string } | null {
         const income = IncomeStore.getMonthlyNetIncome();
-        if (income <= 0) return null; // No income data — degrade gracefully
+        if (income <= 0) return null;
         const expenses = this.getMonthlyTotal();
         const ratio = Math.round((expenses / income) * 100);
         const label = ratio > 80 ? "High" : ratio > 50 ? "Moderate" : "Low";
@@ -341,7 +409,6 @@ export const ExpenseStore = {
         return { ratio, label, color };
     },
 
-    /** Recurring vs one-time ratio */
     getRecurringVsOneTime(): { recurringPct: number; oneTimePct: number; recurringTotal: number; oneTimeTotal: number } {
         const month = getCurrentMonth();
         let recurring = 0;
@@ -350,7 +417,7 @@ export const ExpenseStore = {
         for (const e of _entries) {
             if (e.recurring) {
                 recurring += toMonthlyAmount(e);
-            } else if (getEntryMonth(e) === month) {
+            } else if (e.date.startsWith(month)) {
                 oneTime += e.amount;
             }
         }
@@ -364,14 +431,13 @@ export const ExpenseStore = {
         };
     },
 
-    /** Budget adherence per category */
     getBudgetAdherence(): {
         categoryId: string; name: string; emoji: string;
         budget: number; spent: number; adherencePct: number;
         status: "safe" | "near_limit" | "overspent";
     }[] {
         const breakdown = this.getCategoryBreakdown();
-        const results: ReturnType<typeof ExpenseStore.getBudgetAdherence> = [];
+        const results: any[] = [];
 
         for (const cat of _categories) {
             if (!cat.active || cat.budgetAmount <= 0) continue;
@@ -388,47 +454,32 @@ export const ExpenseStore = {
         return results.sort((a, b) => b.adherencePct - a.adherencePct);
     },
 
-    /** Budget discipline score (0–100) */
     getBudgetDisciplineScore(): number {
         const adherence = this.getBudgetAdherence();
         if (adherence.length === 0) return 0;
-
         let score = 0;
         for (const a of adherence) {
             if (a.status === "safe") score += 100;
             else if (a.status === "near_limit") score += 60;
-            else score += 0; // overspent
         }
         return Math.round(score / adherence.length);
     },
 
-    /** Leakage index (0–100): higher = more leakage risk */
     getLeakageIndex(): number {
         const dormant = this.getDormantSubscriptions();
-        const total = _subscriptions.length;
-        if (total === 0) return 0;
-
-        const dormantRatio = dormant.length / total;
+        if (_subscriptions.length === 0) return 0;
+        const dormantRatio = dormant.length / _subscriptions.length;
         const dormantAmount = dormant.reduce((s, d) => s + d.amount, 0);
         const totalSubAmount = _subscriptions.reduce((s, d) => s + d.amount, 0);
         const amountRatio = totalSubAmount > 0 ? dormantAmount / totalSubAmount : 0;
-
-        // Weighted: 60% count, 40% amount
         return Math.min(100, Math.round((dormantRatio * 60 + amountRatio * 40)));
     },
 
-    /** Monthly subscription total */
     getMonthlySubscriptionTotal(): number {
         return _subscriptions.reduce((s, sub) => s + sub.amount, 0);
     },
 
-    /** Annual leakage estimate (dormant subscriptions × 12) */
-    getAnnualLeakageEstimate(): number {
-        return this.getDormantSubscriptions().reduce((s, d) => s + d.amount, 0) * 12;
-    },
-
-    // ——— Maturity (0–4) ———
-    getMaturity(): { level: number; milestones: { id: string; label: string; description: string; unlocked: boolean }[] } {
+    getMaturity(): { level: number; milestones: any[] } {
         const entryCount = _entries.length;
         const budgetsSet = _categories.filter(c => c.budgetAmount > 0).length;
         const discipline = this.getBudgetDisciplineScore();
@@ -444,94 +495,109 @@ export const ExpenseStore = {
         return { level: milestones.filter(m => m.unlocked).length, milestones };
     },
 
-    // ——— Quick Insights ———
     getInsights(): string[] {
         if (_entries.length === 0) return [];
         const insights: string[] = [];
         const breakdown = this.getCategoryBreakdown();
-        const recurring = this.getRecurringVsOneTime();
         const dormant = this.getDormantSubscriptions();
-
-        if (breakdown.length > 0) {
-            insights.push(`Highest spend: ${breakdown[0].name} (${breakdown[0].percentage}%)`);
-        }
-        if (recurring.recurringTotal > 0) {
-            const recurringCount = _entries.filter(e => e.recurring).length;
-            insights.push(`${recurringCount} recurring expense${recurringCount > 1 ? "s" : ""} detected`);
-        }
-        if (dormant.length > 0) {
-            insights.push(`${dormant.length} possible subscription leak${dormant.length > 1 ? "s" : ""}`);
-        }
-
+        if (breakdown.length > 0) insights.push(`Highest spend: ${breakdown[0].name} (${breakdown[0].percentage}%)`);
+        if (dormant.length > 0) insights.push(`${dormant.length} subscription leak${dormant.length > 1 ? "s" : ""}`);
         return insights;
     },
 
-    // ——— Alerts ———
     getAlerts(): { type: "warning" | "danger"; message: string }[] {
-        const alerts: { type: "warning" | "danger"; message: string }[] = [];
-
+        const alerts: any[] = [];
         const ratio = this.getExpenseToIncomeRatio();
-        if (ratio && ratio.ratio > 80) {
-            alerts.push({ type: "danger", message: "Low surplus risk — expenses exceed 80% of income." });
-        }
-
-        const recurring = this.getRecurringVsOneTime();
-        if (recurring.recurringPct > 60) {
-            alerts.push({ type: "warning", message: "Rigid cost structure — recurring expenses exceed 60%." });
-        }
-
+        if (ratio && ratio.ratio > 80) alerts.push({ type: "danger", message: "Low surplus risk — expenses exceed 80% of income." });
         const budgets = this.getBudgetAdherence();
         const overspent = budgets.filter(b => b.status === "overspent");
-        if (overspent.length > 0) {
-            alerts.push({ type: "warning", message: `Budget exceeded in: ${overspent.map(o => o.name).join(", ")}` });
-        }
-
-        const dormant = this.getDormantSubscriptions();
-        if (dormant.length > 0) {
-            alerts.push({ type: "warning", message: `${dormant.length} subscription${dormant.length > 1 ? "s" : ""} unused for 90+ days.` });
-        }
-
+        if (overspent.length > 0) alerts.push({ type: "warning", message: `Budget exceeded in: ${overspent.map(o => o.name).join(", ")}` });
         return alerts;
     },
 
-    // ——— Dashboard integration ———
     getVyayaCompletion(): number {
-        const maturity = this.getMaturity();
-        return Math.round((maturity.level / 4) * 100);
+        return Math.round((this.getMaturity().level / 4) * 100);
     },
 
-    // ——— Reset ———
     clear(): void {
-        _categories = PRESET_CATEGORIES.map(c => ({
-            ...c, active: true, budgetAmount: 0, alertThreshold: 0.8, isCustom: false,
-        }));
         _entries = [];
         _subscriptions = [];
+        _budgetTotal = 0;
+        _categoryBudgets = {};
     },
 
     async hydrate() {
         if (typeof window === 'undefined') return;
         try {
-            const res = await fetch('/api/expenses', { cache: 'no-store' });
-            if (!res.ok) return;
-            const dbEntries = await res.json();
-            if (!Array.isArray(dbEntries) || dbEntries.length === 0) return;
-            _entries = dbEntries.map((d: Record<string, unknown>) => ({
-                id: String(d.id),
-                date: d.date ? String(d.date).split('T')[0] : new Date().toISOString().split('T')[0],
-                amount: Number(d.amount) || 0,
-                categoryId: String(d.categoryId || 'other'),
-                paymentMode: String(d.paymentMode || 'upi') as PaymentMode,
-                recurring: !!d.isRecurring,
-                recurringFrequency: d.frequency ? String(d.frequency) as ExpenseFrequency : undefined,
-                description: d.description ? String(d.description) : undefined,
-                linkedFamilyMemberId: d.linkedFamilyMemberId ? String(d.linkedFamilyMemberId) : undefined,
-                paidFromAccountId: d.paidFromAccountId ? String(d.paidFromAccountId) : undefined,
-                createdAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
-                updatedAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
-            })) as ExpenseEntry[];
+            // 0. Hydrate Custom Categories
+            const catRes = await fetch('/api/expense-categories', { cache: 'no-store' });
+            if (catRes.ok) {
+                const json = await catRes.json();
+                const dbCats = json.data || [];
+                dbCats.forEach((c: any) => {
+                    if (!_categories.some(ext => ext.id === c.id)) {
+                        _categories.push({
+                            id: c.id,
+                            name: c.name,
+                            emoji: c.emoji || "📌",
+                            active: c.isActive,
+                            budgetAmount: 0,
+                            alertThreshold: 0.8,
+                            isCustom: true
+                        });
+                    }
+                });
+            }
+
+            // 1. Hydrate Expenses
+            const expRes = await fetch('/api/expenses', { cache: 'no-store' });
+            if (expRes.ok) {
+                const json = await expRes.json();
+                const dbEntries = json.data || [];
+                _entries = dbEntries.map((d: any) => ({
+                    id: d.id,
+                    date: d.date.split('T')[0],
+                    amount: d.amount,
+                    category: d.category,
+                    mode: d.mode,
+                    recurring: d.isRecurring,
+                    frequency: d.frequency,
+                    description: d.description,
+                    accountId: d.accountId,
+                    createdAt: new Date(d.createdAt).getTime(),
+                    updatedAt: new Date(d.createdAt).getTime(),
+                }));
+            }
+
+            // 2. Hydrate Subscriptions
+            const subRes = await fetch('/api/subscriptions', { cache: 'no-store' });
+            if (subRes.ok) {
+                const json = await subRes.json();
+                _subscriptions = (json.data || []).map((s: any) => ({
+                    ...s,
+                    renewalDate: s.renewalDate.split('T')[0],
+                    lastUsedDate: s.lastUsedDate ? s.lastUsedDate.split('T')[0] : undefined,
+                    createdAt: new Date(s.createdAt).getTime(),
+                    updatedAt: new Date(s.updatedAt).getTime(),
+                }));
+            }
+
+            // 3. Hydrate Budget
+            const budRes = await fetch('/api/budget', { cache: 'no-store' });
+            if (budRes.ok) {
+                const json = await budRes.json();
+                const b = json.data;
+                if (b) {
+                    _budgetTotal = b.totalMonthly;
+                    _categoryBudgets = b.categories || {};
+                    // Apply to categories in-memory
+                    _categories.forEach(c => {
+                        if (_categoryBudgets[c.id]) c.budgetAmount = _categoryBudgets[c.id];
+                    });
+                }
+            }
         } catch (err) {
-            console.warn('Failed to hydrate expenses', err);
+            console.warn('Failed to hydrate Vyaya', err);
         }
     },
 };

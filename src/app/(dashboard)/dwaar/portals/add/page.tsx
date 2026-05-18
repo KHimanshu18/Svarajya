@@ -698,7 +698,7 @@ export default function AddPortalPage() {
                                         className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                         <option value="">Self</option>
                                         {familyMembers.map(f => (
-                                            <option key={f.id} value={f.name}>{f.name} ({f.relationship})</option>
+                                            <option key={f.id} value={f.name}>{f.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -772,7 +772,7 @@ export default function AddPortalPage() {
                                         {familyMembers.map(f => {
                                             const baseRelation = f.relation.split(' ')[0].toLowerCase();
                                             return (
-                                                <option key={f.id} value={f.id}>{f.name} ({baseRelation})</option>
+                                                <option key={f.id} value={f.id}>{f.name}</option>
                                             );
                                         })}
                                         <option value="add_new">+ Add valid Executor</option>

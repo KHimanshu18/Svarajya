@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { ExpenseStore, PAYMENT_MODES, PaymentMode, ExpenseFrequency, formatRupee } from "@/lib/expenseStore";
@@ -12,17 +12,40 @@ export default function AddExpensePage() {
     // Fast fields
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [amount, setAmount] = useState("");
-    const [categoryId, setCategoryId] = useState("");
-    const [paymentMode, setPaymentMode] = useState<PaymentMode>("upi");
+    const [category, setCategory] = useState("");
+    const [mode, setMode] = useState<PaymentMode>("UPI");
     const [recurring, setRecurring] = useState(false);
-    const [recurringFrequency, setRecurringFrequency] = useState<ExpenseFrequency>("monthly");
+    const [frequency, setFrequency] = useState<ExpenseFrequency>("MONTHLY");
 
     // Optional (collapsed)
     const [showOptional, setShowOptional] = useState(false);
     const [description, setDescription] = useState("");
     const [linkedFamilyId, setLinkedFamilyId] = useState("");
-    // const [paidFromAccount, setPaidFromAccount] = useState(""); // unused — Module 6 not yet connected
-    const [paidFromAccount] = useState("");
+    const [accountId, setAccountId] = useState("");
+
+    // Data fetching
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const familyRes = await fetch('/api/family');
+                if (familyRes.ok) {
+                    const json = await familyRes.json();
+                    setFamilyMembers(json.data || []);
+                }
+                const bankRes = await fetch('/api/bank');
+                if (bankRes.ok) {
+                    const json = await bankRes.json();
+                    setBankAccounts(json.data?.accounts || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch dependencies", err);
+            }
+        };
+        fetchData();
+    }, []);
 
     // UI
     const [error, setError] = useState("");
@@ -41,19 +64,19 @@ export default function AddExpensePage() {
         if (!amt || amt <= 0) { setError("Amount must be greater than 0."); return; }
 
         // If no category chosen, default to "other"
-        const finalCategory = categoryId || "other";
+        const finalCategory = category || "other";
 
         setError("");
         ExpenseStore.addEntry({
             date,
             amount: amt,
-            categoryId: finalCategory,
-            paymentMode,
+            category: finalCategory,
+            mode,
             recurring,
-            recurringFrequency: recurring ? recurringFrequency : undefined,
+            frequency: recurring ? frequency : undefined,
             description: description.trim() || undefined,
             linkedFamilyMemberId: linkedFamilyId || undefined,
-            paidFromAccountId: paidFromAccount || undefined,
+            accountId: accountId || undefined,
         });
         setSaved(true);
     };
@@ -86,7 +109,7 @@ export default function AddExpensePage() {
                     )}
 
                     {/* Classify prompt if category was auto-defaulted to Other */}
-                    {!categoryId && (
+                    {!category && (
                         <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl p-3 mt-3 w-full max-w-sm">
                             <p className="text-xs text-amber-400">📋 This expense was saved as &quot;Other&quot;. Classify it for better clarity.</p>
                             <button onClick={() => router.push("/vyaya/categories")} className="text-[10px] text-amber-400 underline mt-1">Set up categories</button>
@@ -94,7 +117,7 @@ export default function AddExpensePage() {
                     )}
 
                     <div className="w-full max-w-sm space-y-3 mt-6">
-                        <button onClick={() => { setSaved(false); setAmount(""); setCategoryId(""); setDescription(""); }}
+                        <button onClick={() => { setSaved(false); setAmount(""); setCategory(""); setDescription(""); }}
                             className="w-full bg-amber-400 text-black font-semibold py-4 rounded-xl text-sm">
                             Add Another Expense
                         </button>
@@ -162,10 +185,10 @@ export default function AddExpensePage() {
                         <input type="text" placeholder="Search categories..." value={categorySearch}
                             onChange={e => setCategorySearch(e.target.value)}
                             className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-amber-400/60" />
-                        <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                        <div className="flex flex-wrap gap-2 pt-1">
                             {filteredCategories.map(c => (
-                                <button key={c.id} onClick={() => { setCategoryId(c.id); setCategorySearch(""); }}
-                                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] transition-all ${categoryId === c.id
+                                <button key={c.id} onClick={() => { setCategory(c.id); setCategorySearch(""); }}
+                                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] transition-all ${category === c.id
                                         ? "bg-amber-400/15 border-amber-400 text-amber-400"
                                         : "bg-white/5 border-white/10 text-white/40"}`}>
                                     {c.emoji} {c.name}
@@ -179,8 +202,8 @@ export default function AddExpensePage() {
                         <label className="text-xs font-medium text-white/70">Payment Mode</label>
                         <div className="flex flex-wrap gap-2">
                             {PAYMENT_MODES.map(m => (
-                                <button key={m.id} onClick={() => setPaymentMode(m.id)}
-                                    className={`px-2.5 py-2 rounded-lg border text-[11px] transition-all ${paymentMode === m.id
+                                <button key={m.id} onClick={() => setMode(m.id)}
+                                    className={`px-2.5 py-2 rounded-lg border text-[11px] transition-all ${mode === m.id
                                         ? "bg-amber-400/15 border-amber-400 text-amber-400"
                                         : "bg-white/5 border-white/10 text-white/40"}`}>
                                     {m.emoji} {m.label}
@@ -205,12 +228,12 @@ export default function AddExpensePage() {
                         <div className="space-y-2">
                             <label className="text-xs font-medium text-white/70">Frequency</label>
                             <div className="flex gap-2">
-                                {(["monthly", "quarterly", "annual"] as ExpenseFrequency[]).map(f => (
-                                    <button key={f} onClick={() => setRecurringFrequency(f)}
-                                        className={`flex-1 px-2 py-2.5 rounded-xl border text-xs transition-all capitalize ${recurringFrequency === f
+                                {(["MONTHLY", "QUARTERLY", "ANNUAL"] as ExpenseFrequency[]).map(f => (
+                                    <button key={f} onClick={() => setFrequency(f)}
+                                        className={`flex-1 px-2 py-2.5 rounded-xl border text-xs transition-all capitalize ${frequency === f
                                             ? "bg-amber-400/15 border-amber-400 text-amber-400"
                                             : "bg-white/5 border-white/10 text-white/40"}`}>
-                                        {f}
+                                        {f.toLowerCase()}
                                     </button>
                                 ))}
                             </div>
@@ -238,12 +261,20 @@ export default function AddExpensePage() {
                             <select value={linkedFamilyId} onChange={e => setLinkedFamilyId(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                 <option value="">Select family member</option>
+                                {familyMembers.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
                             </select>
-                            <p className="text-[11px] text-white/40">Family members from Foundation module appear here.</p>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-medium text-white/70">Paid From Account <span className="text-white/40 font-normal">(Module 6)</span></label>
-                            <p className="text-[11px] text-white/40">Account linking will be available after Module 6 setup.</p>
+                            <label className="text-xs font-medium text-white/70">Paid From Account <span className="text-white/40 font-normal">(optional)</span></label>
+                            <select value={accountId} onChange={e => setAccountId(e.target.value)}
+                                className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                <option value="">Select account</option>
+                                {bankAccounts.map(a => (
+                                    <option key={a.id} value={a.id}>{a.bankName} - {a.accountLast4}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                 )}

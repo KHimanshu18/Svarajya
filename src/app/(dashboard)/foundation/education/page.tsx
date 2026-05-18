@@ -92,7 +92,7 @@ export default function EducationPage() {
                             let personName = "Self (Adhipati)";
                             if (edu.familyMemberId && familyData.length > 0) {
                                 const member = familyData.find((fm: any) => fm.id === edu.familyMemberId);
-                                if (member) personName = `${member.name} (${member.relation || 'Family'})`;
+                                if (member) personName = member.name;
                             }
                             return {
                                 id: edu.id,
@@ -194,7 +194,7 @@ export default function EducationPage() {
         let personName = "Self (Adhipati)";
         if (selectedPerson) {
             const member = familyMembers.find(fm => fm.id === selectedPerson);
-            if (member) personName = `${member.name} (${member.relation})`;
+            if (member) personName = member.name;
         }
 
         const formData = {
@@ -436,7 +436,7 @@ export default function EducationPage() {
                                     <option value="">Self (Adhipati — Head of Family)</option>
                                     {familyMembers.map(fm => (
                                         <option key={fm.id} value={fm.id}>
-                                            {fm.name} ({fm.relation})
+                                            {fm.name}
                                         </option>
                                     ))}
                                 </select>
