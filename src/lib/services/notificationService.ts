@@ -8,6 +8,7 @@ export interface CreateNotificationInput {
   channel: NotifChannel;
   subject?: string | null;
   body: string;
+  link?: string | null;
   sentAt?: Date | null;
   deliveredAt?: Date | null;
   openedAt?: Date | null;
@@ -20,6 +21,7 @@ export interface UpdateNotificationInput {
   channel?: NotifChannel;
   subject?: string | null;
   body?: string;
+  link?: string | null;
   sentAt?: Date | null;
   deliveredAt?: Date | null;
   openedAt?: Date | null;
@@ -440,7 +442,7 @@ class NotificationService extends BaseService<Notification, CreateNotificationIn
 
       return notifications.map(n => ({
         ...n,
-        link: this.getLinkForNotification(n.subject)
+        link: n.link || this.getLinkForNotification(n.subject)
       }));
     } catch (error) {
       console.error('[NotificationService] Error getting user notifications:', error);
@@ -459,7 +461,7 @@ class NotificationService extends BaseService<Notification, CreateNotificationIn
       });
       return {
         ...notification,
-        link: this.getLinkForNotification(notification.subject)
+        link: notification.link || this.getLinkForNotification(notification.subject)
       };
     } catch (error) {
       console.error('[NotificationService] Error marking notification as read:', error);
@@ -493,7 +495,7 @@ class NotificationService extends BaseService<Notification, CreateNotificationIn
       });
       return {
         ...notification,
-        link: this.getLinkForNotification(notification.subject)
+        link: notification.link || this.getLinkForNotification(notification.subject)
       };
     } catch (error) {
       console.error('[NotificationService] Error creating notification:', error);

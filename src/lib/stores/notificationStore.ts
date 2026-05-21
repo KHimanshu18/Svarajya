@@ -51,8 +51,13 @@ function mapNotification(db: any): Notification {
     }
     
     // Dynamic routing deep links matching module configurations
-    let link = db.link || "/rajya";
-    if (!db.link) {
+    const providedLink = db.link || db.route;
+    let link = providedLink || "";
+    let route = providedLink || "";
+
+    if (!providedLink) {
+        link = "/rajya";
+
         if (
             title.toLowerCase().includes("vault") || 
             title.toLowerCase().includes("identity") || 
@@ -121,6 +126,8 @@ function mapNotification(db: any): Notification {
         ) {
             link = "/lakshya";
         }
+
+        route = link;
     }
     
     return {
@@ -128,7 +135,7 @@ function mapNotification(db: any): Notification {
         type,
         title,
         message,
-        route: link,
+        route,
         link,
         read: db.status === "OPENED" || db.status === "CLICKED",
         createdAt: new Date(db.createdAt).getTime(),
@@ -234,6 +241,7 @@ export const NotificationStore = {
                     subject: partial.title,
                     body: partial.message,
                     channel: "IN_APP",
+                    link: partial.link || partial.route || null,
                 })
             });
             if (res.ok) {

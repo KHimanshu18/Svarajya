@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
     Shield, ArrowLeft, Edit2, Trash2,
@@ -12,6 +12,8 @@ import {
 import { motion } from "framer-motion";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
 import { NotificationStore } from "@/lib/stores/notificationStore";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Vault, VaultFile } from "@/lib/vault";
 import { formatRupee } from "@/lib/incomeStore";
 
 export default function PolicyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +27,17 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [annualIncome, setAnnualIncome] = useState<number>(0);
+    const [existingVaultFiles, setExistingVaultFiles] = useState<VaultFile[]>([]);
+    const [showDocumentModal, setShowDocumentModal] = useState(false);
+    const [documentModalMode, setDocumentModalMode] = useState<'select' | 'upload'>('select');
+    const [selectedVaultFileId, setSelectedVaultFileId] = useState<string | null>(null);
+    const [linkedVaultFile, setLinkedVaultFile] = useState<VaultFile | null>(null);
+    const [linkedDocumentMeta, setLinkedDocumentMeta] = useState<any | null>(null);
+    const [documentSaveLoading, setDocumentSaveLoading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
+    const [showRemoveDocumentConfirm, setShowRemoveDocumentConfirm] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         const fetchPolicy = async () => {
@@ -62,6 +75,40 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
         fetchPolicy();
     }, [id]);
 
+    useEffect(() => {
+        Vault.getFiles("insurance").then(files => {
+            setExistingVaultFiles(files);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!policy?.documentId) {
+            setLinkedVaultFile(null);
+            setLinkedDocumentMeta(null);
+            return;
+        }
+
+        Vault.getFile(policy.documentId).then(file => {
+            if (file) setLinkedVaultFile(file);
+            else setLinkedVaultFile(null);
+        });
+
+        const fetchLinkedDocMeta = async () => {
+            try {
+                const res = await fetch(`/api/documents?linkedEntityId=${id}`);
+                if (!res.ok) return;
+                const json = await res.json();
+                const docs = json.data || [];
+                const insuranceDoc = docs.find((doc: any) => doc.docType === 'INSURANCE');
+                setLinkedDocumentMeta(insuranceDoc || null);
+            } catch (err) {
+                console.error('Failed to load linked document metadata', err);
+            }
+        };
+
+        fetchLinkedDocMeta();
+    }, [policy?.documentId, id]);
+
     const handleDelete = async () => {
         setDeleting(true);
         try {
@@ -86,6 +133,167 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
             });
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleLinkDocument = async (fileParam?: VaultFile) => {
+        const file = fileParam || existingVaultFiles.find((item) => item.id === selectedVaultFileId);
+        if (!file) return;
+        if (!selectedVaultFileId) {
+            setSelectedVaultFileId(file.id);
+        }
+
+        setDocumentSaveLoading(true);
+        try {
+            const docRes = await fetch('/api/documents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    docType: 'INSURANCE',
+                    linkedEntityId: id,
+                    fileName: file.name,
+                }),
+            });
+
+            if (!docRes.ok) {
+                const err = await docRes.json();
+                throw new Error(err.error || 'Unable to save document metadata');
+            }
+
+            const updateRes = await fetch(`/api/insurance/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId: file.id }),
+            });
+
+            if (!updateRes.ok) {
+                const err = await updateRes.json();
+                throw new Error(err.error || 'Unable to update policy document');
+            }
+
+            const docJson = await docRes.json();
+            const updateJson = await updateRes.json();
+            setPolicy(updateJson.data);
+            setLinkedVaultFile(file);
+            setLinkedDocumentMeta(docJson.data);
+            setShowDocumentModal(false);
+            setExistingVaultFiles(await Vault.getFiles('insurance'));
+            NotificationStore.push({
+                type: 'action',
+                title: 'Document Linked',
+                message: 'The policy document has been linked to your Insurance vault.',
+                link: `/raksha/policies/${id}`,
+            });
+        } catch (err: any) {
+            NotificationStore.push({
+                type: 'warning',
+                title: 'Unable to Link Document',
+                message: err.message || 'Something went wrong while linking the file.',
+            });
+        } finally {
+            setDocumentSaveLoading(false);
+        }
+    };
+
+    const handleUploadNewFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setUploadingFileName(file.name);
+        try {
+            // 1. Save locally to OPFS + indexedDB
+            const newId = await Vault.saveFile('insurance', file);
+            const newFile = await Vault.getFile(newId);
+            const files = await Vault.getFiles('insurance');
+            setExistingVaultFiles(files);
+
+            // 2. Attempt to back up to Google Drive immediately
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                form.append('fileName', file.name);
+                form.append('folderName', 'Svarajya_Nidhi');
+
+                const uploadRes = await fetch('/api/google-drive/upload', {
+                    method: 'POST',
+                    body: form,
+                });
+
+                const uploadJson = await uploadRes.json();
+                if (uploadRes.ok && uploadJson.success && uploadJson.data?.fileId) {
+                    // Save cloud id into the vault metadata for this file
+                    await Vault.updateFile(newId, { cloudId: uploadJson.data.fileId, storageType: 'googledrive' });
+                } else {
+                    // Non-fatal: continue with local file but notify user
+                    NotificationStore.push({
+                        type: 'warning',
+                        title: 'Cloud Backup Failed',
+                        message: uploadJson?.error || 'Could not back up file to Google Drive. File saved locally.',
+                        route: '/rajya'
+                    });
+                }
+            } catch (err) {
+                NotificationStore.push({
+                    type: 'warning',
+                    title: 'Cloud Backup Error',
+                    message: (err as any)?.message || 'Error uploading to Google Drive. File saved locally.',
+                    route: '/rajya'
+                });
+            }
+
+            // 3. Link the vault file (which now may contain cloudId) to the policy
+            if (newFile) {
+                setSelectedVaultFileId(newFile.id);
+                await handleLinkDocument(newFile);
+            }
+        } catch (err: any) {
+            NotificationStore.push({
+                type: 'warning',
+                title: 'Upload Failed',
+                message: err?.message || 'Unable to upload the document to Vault.',
+            });
+        } finally {
+            setIsUploading(false);
+            setUploadingFileName(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleRemoveDocument = async () => {
+        setDocumentSaveLoading(true);
+        try {
+            const res = await fetch(`/api/insurance/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId: null }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Unable to unlink document');
+            }
+
+            const json = await res.json();
+            setPolicy(json.data);
+            setLinkedVaultFile(null);
+            setLinkedDocumentMeta(null);
+            setShowRemoveDocumentConfirm(false);
+            NotificationStore.push({
+                type: 'info',
+                title: 'Document Unlinked',
+                message: 'The policy document has been removed.',
+            });
+        } catch (err: any) {
+            NotificationStore.push({
+                type: 'warning',
+                title: 'Unable to Remove Document',
+                message: err.message || 'Could not unlink the file at this time.',
+            });
+        } finally {
+            setDocumentSaveLoading(false);
         }
     };
 
@@ -289,19 +497,191 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
                             </div>
                         </div>
 
-                        {/* Google Drive Integration Pending */}
-                        <div className="w-full bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group transition-all opacity-50">
-                            <div className="flex items-center gap-3 text-left">
-                                <FileText className="w-5 h-5 text-white/20" />
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <p className="text-sm font-medium">Policy Document</p>
-                                    <p className="text-[10px] text-[var(--color-rajya-accent)] uppercase tracking-widest">Google Drive Coming Soon</p>
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2">
+                                        <FileText className="w-4 h-4" />
+                                        Policy Document
+                                    </h3>
+                                    <p className="text-[10px] text-white/50">Link a file from your Insurance vault for quick access.</p>
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        setSelectedVaultFileId(policy.documentId || null);
+                                        setShowDocumentModal(true);
+                                    }}
+                                    className="text-[10px] uppercase tracking-[0.2em] text-amber-400 font-bold"
+                                >
+                                    {policy.documentId ? 'Replace' : 'Link Document'}
+                                </button>
                             </div>
+
+                            {policy.documentId ? (
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-3xl bg-slate-950/60 border border-white/10">
+                                        <p className="text-sm font-medium text-white">
+                                            {linkedVaultFile?.name || linkedDocumentMeta?.fileName || 'Linked document'}
+                                        </p>
+                                        {linkedVaultFile?.size ? (
+                                            <p className="text-[10px] text-white/40 mt-1">
+                                                {Math.round(linkedVaultFile.size / 1024)} KB
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            onClick={async () => {
+                                                if (!policy.documentId) return;
+                                                const url = await Vault.getPreviewUrl(policy.documentId);
+                                                if (url) window.open(url, '_blank');
+                                            }}
+                                            className="px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-semibold"
+                                        >
+                                            View
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedVaultFileId(policy.documentId);
+                                                setShowDocumentModal(true);
+                                            }}
+                                            className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm font-semibold"
+                                        >
+                                            Replace
+                                        </button>
+                                        <button
+                                            onClick={() => setShowRemoveDocumentConfirm(true)}
+                                            className="px-4 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm font-semibold"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-white/60">No document attached.</p>
+                                    <button
+                                        onClick={() => {
+                                            setSelectedVaultFileId(null);
+                                            setShowDocumentModal(true);
+                                        }}
+                                        className="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold"
+                                    >
+                                        Add Document
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {showDocumentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDocumentModal(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="relative bg-slate-900 border border-white/10 rounded-3xl p-6 max-w-2xl w-full"
+                    >
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Select Insurance Vault File</h3>
+                                <p className="text-sm text-white/50">Pick a file from your Insurance vault to link with this policy.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowDocumentModal(false)}
+                                className="text-white/50 hover:text-white"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <button
+                                onClick={() => setDocumentModalMode('select')}
+                                className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${documentModalMode === 'select' ? 'bg-amber-500 text-slate-950' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}
+                            >
+                                Select Existing
+                            </button>
+                            <button
+                                onClick={() => setDocumentModalMode('upload')}
+                                className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${documentModalMode === 'upload' ? 'bg-amber-500 text-slate-950' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}
+                            >
+                                Upload New
+                            </button>
+                        </div>
+                        {documentModalMode === 'select' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pr-2">
+                                {existingVaultFiles.length > 0 ? existingVaultFiles.map(file => (
+                                    <button
+                                        key={file.id}
+                                        onClick={() => setSelectedVaultFileId(file.id)}
+                                        className={`p-4 rounded-3xl border text-left transition-all ${selectedVaultFileId === file.id ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                                    >
+                                        <p className="text-sm font-medium text-white truncate">{file.name}</p>
+                                        <p className="text-[10px] text-white/40 mt-1">{new Date(file.createdAt).toLocaleDateString('en-IN')}</p>
+                                    </button>
+                                )) : (
+                                    <div className="col-span-full p-4 rounded-3xl border border-dashed border-white/10 bg-white/5 text-sm text-white/50">
+                                        No files found in the Insurance vault. Upload a document to Insurance and it will be linked automatically.
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
+                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-white/70">
+                                    <p className="text-sm font-medium text-white mb-2">Upload a new document directly to the Insurance vault.</p>
+                                    <p className="text-xs text-white/40">After upload, the file will be automatically selected and linked to this policy.</p>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold"
+                                    >
+                                        {isUploading ? `Uploading ${uploadingFileName || 'file'}...` : 'Choose File'}
+                                    </button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".pdf,.png,.jpg,.jpeg"
+                                        className="hidden"
+                                        onChange={handleUploadNewFile}
+                                    />
+                                    {isUploading && (
+                                        <p className="text-xs text-white/40">Uploading {uploadingFileName || 'document'} to Insurance vault...</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        <div className="mt-6 flex flex-wrap gap-3 justify-end">
+                            <button
+                                onClick={() => setShowDocumentModal(false)}
+                                className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm font-semibold"
+                            >
+                                Cancel
+                            </button>
+                            {documentModalMode === 'select' && (
+                                <button
+                                    onClick={() => handleLinkDocument()}
+                                    disabled={!selectedVaultFileId || documentSaveLoading || isUploading}
+                                    className="px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold disabled:opacity-50"
+                                >
+                                    {documentSaveLoading ? 'Linking...' : 'Link Document'}
+                                </button>
+                            )}
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            <ConfirmModal
+                isOpen={showRemoveDocumentConfirm}
+                title="Remove Linked Document"
+                message="This will unlink the selected policy document from this insurance record."
+                onCancel={() => setShowRemoveDocumentConfirm(false)}
+                onConfirm={handleRemoveDocument}
+            />
 
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (

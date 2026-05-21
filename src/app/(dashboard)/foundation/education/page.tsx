@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { BookOpen, ShieldAlert, CheckCircle2, ArrowLeft, Upload, Plus, GraduationCap, Trash2, User, CloudOff } from "lucide-react";
+import { BookOpen, ShieldAlert, CheckCircle2, ArrowLeft, Upload, Plus, GraduationCap, Trash2, User, CloudOff, Pencil } from "lucide-react";
 import { FileUploader } from "@/components/vault/FileUploader";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
@@ -371,13 +371,22 @@ export default function EducationPage() {
                     <p className="text-[10px] text-white/30 uppercase tracking-wider">Your Qualifications ({entries.length})</p>
                     {entries.map((e, i) => (
                         <div key={e.id || i} className="bg-white/5 border border-white/10 rounded-xl p-4 relative group">
-                            <button
-                                onClick={() => setIsDeleting(e.id || `local-${i}`)}
-                                className="absolute top-3 right-3 text-white/30 hover:text-red-400 transition-colors"
-                                title="Remove qualification"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="absolute top-3 right-3 flex items-center gap-2">
+                                <button
+                                    onClick={() => router.push(`/foundation/education/${e.id}/edit`)}
+                                    className="text-white/30 hover:text-white transition-colors"
+                                    title="Edit qualification"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setIsDeleting(e.id || `local-${i}`)}
+                                    className="text-white/30 hover:text-red-400 transition-colors"
+                                    title="Remove qualification"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
                             <div className="flex items-center gap-2 mb-1">
                                 <GraduationCap className="w-4 h-4 text-[var(--color-rajya-accent)]" />
                                 <p className="text-sm font-medium text-[var(--color-rajya-text)] pr-6">{e.degree}</p>

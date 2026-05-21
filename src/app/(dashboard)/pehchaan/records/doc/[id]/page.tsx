@@ -47,6 +47,7 @@ export default function DocDetail() {
     });
 
     const [fileUrl, setFileUrl] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string | null>(null);
 
     const [newMobile, setNewMobile] = useState("");
     const [newEmail, setNewEmail] = useState("");
@@ -121,6 +122,15 @@ export default function DocDetail() {
     useEffect(() => {
         if (formState.vaultFileId) {
             Vault.getPreviewUrl(formState.vaultFileId).then(setFileUrl);
+            Vault.getFile(formState.vaultFileId).then(file => {
+                if (file) {
+                    setFileName(file.name);
+                } else if (formState.vaultFileId.length > 20) {
+                    setFileName("Google Drive Document");
+                } else {
+                    setFileName("Secure Document Scan");
+                }
+            });
         }
     }, [formState.vaultFileId]);
 
@@ -254,25 +264,29 @@ export default function DocDetail() {
                         <DisplayField label="Place of Issue" value={formState.placeOfIssue} />
                     </section>
 
-                    {fileUrl && (
-                        <section className="space-y-4">
-                            <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Attached Document</label>
-                            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <FileText className="w-5 h-5 text-amber-400" />
-                                    <span className="text-sm text-white/70">Secure Document Scan</span>
-                                </div>
+                    <section className="space-y-4">
+                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Attached Document</label>
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <FileText className="w-5 h-5 text-amber-400 shrink-0" />
+                                {formState.vaultFileId ? (
+                                    <span className="text-sm text-white/70 truncate">{fileName || "Loading..."}</span>
+                                ) : (
+                                    <span className="text-sm text-white/40 italic">No file attached</span>
+                                )}
+                            </div>
+                            {fileUrl && (
                                 <a 
                                     href={fileUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-amber-400 text-xs font-bold"
+                                    className="flex items-center gap-2 text-amber-400 text-xs font-bold shrink-0 ml-4"
                                 >
                                     VIEW <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
-                            </div>
-                        </section>
-                    )}
+                            )}
+                        </div>
+                    </section>
 
                     {/* <ContactSelect 
                         label="Linked Mobile" 

@@ -38,6 +38,7 @@ export function FileUploader({
     const [detailsSaved, setDetailsSaved] = useState(false);
     const [savedFileObj, setSavedFileObj] = useState<File | null>(null);
     const [syncingCloud, setSyncingCloud] = useState(false);
+    const [cloudFileId, setCloudFileId] = useState<string | null>(null);
     const supabase = createClient();
     const toast = useToast();
 
@@ -65,7 +66,12 @@ export function FileUploader({
         try {
             let id: string;
 
-            // 3. Check storage type
+            // 3. Always save locally to OPFS and IndexedDB first to guarantee a metadata record
+            id = await Vault.saveFile(folder, file, tags);
+
+            let finalCloudId = null;
+
+            // 4. Handle requested cloud upload (if any)
             if (storageType === 'googledrive') {
                 const formData = new FormData();
                 formData.append('file', file);
@@ -79,13 +85,17 @@ export function FileUploader({
                 const result = await uploadRes.json();
                 if (!uploadRes.ok) {
                     if (uploadRes.status === 401 || uploadRes.status === 403) {
-                        throw new Error(result.error || "Google Drive authentication expired. Please log out and log back in with Google.");
+                        toast("Google Drive authentication expired. Local copy saved.", "warning");
+                    } else {
+                        toast("Cloud upload failed. Local copy saved.", "warning");
                     }
-                    throw new Error(result.error || "Failed to upload to Google Drive");
+                } else {
+                    finalCloudId = result.data.fileId;
+                    await Vault.updateFile(id, { cloudId: finalCloudId, storageType: 'googledrive' });
+                    setCloudOptIn(true);
+                    setCloudFileId(finalCloudId);
                 }
-                
-                id = result.data.fileId;
-            } else if (storageType === 'supabase' || (!storageType && (folder === "identity" || folder === "education"))) {
+            } else if (storageType === 'supabase') {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) throw new Error("Authentication required for remote storage.");
@@ -95,7 +105,7 @@ export function FileUploader({
                     const filePath = `${fileName}`;
 
                     const { error: uploadError } = await supabase.storage
-                        .from(folder) // "identity" or "education" bucket
+                        .from(folder)
                         .upload(filePath, file);
 
                     if (uploadError) throw uploadError;
@@ -104,21 +114,20 @@ export function FileUploader({
                         .from(folder)
                         .getPublicUrl(filePath);
                     
-                    id = urlData.publicUrl;
+                    finalCloudId = urlData.publicUrl;
+                    await Vault.updateFile(id, { cloudId: finalCloudId, storageType: 'supabase' });
+                    setCloudOptIn(true);
+                    setCloudFileId(finalCloudId);
                 } catch (supaErr) {
-                    console.warn("Supabase upload failed, falling back to local OPFS:", supaErr);
-                    toast("Cloud upload failed. Saving securely to your device's local vault instead.", "warning");
-                    id = await Vault.saveFile(folder, file, tags);
+                    console.warn("Supabase upload failed, local OPFS copy retained:", supaErr);
+                    toast("Cloud upload failed. Saved securely to your device's local vault instead.", "warning");
                 }
-            } else {
-                // Fallback to Local Vault (IndexedDB + OPFS)
-                id = await Vault.saveFile(folder, file, tags);
             }
 
             setUploaded({ name: file.name, id });
             setDocName(file.name);
             setSavedFileObj(file);
-            onUploaded?.(id, file.name);
+            onUploaded?.(finalCloudId || id, file.name);
         } catch (err: any) {
             console.error("Upload failed:", err);
             const isNetworkError = !window.navigator.onLine || err.message?.includes('network') || err.message?.includes('fetch');
@@ -136,12 +145,9 @@ export function FileUploader({
 
     const handleSaveDetails = async () => {
         if (!uploaded) return;
-        // Only update local metadata if it's a local file (id starts with opfs or is internal)
-        if (!uploaded.id.startsWith("http")) {
-            await Vault.updateFile(uploaded.id, { name: docName, notes: docNotes });
-        }
+        await Vault.updateFile(uploaded.id, { name: docName, notes: docNotes });
         setDetailsSaved(true);
-        onUploaded?.(uploaded.id, docName);
+        onUploaded?.(cloudFileId || uploaded.id, docName);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +187,10 @@ export function FileUploader({
                 } else {
                     toast("Backed up securely to Google Drive!", "success");
                     if (uploaded) {
-                        setUploaded(prev => prev ? { ...prev, id: result.data.fileId } : null);
+                        const newCloudId = result.data.fileId;
+                        await Vault.updateFile(uploaded.id, { cloudId: newCloudId, storageType: 'googledrive' });
+                        setCloudFileId(newCloudId);
+                        onUploaded?.(newCloudId, docName || savedFileObj.name);
                     }
                 }
             } catch (err) {

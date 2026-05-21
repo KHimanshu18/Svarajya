@@ -37,6 +37,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       channel: data.channel,
       subject: data.subject || null,
       body: data.body,
+      link: data.link || null,
       status: data.status || 'PENDING',
     });
     return successResponse(notification, StatusCodes.CREATED);

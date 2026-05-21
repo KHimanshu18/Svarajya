@@ -20,6 +20,8 @@ export interface VaultFile {
     createdAt: number; // timestamp
     tags?: string[]; // e.g. family member name
     notes?: string; // custom notes
+    cloudId?: string; // Reference to Google Drive or Supabase file ID
+    storageType?: 'local' | 'googledrive' | 'supabase'; // primary storage type
 }
 
 interface KallyaniiDB extends DBSchema {
@@ -78,6 +80,12 @@ export const Vault = {
         return db.getAllFromIndex("vault", "by-folder", folder);
     },
 
+    /** Get a single file by ID. */
+    async getFile(id: string): Promise<VaultFile | undefined> {
+        const db = await getDB();
+        return db.get("vault", id);
+    },
+
     /** Get all files across all folders. */
     async getAllFiles(): Promise<VaultFile[]> {
         const db = await getDB();
@@ -96,7 +104,7 @@ export const Vault = {
     },
 
     /** Update a file metadata (name, notes). */
-    async updateFile(id: string, updates: Partial<Pick<VaultFile, "name" | "notes" | "tags">>): Promise<void> {
+    async updateFile(id: string, updates: Partial<Pick<VaultFile, "name" | "notes" | "tags" | "cloudId" | "storageType">>): Promise<void> {
         const db = await getDB();
         const file = await db.get("vault", id);
         if (!file) return;
@@ -128,27 +136,38 @@ export const Vault = {
             const { LocalVaultEngine } = await import("./localVaultEngine");
             return await LocalVaultEngine.getDocumentBlobUrl(id);
         }
-
-        // Handle Google Drive file IDs (alphanumeric, usually ~33 chars)
-        // If it's not a local ID (which we check in IndexedDB), we try Google Drive
+        // Look up our metadata record for this id
         const db = await getDB();
         const file = await db.get("vault", id);
-        
-        if (!file || !file.vaultFileId) {
-            // Might be a direct Google Drive ID stored as 'vaultFileId' equivalent
-            if (id.length > 20) {
-                try {
-                    const res = await fetch(`/api/google-drive/download?fileId=${id}`);
-                    const data = await res.json();
-                    return data.success ? data.data.webViewLink : null;
-                } catch (e) {
-                    return null;
-                }
+
+        // If a cloud copy exists, prefer its web view link for cross-device preview
+        if (file && file.cloudId) {
+            try {
+                const res = await fetch(`/api/google-drive/download?fileId=${file.cloudId}`);
+                const data = await res.json();
+                if (res.ok && data?.success) return data.data.webViewLink || data.data.webContentLink || null;
+            } catch (e) {
+                // fall through to local preview on error
             }
-            return null;
         }
-        
-        const { LocalVaultEngine } = await import("./localVaultEngine");
-        return await LocalVaultEngine.getDocumentBlobUrl(file.vaultFileId);
+
+        // If we have an OPFS-local blob id, return its blob URL
+        if (file && file.vaultFileId) {
+            const { LocalVaultEngine } = await import("./localVaultEngine");
+            return await LocalVaultEngine.getDocumentBlobUrl(file.vaultFileId);
+        }
+
+        // As a last resort, treat the incoming id as a direct cloud file id (older behaviour)
+        if (id.length > 20) {
+            try {
+                const res = await fetch(`/api/google-drive/download?fileId=${id}`);
+                const data = await res.json();
+                return res.ok && data?.success ? data.data.webViewLink || data.data.webContentLink : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        return null;
     },
 };

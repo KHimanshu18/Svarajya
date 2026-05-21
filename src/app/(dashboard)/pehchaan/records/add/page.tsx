@@ -7,8 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck, Info, Lock, ExternalLink, CloudOff, AlertCircle } from "lucide-react";
 import { IdentityStore, DocType } from "@/lib/identityStore";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
-import { FileUploader } from "@/components/vault/FileUploader";
 import { DocumentValidator } from "@/lib/documentValidation";
+import { Vault, VaultFile } from "@/lib/vault";
 
 /**
  * PEHCHAAN: ADD DOCUMENT MODULE
@@ -68,7 +68,17 @@ function AddDocumentForm() {
     const [expiryDateError, setExpiryDateError] = useState("");
     const [expiryWarning, setExpiryWarning] = useState("");
 
+    // Vault Selection State
+    const [existingVaultFiles, setExistingVaultFiles] = useState<VaultFile[]>([]);
+    const [uploadMode, setUploadMode] = useState<'new' | 'select'>('new');
+
     const userDob = OnboardingStore.get().dob;
+
+    useEffect(() => {
+        Vault.getFiles("identity").then(files => {
+            setExistingVaultFiles(files);
+        });
+    }, []);
 
     useEffect(() => {
         validateDates();
@@ -598,27 +608,71 @@ function AddDocumentForm() {
 
                             {/* Upload Section */}
                             <section className="space-y-4">
-                                <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
-                                {isGoogleLinked === false ? (
-                                    <div className="p-6 border-2 border-dashed border-blue-500/20 rounded-2xl bg-blue-500/5 text-center">
-                                        <CloudOff className="w-8 h-8 text-blue-400 mx-auto mb-3" />
-                                        <p className="text-sm text-white font-medium">Link Google Drive First</p>
-                                        <p className="text-xs text-white/40 mt-1 mb-4">Identity documents are stored securely in your own Google Drive.</p>
-                                        <button
-                                            onClick={() => window.location.href = '/api/auth/link-google'}
-                                            className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
-                                        >
-                                            Link Google Account
-                                        </button>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
+                                    {existingVaultFiles.length > 0 && (
+                                        <div className="flex items-center bg-white/5 rounded-lg p-1">
+                                            <button 
+                                                onClick={() => setUploadMode('new')}
+                                                className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'new' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
+                                            >Upload New</button>
+                                            <button 
+                                                onClick={() => setUploadMode('select')}
+                                                className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'select' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
+                                            >Select Existing</button>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {uploadMode === 'new' ? (
+                                    <div className="relative">
+                                        {vaultFileId ? (
+                                            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                                    <span className="text-sm text-white font-medium">Document attached to Vault</span>
+                                                </div>
+                                                <button onClick={() => setVaultFileId(null)} className="text-xs text-white/40 hover:text-white">Change</button>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer relative">
+                                                <input
+                                                    type="file"
+                                                    accept=".pdf,.png,.jpg,.jpeg"
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            try {
+                                                                const id = await Vault.saveFile("identity", file);
+                                                                setVaultFileId(id);
+                                                            } catch (err) {
+                                                                console.error("Failed to save to vault", err);
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                                <div className="text-amber-400 mb-2">
+                                                    <ShieldCheck className="w-6 h-6" />
+                                                </div>
+                                                <p className="text-sm font-medium text-white/70">Tap to upload scan</p>
+                                                <p className="text-[10px] text-white/40 mt-1">Saves securely to Nidhi Vault</p>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
-                                    <FileUploader
-                                        folder="identity"
-                                        storageType="googledrive"
-                                        label="Upload PDF or Image"
-                                        onUploaded={(id) => setVaultFileId(id)}
-                                        accept=".pdf,.png,.jpg,.jpeg"
-                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {existingVaultFiles.map(file => (
+                                            <button 
+                                                key={file.id} 
+                                                onClick={() => setVaultFileId(file.id)}
+                                                className={`p-3 rounded-xl border text-left flex flex-col gap-2 transition-all ${vaultFileId === file.id ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                                            >
+                                                <span className="text-xs text-white font-medium truncate w-full">{file.name}</span>
+                                                <span className="text-[10px] text-white/40">{new Date(file.createdAt).toLocaleDateString()}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
                             </section>
 

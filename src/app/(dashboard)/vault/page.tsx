@@ -26,7 +26,6 @@ const FOLDERS: FolderConfig[] = [
     { id: "insurance", label: "Insurance", icon: <Shield className="w-5 h-5" />, color: "text-emerald-400", description: "Policy documents" },
     { id: "identity", label: "Identity", icon: <CreditCard className="w-5 h-5" />, color: "text-red-400", description: "Aadhaar, PAN, Passport" },
     { id: "loans", label: "Loans", icon: <FileText className="w-5 h-5" />, color: "text-orange-400", description: "Loan agreements & NOCs" },
-    { id: "property", label: "Property", icon: <Home className="w-5 h-5" />, color: "text-cyan-400", description: "Deeds & agreements" },
     { id: "other", label: "Other", icon: <MoreHorizontal className="w-5 h-5" />, color: "text-white/40", description: "Miscellaneous documents" },
 ];
 
@@ -94,7 +93,7 @@ export default function VaultPage() {
                     <>
                         <PageGuide
                             title="Your Secure Document Vault"
-                            description="Upload and organize important documents — certificates, policies, property deeds, and more. All files stay on your device. Cloud backup is optional."
+                            description="Upload and organize important documents — certificates, policies, and more. All files stay on your device. Cloud backup is optional."
                             actions={[{ emoji: "📁", label: "Organize" }, { emoji: "📤", label: "Upload" }, { emoji: "🔒", label: "Local storage" }]}
                         />
                         <div className="h-4" />

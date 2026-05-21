@@ -58,4 +58,104 @@ async function deleteHandler(
   }
 }
 
+/**
+ * GET /api/education/[id]
+ * Get an education record
+ */
+async function getHandler(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  const authContext = getAuthContext(request);
+  if (!authContext) {
+    return errorResponse(
+      ErrorCodes.UNAUTHORIZED,
+      'Authentication required',
+      StatusCodes.UNAUTHORIZED
+    );
+  }
+
+  const { id } = await params;
+
+  try {
+    const record = await educationService.findById(id);
+    if (!record) {
+      return errorResponse(
+        ErrorCodes.NOT_FOUND,
+        'Education record not found',
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    if (record.userId !== authContext.userId) {
+      return errorResponse(
+        ErrorCodes.FORBIDDEN,
+        'Not authorized to view this record',
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    return successResponse(record);
+  } catch (error) {
+    console.error('[Education GET]', error);
+    return handlePrismaError(error);
+  }
+}
+
+/**
+ * PUT /api/education/[id]
+ * Update an education record
+ */
+async function putHandler(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  const authContext = getAuthContext(request);
+  if (!authContext) {
+    return errorResponse(
+      ErrorCodes.UNAUTHORIZED,
+      'Authentication required',
+      StatusCodes.UNAUTHORIZED
+    );
+  }
+
+  const { id } = await params;
+
+  try {
+    const record = await educationService.findById(id);
+    if (!record) {
+      return errorResponse(
+        ErrorCodes.NOT_FOUND,
+        'Education record not found',
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    if (record.userId !== authContext.userId) {
+      return errorResponse(
+        ErrorCodes.FORBIDDEN,
+        'Not authorized to update this record',
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    const data = await request.json();
+    const updatedRecord = await educationService.update(id, {
+      degree: data.degree,
+      institute: data.institution, // or data.institute
+      yearCompleted: data.year ? parseInt(data.year) : undefined,
+      specialization: data.specialization,
+      certificateUrl: data.certificateId,
+      // Add other fields as needed based on the schema
+    });
+
+    return successResponse(updatedRecord);
+  } catch (error) {
+    console.error('[Education PUT]', error);
+    return handlePrismaError(error);
+  }
+}
+
 export const DELETE = withAuth(withErrorHandler(deleteHandler), AuthLevel.AUTHENTICATED);
+export const GET = withAuth(withErrorHandler(getHandler), AuthLevel.AUTHENTICATED);
+export const PUT = withAuth(withErrorHandler(putHandler), AuthLevel.AUTHENTICATED);
