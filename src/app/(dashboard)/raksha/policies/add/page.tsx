@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore } from "@/lib/stores/notificationStore";
 
 const POLICY_TYPES = ["LIFE", "TERM", "HEALTH", "VEHICLE", "HOME", "TRAVEL", "OTHER"];
 const FREQUENCIES = ["MONTHLY", "QUARTERLY", "ANNUAL"];
@@ -247,7 +247,7 @@ export default function AddPolicyPage() {
                                 <p className="text-xs text-white/20 italic">Summoning family members...</p>
                             ) : familyMembers.length === 0 ? (
                                 <p className="text-xs text-amber-500/60 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
-                                    No family members found. Add them in Mitra Mandal first.
+                                    No family members found. Add them in Foundation (Shapana) first.
                                 </p>
                             ) : (
                                 <div className="flex flex-wrap gap-2">

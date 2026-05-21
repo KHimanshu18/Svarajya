@@ -19,10 +19,11 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
+        authProvider: true,
       },
     });
 
-    return NextResponse.json({ exists: !!user });
+    return NextResponse.json({ exists: !!user, provider: user?.authProvider ?? null });
   } catch (error) {
     console.error('[CheckUser API] Error:', error);
     return NextResponse.json({ exists: false, error: 'Internal server error' }, { status: 500 });

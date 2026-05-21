@@ -259,7 +259,7 @@ export default function IdleMoneyEngine() {
     };
 
     if (loading) {
-        return <div className="bg-black text-white/50 min-h-screen flex items-center justify-center">Loading idle-money data...</div>;
+        return <div className="text-white/50 min-h-screen flex items-center justify-center">Loading idle-money data...</div>;
     }
 
     const analyzedAccounts: AnalyzedAccount[] = accounts.map(a => {
@@ -275,7 +275,7 @@ export default function IdleMoneyEngine() {
     const flaggedCount = analyzedAccounts.filter(a => a.isFlagged).length;
 
     return (
-        <div className="bg-black text-white min-h-screen px-6 py-6 pb-32 font-sans animate-fade-in relative">
+        <div className="text-white min-h-screen px-6 py-6 pb-32 font-sans animate-fade-in relative">
 
             {/* Allocation Modal */}
             {selectedAccount && (
@@ -406,17 +406,15 @@ export default function IdleMoneyEngine() {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-gradient-to-t from-black via-black/90 to-transparent z-20">
-                <button
-                    onClick={() => { void handleSave(); }}
-                    disabled={saving}
-                    className="w-full py-4 rounded-xl font-bold tracking-wide shadow-xl transition-all bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50"
-                >
-                    {saving ? "Saving..." : "Save Threshold"}
-                </button>
+                <div className="pt-8">
+                    <button
+                        onClick={() => { void handleSave(); }}
+                        disabled={saving}
+                        className="w-full py-4 rounded-xl font-bold tracking-wide shadow-xl transition-all bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50"
+                    >
+                        {saving ? "Saving..." : "Save Threshold"}
+                    </button>
+                </div>
             </div>
         </div>
     );

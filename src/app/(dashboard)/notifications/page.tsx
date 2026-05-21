@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BellOff, CheckCheck, ChevronRight } from "lucide-react";
-import { NotificationStore, Notification, NotificationType } from "@/lib/notificationStore";
+import { NotificationStore, Notification, NotificationType } from "@/lib/stores/notificationStore";
 
 const TYPE_STYLES: Record<NotificationType, { dot: string; bg: string; border: string }> = {
     info: { dot: "bg-blue-400", bg: "bg-blue-500/5", border: "border-blue-500/15" },
@@ -24,15 +24,24 @@ function timeAgo(ts: number): string {
 
 export default function NotificationsPage() {
     const router = useRouter();
-    const [notifications, setNotifications] = useState<Notification[]>(NotificationStore.getAll());
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+
+    useEffect(() => {
+        setNotifications(NotificationStore.getAll());
+        const unsubscribe = NotificationStore.subscribe(() => {
+            setNotifications(NotificationStore.getAll());
+        });
+        return unsubscribe;
+    }, []);
+
     const unread = notifications.filter(n => !n.read).length;
 
-    const handleTap = (n: Notification) => {
+    const handleNotificationClick = (n: Notification) => {
+        if (n.link) {
+            router.push(n.link);
+        }
         NotificationStore.markRead(n.id);
         setNotifications(NotificationStore.getAll());
-        if (n.route) {
-            router.push(n.route);
-        }
     };
 
     const handleMarkAllRead = () => {
@@ -77,7 +86,7 @@ export default function NotificationsPage() {
                             return (
                                 <button
                                     key={n.id}
-                                    onClick={() => handleTap(n)}
+                                    onClick={() => handleNotificationClick(n)}
                                     className={`w-full text-left p-4 rounded-xl border transition-all ${style.bg} ${style.border} ${!n.read ? "opacity-100" : "opacity-50"
                                         } hover:opacity-100`}
                                 >

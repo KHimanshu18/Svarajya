@@ -299,7 +299,8 @@ export const IdentityStore = {
         try {
             const res = await fetch('/api/identity', { cache: 'no-store' });
             if (!res.ok) return;
-            const dbDocs = await res.json();
+            const result = await res.json();
+            const dbDocs = result.data || result;
             if (!Array.isArray(dbDocs) || dbDocs.length === 0) return;
             _docs = dbDocs.map((d: Record<string, unknown>) => ({
                 ...d,

@@ -103,7 +103,7 @@ export default function EditBankAccount({ params }: { params: Promise<{ id: stri
 
     if (loading) {
         return (
-            <div className="bg-black text-white min-h-screen flex items-center justify-center font-sans">
+            <div className="text-white min-h-screen flex items-center justify-center font-sans">
                 <div className="flex flex-col items-center gap-4">
                     <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                     <p className="text-white/50 text-sm">Loading Treasury Vault...</p>
@@ -114,7 +114,7 @@ export default function EditBankAccount({ params }: { params: Promise<{ id: stri
 
     if (success) {
         return (
-            <div className="bg-black text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
+            <div className="text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
                 <div className="text-center p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl">
                     <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-emerald-100 mb-2">Vault updated successfully.</h2>
@@ -125,7 +125,7 @@ export default function EditBankAccount({ params }: { params: Promise<{ id: stri
     }
 
     return (
-        <div className="min-h-screen bg-black text-white p-6 font-sans">
+        <div className="min-h-screen text-white p-6 font-sans">
             <div className="max-w-xl mx-auto pb-24">
                 <div className="flex items-center gap-3 mb-8">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
@@ -237,16 +237,14 @@ export default function EditBankAccount({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none">
-                    <div className="max-w-xl mx-auto pointer-events-auto">
-                        <button
-                            disabled={saving}
-                            onClick={() => { void handleSave(); }}
-                            className="w-full py-4 rounded-xl font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-xl shadow-blue-900/20 transition-all disabled:opacity-50"
-                        >
-                            {saving ? "Updating Vault..." : "Save Changes"}
-                        </button>
-                    </div>
+                <div className="pt-8">
+                    <button
+                        disabled={saving}
+                        onClick={() => { void handleSave(); }}
+                        className="w-full py-4 rounded-xl font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-xl transition-all disabled:opacity-50"
+                    >
+                        {saving ? "Updating Vault..." : "Save Changes"}
+                    </button>
                 </div>
             </div>
         </div>

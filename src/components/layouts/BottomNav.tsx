@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Home, Bell, Sun, Moon, FolderLock, User, MoreHorizontal, LayoutGrid, Settings, ShieldAlert, Cloud, HelpCircle, LogOut, Lock } from "lucide-react";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore } from "@/lib/stores/notificationStore";
 import { ThemeStore, ThemeMode } from "@/lib/themeStore";
 import { createClient } from "@/lib/supabase/client";
 import { OnboardingStore } from "@/lib/onboardingStore";
@@ -33,7 +33,16 @@ const HIDDEN_PATHS = ["/", "/start", "/intro"];
 export function BottomNav() {
     const router = useRouter();
     const pathname = usePathname();
-    const unreadCount = NotificationStore.getUnreadCount();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        setUnreadCount(NotificationStore.getUnreadCount());
+        const unsubscribe = NotificationStore.subscribe(() => {
+            setUnreadCount(NotificationStore.getUnreadCount());
+        });
+        return unsubscribe;
+    }, []);
+
     const [theme, setTheme] = useState<ThemeMode>(() => {
         if (typeof window !== "undefined") {
             ThemeStore.init();

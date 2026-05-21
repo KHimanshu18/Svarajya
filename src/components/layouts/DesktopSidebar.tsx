@@ -9,13 +9,27 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { OnboardingStore } from "@/lib/onboardingStore";
 import { ThemeStore, ThemeMode } from "@/lib/themeStore";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore } from "@/lib/stores/notificationStore";
 import { useState, useEffect } from "react";
-import { IncomeStore, formatRupee } from "@/lib/incomeStore";
+import { IncomeStore } from "@/lib/incomeStore";
 import { IdentityStore } from "@/lib/identityStore";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 const HIDDEN_PATHS = ["/", "/start", "/intro"];
+
+function formatRupee(amount: number): string {
+    if (amount < 0) return `-₹${formatRupee(-amount).slice(1)}`;
+    const str = Math.round(amount).toString();
+    if (str.length <= 3) return `₹${str}`;
+    let result = str.slice(-3);
+    let remaining = str.slice(0, -3);
+    while (remaining.length > 0) {
+        const chunk = remaining.slice(-2);
+        result = chunk + "," + result;
+        remaining = remaining.slice(0, -2);
+    }
+    return `₹${result}`;
+}
 
 export function DesktopSidebar() {
     const router = useRouter();
@@ -24,6 +38,43 @@ export function DesktopSidebar() {
     const [user, setUser] = useState(authUser);
     const [theme, setTheme] = useState<ThemeMode>("dark");
     const [mounted, setMounted] = useState(false);
+    const [alertCount, setAlertCount] = useState(0);
+    const [monthlyIncome, setMonthlyIncome] = useState(0);
+    const [docsCount, setDocsCount] = useState(0);
+
+    // Hydrate income store and update monthly income state
+    useEffect(() => {
+        const loadIncome = async () => {
+            await IncomeStore.hydrate();
+            setMonthlyIncome(IncomeStore.getMonthlyNetIncome());
+        };
+        void loadIncome();
+
+        window.addEventListener("focus", loadIncome);
+        return () => window.removeEventListener("focus", loadIncome);
+    }, []);
+
+    useEffect(() => {
+        setAlertCount(NotificationStore.getUnreadCount());
+        const unsubscribe = NotificationStore.subscribe(() => {
+            setAlertCount(NotificationStore.getUnreadCount());
+        });
+        return unsubscribe;
+    }, []);
+
+    // Hydrate identity store and update docs count state
+    useEffect(() => {
+        const loadIdentity = async () => {
+            await IdentityStore.hydrate();
+            const records = IdentityStore.getIdentityRecords?.() || IdentityStore.getAll?.() || IdentityStore.getRecords?.() || IdentityStore.getDocs?.() || [];
+            console.log('Identity records count:', records.length);
+            setDocsCount(records.length);
+        };
+        void loadIdentity();
+
+        window.addEventListener("focus", loadIdentity);
+        return () => window.removeEventListener("focus", loadIdentity);
+    }, []);
 
     // Sync local user with auth user
     useEffect(() => {
@@ -77,10 +128,6 @@ export function DesktopSidebar() {
         const next = ThemeStore.toggle();
         setTheme(next);
     };
-
-    const monthlyIncome = IncomeStore.getMonthlyNetIncome();
-    const docsCount = IdentityStore.getDocs().length;
-    const alertCount = NotificationStore.getUnreadCount();
 
     const quickStats = [
         { label: "Monthly Income", value: monthlyIncome > 0 ? formatRupee(monthlyIncome) : "—", icon: Coins, color: "text-emerald-400" },

@@ -33,6 +33,8 @@ model AdminUser {
   role                   AdminRole
   status                 AdminStatus @default(ACTIVE)
   twoFactorSecret        String? // TOTP secret for 2FA
+  twoFactorOtpExpiresAt  DateTime?
+  mobile                 String?
   inviteToken            String?
   inviteExpiresAt        DateTime?
   previousPassword       String?
@@ -82,6 +84,7 @@ enum AdminStatus {
   INACTIVE
   LOCKED
   PENDING_INVITE
+  INVITE_ACCEPTED
 }
 
 model AdminSession {
@@ -866,6 +869,11 @@ enum ReportFrequency {
 // Users & Authentication
 // ----------------------------------------------------------------------------
 
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
 model User {
   id                     String      @id @default(uuid())
   email                  String?     @unique
@@ -892,6 +900,7 @@ model User {
   googleRefreshToken     String?
   googleAccessToken      String?
   googleTokenExpiry      DateTime?
+  authProvider           AuthProvider @default(EMAIL)
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
   lastActiveAt           DateTime?

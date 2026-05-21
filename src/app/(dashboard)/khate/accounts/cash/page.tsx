@@ -81,12 +81,12 @@ export default function CashWalletPage() {
     };
 
     if (loading) {
-        return <div className="bg-black text-white min-h-screen flex items-center justify-center">Loading cash wallet...</div>;
+        return <div className="text-white min-h-screen flex items-center justify-center">Loading cash wallet...</div>;
     }
 
     if (success) {
         return (
-            <div className="bg-black text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
+            <div className="text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
                 <div className="text-center p-8 bg-amber-500/10 border border-amber-500/30 rounded-3xl">
                     <CheckCircle2 className="w-16 h-16 text-amber-400 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-amber-100 mb-2">Cash wallet updated.</h2>
@@ -96,7 +96,7 @@ export default function CashWalletPage() {
     }
 
     return (
-        <div className="bg-black text-white min-h-screen px-6 py-6 pb-24 font-sans animate-fade-in relative">
+        <div className="text-white min-h-screen px-6 py-6 pb-24 font-sans animate-fade-in relative">
             <button onClick={() => router.back()} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center mb-6 hover:bg-white/10 transition-colors">
                 <ArrowLeft className="w-5 h-5 text-white/50" />
             </button>
@@ -131,7 +131,7 @@ export default function CashWalletPage() {
 
                 <div className="relative flex justify-center py-2">
                     <div className="w-px h-8 bg-gradient-to-b from-amber-500/30 to-white/10" />
-                    <div className="absolute top-1/2 -translate-y-1/2 bg-black px-2 text-[10px] text-white/40 uppercase tracking-widest font-semibold flex items-center gap-1">
+                    <div className="absolute top-1/2 -translate-y-1/2 bg-[var(--color-rajya-bg)] px-2 text-[10px] text-white/40 uppercase tracking-widest font-semibold flex items-center gap-1">
                         <Coins className="w-3 h-3" /> Allocated To
                     </div>
                 </div>
@@ -163,13 +163,13 @@ export default function CashWalletPage() {
                         <p className="text-[10px] text-white/40 mt-1">For routine daily expenses.</p>
                     </div>
                 </div>
-            </div>
 
-            <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 bg-gradient-to-t from-black via-black/90 to-transparent">
-                <button onClick={() => { void validateAndSave(); }} disabled={saving}
-                    className="w-full py-4 rounded-xl font-bold tracking-wide shadow-xl transition-all bg-amber-600 hover:bg-amber-500 text-white">
-                    {saving ? "Saving..." : "Save Cash Wallet"}
-                </button>
+                <div className="pt-8">
+                    <button onClick={() => { void validateAndSave(); }} disabled={saving}
+                        className="w-full py-4 rounded-xl font-bold tracking-wide shadow-xl transition-all bg-amber-600 hover:bg-amber-500 text-white">
+                        {saving ? "Saving..." : "Save Cash Wallet"}
+                    </button>
+                </div>
             </div>
         </div>
     );

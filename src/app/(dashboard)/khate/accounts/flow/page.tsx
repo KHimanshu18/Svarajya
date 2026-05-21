@@ -32,11 +32,11 @@ export default function CashFlowEngine() {
     const metrics = summary?.metrics.health;
     const flow = summary?.metrics.flow;
 
-    if (error) return <div className="bg-black text-red-300 min-h-screen flex items-center justify-center">{error}</div>;
-    if (!flow || !metrics) return <div className="bg-black text-white/50 min-h-screen flex items-center justify-center">Loading cash flow...</div>;
+    if (error) return <div className="text-red-300 min-h-screen flex items-center justify-center">{error}</div>;
+    if (!flow || !metrics) return <div className="text-white/50 min-h-screen flex items-center justify-center">Loading cash flow...</div>;
 
     return (
-        <div className="bg-black text-white min-h-screen px-6 py-6 pb-24 font-sans animate-fade-in relative overflow-x-hidden">
+        <div className="text-white min-h-screen px-6 py-6 pb-24 font-sans animate-fade-in relative overflow-x-hidden">
             {/* Ambient Backgrounds */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
 

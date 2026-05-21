@@ -295,7 +295,7 @@ export default function EducationPage() {
         if (!certId.startsWith('http') && certId.length > 20 && !certId.startsWith('opfs')) {
             toast("Fetching from Google Drive...", "success");
             try {
-                const res = await fetch(`/api/google-drive/view?fileId=${certId}`);
+                const res = await fetch(`/api/google-drive/download?fileId=${certId}`);
                 const data = await res.json();
                 if (data.success && data.data.webViewLink) {
                     window.open(data.data.webViewLink, '_blank');

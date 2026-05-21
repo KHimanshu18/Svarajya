@@ -5,6 +5,7 @@ import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
 import { LanguageProvider } from '@/context/landing/LanguageContext';
+import { OAuthFragmentHandler } from '@/components/auth/OAuthFragmentHandler';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -83,6 +84,7 @@ export default function RootLayout({
             <AuthProvider>
               <ToastProvider>
                 <LanguageProvider>
+                  <OAuthFragmentHandler />
                   {children}
                 </LanguageProvider>
               </ToastProvider>

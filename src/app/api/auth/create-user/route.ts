@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       email,
       name: name || '',
       profileType: 'INDIVIDUAL_SALARIED',
+      authProvider: 'EMAIL',
     });
 
     return NextResponse.json(

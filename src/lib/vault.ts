@@ -138,7 +138,7 @@ export const Vault = {
             // Might be a direct Google Drive ID stored as 'vaultFileId' equivalent
             if (id.length > 20) {
                 try {
-                    const res = await fetch(`/api/google-drive/view?fileId=${id}`);
+                    const res = await fetch(`/api/google-drive/download?fileId=${id}`);
                     const data = await res.json();
                     return data.success ? data.data.webViewLink : null;
                 } catch (e) {

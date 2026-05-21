@@ -83,6 +83,7 @@ export function withAuth(
               name: name,
               status: 'PENDING_VERIFICATION',
               profileType: 'INDIVIDUAL_SALARIED',
+              authProvider: 'EMAIL',
             }
           });
           console.log(`[Auth Middleware] Synced missing user from Supabase: ${authUser.id}`);

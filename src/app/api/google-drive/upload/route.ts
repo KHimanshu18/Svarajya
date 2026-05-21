@@ -37,6 +37,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    // 0. Check storage quota before upload
+    const aboutRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=storageQuota', {
+      headers: { Authorization: `Bearer ${providerToken}` },
+    });
+    
+    if (aboutRes.ok) {
+      const aboutData = await aboutRes.json();
+      const quota = aboutData?.storageQuota;
+      if (quota && quota.limit) {
+        const usage = parseInt(quota.usage || '0', 10);
+        const limit = parseInt(quota.limit, 10);
+        if (usage + file.size > limit) {
+          return NextResponse.json(
+            { error: 'Your Google Drive storage is full. Please free up space or connect another account.' },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     // 1. Find or create the folder
     const folderId = await getOrCreateFolder(providerToken, folderName);
 
@@ -67,6 +87,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Google token expired. Please log out and log back in.' },
           { status: 401 }
+        );
+      }
+
+      if (errText.includes('storageQuotaExceeded') || errText.includes('quota') || errText.includes('storage limit')) {
+        return NextResponse.json(
+          { error: 'Your Google Drive storage is full. Please free up space or connect another account.' },
+          { status: 403 }
         );
       }
 

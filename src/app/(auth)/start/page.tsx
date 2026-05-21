@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -85,10 +85,15 @@ function AuthGatewayContent() {
     const [msg, setMsg] = useState("");
     const [countdown, setCountdown] = useState(10);
     const searchParams = useSearchParams();
+    const errorParam = searchParams.get('error');
+    const successParam = searchParams.get('success');
 
     // Rate-limit countdown (for lockout UI)
     const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
     const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
+    
+    // Lock to prevent auto-session clearer from destroying Google sessions
+    const isGoogleAuthRef = React.useRef(false);
 
     // ------------------------------------------
     // Clear all fields whenever mode changes (fixes email persisting)
@@ -140,9 +145,48 @@ function AuthGatewayContent() {
         }
     }, [searchParams, supabase.auth]);
 
+    // Handle error messages from redirects
+    useEffect(() => {
+        if (errorParam) {
+            setMode('login');
+            if (errorParam === 'Email_Registered') {
+                setError("This email is already registered with email and password. Please login using email and password instead.");
+            } else {
+                setError(errorParam.replace(/_/g, ' '));
+            }
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('error');
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [errorParam]);
+
+    // Handle success messages from redirects
+    useEffect(() => {
+        if (successParam) {
+            isGoogleAuthRef.current = true;
+            setMode('login');
+            if (successParam === 'Google_Signup') {
+                setMsg("Account created successfully with Google. Welcome to Svarajya!");
+            } else if (successParam === 'Google_Login') {
+                setMsg("Welcome back! Logging in with Google.");
+            }
+            
+            // Redirect is now handled globally by OAuthFragmentHandler to avoid race conditions.
+
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('success');
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [successParam]);
+
     // Clear any auto-created session on login page load
     useEffect(() => {
         if (mode !== "splash" && mode !== "login") return;
+
+        // Skip session clear if we are in a Google login/signup flow
+        if (isGoogleAuthRef.current || successParam === 'Google_Signup' || successParam === 'Google_Login') {
+            return;
+        }
 
         const clearAutoSession = async () => {
             // Add 100ms delay to ensure session is fully detected
@@ -264,7 +308,7 @@ function AuthGatewayContent() {
                     if (errMsg.includes("already registered") || errMsg.includes("user already registered")) {
                         setError(
                             <span>
-                                Email already registered. Please{" "}
+                                Account already exists. Please{" "}
                                 <button type="button" onClick={() => switchMode("login")} className="underline font-semibold hover:text-red-300">
                                     login instead
                                 </button>.
@@ -358,10 +402,14 @@ function AuthGatewayContent() {
                         // Check if user exists to distinguish between wrong password vs no account
                         try {
                             const res = await fetch(`/api/check-user?email=${encodeURIComponent(trimmedEmail)}`);
-                            const { exists } = await res.json();
+                            const { exists, provider } = await res.json();
 
                             if (exists) {
-                                setError("Incorrect password. Please try again.");
+                                if (provider === 'GOOGLE') {
+                                    setError("This account was registered with Google. Please use 'Continue with Google' to login.");
+                                } else {
+                                    setError("Incorrect password. Please try again.");
+                                }
                             } else {
                                 setError(
                                     <span>
@@ -413,21 +461,17 @@ function AuthGatewayContent() {
         }
     };
 
-    const handleGoogleLogin = async () => {
-        setLoading(true); setError("");
-        try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: "google",
-                options: {
-                    redirectTo: `${window.location.origin}/callback`,
-                    scopes: "profile email https://www.googleapis.com/auth/drive.file"
-                }
-            });
-            if (error) throw error;
-        } catch (err: unknown) {
-            setError(getErrorMessage(err, "Failed to initialize Google login."));
-            setLoading(false);
-        }
+    const handleGoogleLogin = () => {
+        const width = 500;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
+        const popup = window.open(
+            '/api/auth/google',
+            'google-auth',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        );
     };
 
     const isLocked = rateLimitSeconds > 0;
@@ -528,6 +572,11 @@ function AuthGatewayContent() {
                             </p>
 
                             <form onSubmit={handleAuth} className="w-full space-y-4">
+                                {error && !isLocked && (
+                                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+                                        <p className="text-xs text-red-400">⚠ {error}</p>
+                                    </div>
+                                )}
                                 <div className="space-y-4">
                                     {/* FULL NAME - signup only */}
                                     {mode === "signup" && (
@@ -642,12 +691,7 @@ function AuthGatewayContent() {
                                     </p>
                                 )}
 
-                                {/* ERROR + SUCCESS MESSAGES */}
-                                {error && !isLocked && (
-                                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
-                                        {error}
-                                    </div>
-                                )}
+                                {/* SUCCESS MESSAGES */}
                                 {msg && (
                                     <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs text-center">
                                         {msg}

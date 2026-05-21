@@ -145,6 +145,7 @@ class UserService extends BaseService<User, CreateUserInput, UpdateUserInput> {
           email: email,
           name: name || '',
           status: 'PENDING_VERIFICATION',
+          authProvider: 'EMAIL',
           profileType: 'INDIVIDUAL_SALARIED',
         });
         console.log('[UserService] Synced missing user from Supabase:', userId);

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore } from "@/lib/stores/notificationStore";
 import { formatRupee } from "@/lib/incomeStore";
 
 export default function PolicyDetailPage({ params }: { params: Promise<{ id: string }> }) {

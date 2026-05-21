@@ -86,24 +86,30 @@ export function FileUploader({
                 
                 id = result.data.fileId;
             } else if (storageType === 'supabase' || (!storageType && (folder === "identity" || folder === "education"))) {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) throw new Error("Authentication required for remote storage.");
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) throw new Error("Authentication required for remote storage.");
 
-                const fileExt = file.name.split(".").pop();
-                const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-                const filePath = `${fileName}`;
+                    const fileExt = file.name.split(".").pop();
+                    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+                    const filePath = `${fileName}`;
 
-                const { error: uploadError } = await supabase.storage
-                    .from(folder) // "identity" or "education" bucket
-                    .upload(filePath, file);
+                    const { error: uploadError } = await supabase.storage
+                        .from(folder) // "identity" or "education" bucket
+                        .upload(filePath, file);
 
-                if (uploadError) throw uploadError;
+                    if (uploadError) throw uploadError;
 
-                const { data: urlData } = supabase.storage
-                    .from(folder)
-                    .getPublicUrl(filePath);
-                
-                id = urlData.publicUrl;
+                    const { data: urlData } = supabase.storage
+                        .from(folder)
+                        .getPublicUrl(filePath);
+                    
+                    id = urlData.publicUrl;
+                } catch (supaErr) {
+                    console.warn("Supabase upload failed, falling back to local OPFS:", supaErr);
+                    toast("Cloud upload failed. Saving securely to your device's local vault instead.", "warning");
+                    id = await Vault.saveFile(folder, file, tags);
+                }
             } else {
                 // Fallback to Local Vault (IndexedDB + OPFS)
                 id = await Vault.saveFile(folder, file, tags);
@@ -118,6 +124,8 @@ export function FileUploader({
             const isNetworkError = !window.navigator.onLine || err.message?.includes('network') || err.message?.includes('fetch');
             if (isNetworkError) {
                 toast("Network error. Check your connection and try again.", "error");
+            } else if (err.message) {
+                toast(err.message, "error");
             } else {
                 toast("Failed to upload. Please try again.", "error");
             }
@@ -155,23 +163,30 @@ export function FileUploader({
         if (newVal && savedFileObj) {
             setSyncingCloud(true);
             try {
-                const { data } = await supabase.auth.getSession();
-                const providerToken = data.session?.provider_token;
-                
-                if (!providerToken) {
-                    toast("Google Drive sync failed. Please log out and log back in with Google.", "error");
-                    setCloudOptIn(false);
-                    setSyncingCloud(false);
-                    return;
-                }
+                const formData = new FormData();
+                formData.append('file', savedFileObj);
+                formData.append('folderName', 'Svarajya_Nidhi');
+                formData.append('fileName', docName || savedFileObj.name);
 
-                const success = await CloudDriveSync.uploadToGoogleDrive(savedFileObj, docName || savedFileObj.name, providerToken);
-                if (!success) {
-                    toast("Failed to upload to Google Drive.", "error");
+                const uploadRes = await fetch('/api/google-drive/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await uploadRes.json();
+
+                if (!uploadRes.ok) {
+                    toast(result.error || "Failed to upload to Google Drive.", "error");
                     setCloudOptIn(false);
+                } else {
+                    toast("Backed up securely to Google Drive!", "success");
+                    if (uploaded) {
+                        setUploaded(prev => prev ? { ...prev, id: result.data.fileId } : null);
+                    }
                 }
             } catch (err) {
                 console.error("Cloud toggle error:", err);
+                toast("Error connecting to Google Drive backup service.", "error");
                 setCloudOptIn(false);
             }
             setSyncingCloud(false);

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AlertCircle, Bell, X, ChevronRight } from "lucide-react";
-import { NotificationStore, Notification } from "@/lib/notificationStore";
+import { NotificationStore, Notification } from "@/lib/stores/notificationStore";
 
 const TOAST_HIDDEN_PATHS = ["/", "/intro", "/start"];
 

@@ -9,7 +9,7 @@ import {
     Check
 } from "lucide-react";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore } from "@/lib/stores/notificationStore";
 
 const POLICY_TYPES = ["LIFE", "TERM", "HEALTH", "VEHICLE", "HOME", "TRAVEL", "OTHER"];
 const FREQUENCIES = ["MONTHLY", "QUARTERLY", "ANNUAL"];

@@ -25,6 +25,9 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
+      if (existingUser.authProvider === 'GOOGLE') {
+        return NextResponse.json({ error: "This account was registered with Google. Please login using 'Continue with Google' instead." }, { status: 400 });
+      }
       return NextResponse.json({ error: "Email already registered. Please login instead." }, { status: 400 });
     }
 

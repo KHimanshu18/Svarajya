@@ -1,18 +1,26 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Plus, Bell, TrendingUp, Coins, FileText } from "lucide-react";
-import { NotificationStore } from "@/lib/notificationStore";
+import { NotificationStore, Notification } from "@/lib/stores/notificationStore";
 
 const HIDDEN_PATHS = ["/", "/start", "/intro"];
 
 export function DesktopRightPanel() {
     const pathname = usePathname();
     const router = useRouter();
+    const [alerts, setAlerts] = useState<Notification[]>([]);
+
+    useEffect(() => {
+        setAlerts(NotificationStore.getAll().slice(0, 3));
+        const unsubscribe = NotificationStore.subscribe(() => {
+            setAlerts(NotificationStore.getAll().slice(0, 3));
+        });
+        return unsubscribe;
+    }, []);
 
     if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/onboarding")) return null;
-
-    const alerts = NotificationStore.getAll().slice(0, 3);
 
     return (
         <aside className="hidden xl:flex flex-col w-72 shrink-0 min-h-screen sticky top-0 h-screen border-l border-white/8 bg-[var(--color-rajya-bg)] overflow-y-auto">

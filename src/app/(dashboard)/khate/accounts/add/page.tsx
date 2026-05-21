@@ -103,7 +103,7 @@ export default function AddBankAccount() {
 
     if (success) {
         return (
-            <div className="bg-black text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
+            <div className="text-white min-h-screen flex items-center justify-center font-sans animate-fade-in px-6">
                 <div className="text-center p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl">
                     <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-emerald-100 mb-2">Account added successfully.</h2>
@@ -186,7 +186,7 @@ export default function AddBankAccount() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Last 4 Digits */}
                         <div className="space-y-1">
                             <label className="text-xs text-white/50 uppercase tracking-widest font-semibold flex items-center gap-1">
@@ -257,20 +257,20 @@ export default function AddBankAccount() {
                     </div>
                 </div>
 
-                    <div className="pt-8">
-                        <button
-                            disabled={saving || (duplicateWarning && !error)}
-                            onClick={() => {
-                                if (saving || (duplicateWarning && !error)) return;
-                                void handleSave();
-                            }}
-                            className={`w-full py-4 rounded-xl font-bold shadow-xl transition-all ${duplicateWarning && !error ? "bg-white/10 text-white/30 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
-                                }`}
-                        >
-                            {duplicateWarning && !error ? "Resolve Warning Above" : saving ? "Saving..." : "Save Account"}
-                        </button>
-                    </div>
+                <div className="pt-8">
+                    <button
+                        disabled={saving || (duplicateWarning && !error)}
+                        onClick={() => {
+                            if (saving || (duplicateWarning && !error)) return;
+                            void handleSave();
+                        }}
+                        className={`w-full py-4 rounded-xl font-bold shadow-xl transition-all ${duplicateWarning && !error ? "bg-white/10 text-white/30 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
+                            }`}
+                    >
+                        {duplicateWarning && !error ? "Resolve Warning Above" : saving ? "Saving..." : "Save Account"}
+                    </button>
                 </div>
+            </div>
         </MicroLearningWrapper>
     );
 }

@@ -8,6 +8,8 @@ import { SealStrengthRing } from "@/components/identity/SealStrengthRing";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { PageGuide } from "@/components/ui/PageGuide";
 import { motion } from "framer-motion";
+import { useToast } from "@/components/providers/ToastProvider";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const DOC_META: Record<DocType, { label: string; icon: React.ReactNode }> = {
     aadhaar: { label: "Aadhaar", icon: <CreditCard className="w-5 h-5" /> },
@@ -22,6 +24,7 @@ const DOC_META: Record<DocType, { label: string; icon: React.ReactNode }> = {
 
 export default function IdentityHub() {
     const router = useRouter();
+    const toast = useToast();
     const [, setHydrated] = useState(false);
     useEffect(() => { IdentityStore.hydrate().then(() => setHydrated(true)); }, []);
     // Seed contacts from onboarding profile (mobile/email) on first visit
@@ -34,6 +37,7 @@ export default function IdentityHub() {
     const [now] = useState(() => Date.now());
 
     const [isGoogleLinked, setIsGoogleLinked] = useState<boolean | null>(null);
+    const [showUnlinkModal, setShowUnlinkModal] = useState(false);
     const [dbDocuments, setDbDocuments] = useState<any[]>([]);
 
     const fetchGoogleStatus = async () => {
@@ -198,7 +202,15 @@ export default function IdentityHub() {
                             <Cloud className="w-3.5 h-3.5 text-emerald-400" />
                             <span className="text-[10px] text-emerald-400 font-medium">Google Drive Sync Active</span>
                         </div>
-                        <span className="text-[9px] text-white/30 uppercase tracking-tighter">Secure & Sovereign</span>
+                        <div className="flex items-center gap-4">
+                            <span className="text-[9px] text-white/30 uppercase tracking-tighter hidden sm:inline">Secure & Sovereign</span>
+                            <button
+                                onClick={() => setShowUnlinkModal(true)}
+                                className="text-[10px] text-red-400/80 hover:text-red-400 transition-colors font-medium"
+                            >
+                                Unlink
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -332,6 +344,20 @@ export default function IdentityHub() {
                     </button>
                 </div>
             </div>
+
+            <ConfirmModal 
+                isOpen={showUnlinkModal}
+                title="Unlink Google Account"
+                message="Are you sure you want to unlink your Google account? You can link it again later."
+                onConfirm={async () => {
+                    const res = await fetch('/api/auth/unlink-google', { method: 'POST' });
+                    if (res.ok) {
+                        setShowUnlinkModal(false);
+                        window.location.reload();
+                    }
+                }}
+                onCancel={() => setShowUnlinkModal(false)}
+            />
         </div>
     );
 }
