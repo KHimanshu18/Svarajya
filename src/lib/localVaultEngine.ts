@@ -71,6 +71,27 @@ export const LocalVaultEngine = {
     },
 
     /**
+     * Retrieves the actual File object stored in OPFS.
+     */
+    async getDocumentFile(vaultFileId: string, name: string, type: string): Promise<File | null> {
+        if (!vaultFileId.startsWith("opfs://")) return null;
+        
+        const fileName = vaultFileId.replace("opfs://", "");
+        const vaultDir = await this.initVaultDir();
+        if (!vaultDir) return null;
+
+        try {
+            const fileHandle = await vaultDir.getFileHandle(fileName);
+            const file = await fileHandle.getFile();
+            // Create a new File object to override name and type
+            return new File([file], name, { type });
+        } catch (err) {
+            console.error(`Failed to locate OPFS file: ${fileName}`, err);
+            return null;
+        }
+    },
+
+    /**
      * Deletes a document from the local OPFS Vault.
      */
     async deleteDocument(vaultFileId: string): Promise<boolean> {

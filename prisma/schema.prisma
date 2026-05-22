@@ -1513,6 +1513,7 @@ model DocumentMeta {
   localPathRef       String? // Path on user's device (not stored by default)
   cloudBackupConsent Boolean   @default(false)
   cloudStorageUrl    String? // If cloud backup enabled
+  cloudId            String? // Google Drive file ID
   expiryDate         DateTime? @db.Date
   versionTag         String?
   versionHistory     Json? // Array of previous versions

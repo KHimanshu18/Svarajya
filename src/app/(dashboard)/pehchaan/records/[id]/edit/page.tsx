@@ -295,8 +295,8 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
                                             const file = e.target.files?.[0];
                                             if (file) {
                                                 try {
-                                                    const id = await Vault.saveFile("identity", file);
-                                                    setVaultFileId(id);
+                                                    const { localId, cloudId } = await Vault.saveFile("identity", file, undefined, true);
+                                                    setVaultFileId(cloudId || localId);
                                                 } catch (err) {
                                                     console.error("Failed to save to vault", err);
                                                 }

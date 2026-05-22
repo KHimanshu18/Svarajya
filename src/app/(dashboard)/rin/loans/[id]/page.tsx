@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Vault, VaultFile } from "@/lib/vault";
 import { 
     ArrowLeft, 
     Pencil, 
@@ -15,7 +16,8 @@ import {
     ShieldCheck,
     AlertCircle,
     Info,
-    ArrowUpRight
+    ArrowUpRight,
+    FileText
 } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
 
@@ -32,6 +34,7 @@ interface LoanAccount {
     endDate: string | null;
     status: string;
     linkedPropertyId: string | null;
+    documentId: string | null;
 }
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -41,6 +44,8 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
     const [loan, setLoan] = useState<LoanAccount | null>(null);
     const [loading, setLoading] = useState(true);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [linkedDocumentMeta, setLinkedDocumentMeta] = useState<any | null>(null);
+    const [linkedVaultFile, setLinkedVaultFile] = useState<VaultFile | null>(null);
 
     useEffect(() => {
         const fetchLoan = async () => {
@@ -61,6 +66,34 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         };
         void fetchLoan();
     }, [id, router, toast]);
+
+    useEffect(() => {
+        if (!loan?.documentId) {
+            setLinkedVaultFile(null);
+            setLinkedDocumentMeta(null);
+            return;
+        }
+
+        Vault.getFile(loan.documentId).then(file => {
+            if (file) setLinkedVaultFile(file);
+            else setLinkedVaultFile(null);
+        });
+
+        const fetchLinkedDocMeta = async () => {
+            try {
+                const res = await fetch(`/api/documents?linkedEntityId=${id}`);
+                if (!res.ok) return;
+                const json = await res.json();
+                const docs = json.data || [];
+                const loanDoc = docs.find((doc: any) => doc.docType === 'LOAN');
+                setLinkedDocumentMeta(loanDoc || null);
+            } catch (err) {
+                console.error('Failed to load linked document metadata', err);
+            }
+        };
+
+        fetchLinkedDocMeta();
+    }, [loan?.documentId, id]);
 
     const handleDelete = async () => {
         try {
@@ -203,6 +236,67 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                         <Link href="/bhoomi" className="text-xs text-amber-400 font-medium">View Property</Link>
                     </div>
                 )}
+
+                {/* Document Section */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                Loan Document
+                            </h3>
+                            <p className="text-[10px] text-white/50">Access the primary document associated with this loan.</p>
+                        </div>
+                        <Link
+                            href={`/rin/loans/${id}/edit`}
+                            className="text-[10px] uppercase tracking-[0.2em] text-amber-400 font-bold"
+                        >
+                            {loan.documentId ? 'Change' : 'Add Document'}
+                        </Link>
+                    </div>
+
+                    {loan.documentId ? (
+                        <div className="space-y-4">
+                            <div className="p-4 rounded-3xl bg-slate-950/60 border border-white/10">
+                                <p className="text-sm font-medium text-white">
+                                    {linkedVaultFile?.name || linkedDocumentMeta?.fileName || 'Linked document'}
+                                </p>
+                                {linkedVaultFile?.size ? (
+                                    <p className="text-[10px] text-white/40 mt-1">
+                                        {Math.round(linkedVaultFile.size / 1024)} KB
+                                    </p>
+                                ) : null}
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    onClick={async () => {
+                                        if (!loan.documentId) return;
+                                        const isGoogleDriveId = !loan.documentId.startsWith('http') && loan.documentId.length > 20 && !loan.documentId.startsWith('opfs');
+                                        if (isGoogleDriveId) {
+                                            window.open(`https://drive.google.com/file/d/${loan.documentId}/view`, '_blank', 'noopener,noreferrer');
+                                        } else {
+                                            const url = await Vault.getPreviewUrl(loan.documentId);
+                                            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                                        }
+                                    }}
+                                    className="px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-semibold"
+                                >
+                                    View
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <p className="text-sm text-white/60">No document attached.</p>
+                            <Link
+                                href={`/rin/loans/${id}/edit`}
+                                className="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold"
+                            >
+                                Add Document
+                            </Link>
+                        </div>
+                    )}
+                </div>
 
                 {/* Prepayment Calculator Advice */}
                 <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-3xl p-6">

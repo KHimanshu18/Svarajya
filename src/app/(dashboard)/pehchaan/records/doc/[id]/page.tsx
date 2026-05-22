@@ -121,16 +121,26 @@ export default function DocDetail() {
 
     useEffect(() => {
         if (formState.vaultFileId) {
-            Vault.getPreviewUrl(formState.vaultFileId).then(setFileUrl);
-            Vault.getFile(formState.vaultFileId).then(file => {
-                if (file) {
-                    setFileName(file.name);
-                } else if (formState.vaultFileId.length > 20) {
-                    setFileName("Google Drive Document");
-                } else {
-                    setFileName("Secure Document Scan");
-                }
-            });
+            const fileId = formState.vaultFileId;
+            
+            // Detect if it's a Google Drive file ID (alphanumeric, length > 20, not starting with timestamp)
+            const isGoogleDriveId = !fileId.startsWith('http') && fileId.length > 20 && !fileId.startsWith('opfs');
+            
+            if (isGoogleDriveId) {
+                // Direct Google Drive file URL
+                setFileUrl(`https://drive.google.com/file/d/${fileId}/view`);
+                setFileName("Google Drive Document");
+            } else {
+                // Local OPFS file — use vault preview
+                Vault.getPreviewUrl(fileId).then(setFileUrl);
+                Vault.getFile(fileId).then(file => {
+                    if (file) {
+                        setFileName(file.name);
+                    } else {
+                        setFileName("Secure Document Scan");
+                    }
+                });
+            }
         }
     }, [formState.vaultFileId]);
 

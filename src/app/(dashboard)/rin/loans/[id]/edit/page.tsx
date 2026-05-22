@@ -104,6 +104,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                     docType: 'LOAN',
                     linkedEntityId: id,
                     fileName: selectedFile.name,
+                    cloudId: selectedFile.cloudId || null,
                 }),
             });
 
@@ -115,7 +116,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
             const updateRes = await fetch(`/api/loans/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ documentId: selectedFile.id }),
+                body: JSON.stringify({ documentId: selectedFile.cloudId || selectedFile.id }),
             });
 
             if (!updateRes.ok) {
@@ -123,8 +124,9 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                 throw new Error(err.error || 'Unable to update loan record');
             }
 
-            setFormData((prev) => ({ ...prev, documentId: selectedFile.id }));
-            setSelectedVaultFileId(selectedFile.id);
+            const finalId = selectedFile.cloudId || selectedFile.id;
+            setFormData((prev) => ({ ...prev, documentId: finalId }));
+            setSelectedVaultFileId(finalId);
             setShowDocumentModal(false);
             setExistingVaultFiles(await Vault.getFiles('loans'));
             NotificationStore.push({
@@ -149,8 +151,8 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
         setUploadingFileName(file.name);
 
         try {
-            const newId = await Vault.saveFile('loans', file);
-            const newFile = await Vault.getFile(newId);
+            const { localId } = await Vault.saveFile('loans', file, undefined, true);
+            const newFile = await Vault.getFile(localId);
             const files = await Vault.getFiles('loans');
             setExistingVaultFiles(files);
 

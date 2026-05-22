@@ -64,38 +64,20 @@ export function FileUploader({
         }
 
         try {
-            let id: string;
+            // 3. Save to Vault (OPFS/IndexedDB) and Google Drive (if selected)
+            const { localId, cloudId } = await Vault.saveFile(folder, file, tags, storageType === 'googledrive');
+            const id = localId;
+            let finalCloudId = cloudId || null;
 
-            // 3. Always save locally to OPFS and IndexedDB first to guarantee a metadata record
-            id = await Vault.saveFile(folder, file, tags);
+            if (finalCloudId && storageType === 'googledrive') {
+                setCloudOptIn(true);
+                setCloudFileId(finalCloudId);
+            } else if (!finalCloudId && storageType === 'googledrive') {
+                toast("Cloud upload failed. Local copy saved.", "warning");
+            }
 
-            let finalCloudId = null;
-
-            // 4. Handle requested cloud upload (if any)
-            if (storageType === 'googledrive') {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('folderName', 'Svarajya_Nidhi');
-                
-                const uploadRes = await fetch('/api/google-drive/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                
-                const result = await uploadRes.json();
-                if (!uploadRes.ok) {
-                    if (uploadRes.status === 401 || uploadRes.status === 403) {
-                        toast("Google Drive authentication expired. Local copy saved.", "warning");
-                    } else {
-                        toast("Cloud upload failed. Local copy saved.", "warning");
-                    }
-                } else {
-                    finalCloudId = result.data.fileId;
-                    await Vault.updateFile(id, { cloudId: finalCloudId, storageType: 'googledrive' });
-                    setCloudOptIn(true);
-                    setCloudFileId(finalCloudId);
-                }
-            } else if (storageType === 'supabase') {
+            // 4. Handle Supabase upload separately (if requested)
+            if (storageType === 'supabase') {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) throw new Error("Authentication required for remote storage.");

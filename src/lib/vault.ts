@@ -49,8 +49,8 @@ async function getDB() {
 }
 
 export const Vault = {
-    /** Save a file to OPFS, record metadata to IndexedDB. Returns the new file's ID. */
-    async saveFile(folder: VaultFolder, file: File, tags?: string[]): Promise<string> {
+    /** Save a file to OPFS, record metadata to IndexedDB. Returns localId and optional cloudId. */
+    async saveFile(folder: VaultFolder, file: File, tags?: string[], backupToCloud: boolean = true): Promise<{ localId: string; cloudId?: string }> {
         const { LocalVaultEngine } = await import("./localVaultEngine");
         
         const db = await getDB();
@@ -71,7 +71,35 @@ export const Vault = {
             tags,
         };
         await db.put("vault", record);
-        return id;
+
+        let uploadedCloudId: string | undefined;
+
+        // 3. Optionally backup to Google Drive
+        if (backupToCloud) {
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                form.append('fileName', file.name);
+                form.append('folderName', 'Svarajya_Nidhi');
+
+                const uploadRes = await fetch('/api/google-drive/upload', {
+                    method: 'POST',
+                    body: form,
+                });
+                const uploadJson = await uploadRes.json();
+                if (uploadRes.ok && uploadJson.success && uploadJson.data?.fileId) {
+                    uploadedCloudId = uploadJson.data.fileId;
+                    await Vault.updateFile(id, { 
+                        cloudId: uploadedCloudId, 
+                        storageType: 'googledrive' 
+                    });
+                }
+            } catch (err) {
+                console.error("Cloud backup failed during save:", err);
+            }
+        }
+
+        return { localId: id, cloudId: uploadedCloudId };
     },
 
     /** Get all files in a folder. */
@@ -90,6 +118,40 @@ export const Vault = {
     async getAllFiles(): Promise<VaultFile[]> {
         const db = await getDB();
         return db.getAll("vault");
+    },
+
+    /** Manually backup an existing local file to Google Drive. */
+    async backupToDrive(id: string): Promise<boolean> {
+        const fileRecord = await Vault.getFile(id);
+        if (!fileRecord || !fileRecord.vaultFileId) return false;
+        
+        try {
+            const { LocalVaultEngine } = await import("./localVaultEngine");
+            const file = await LocalVaultEngine.getDocumentFile(fileRecord.vaultFileId, fileRecord.name, fileRecord.type);
+            if (!file) return false;
+
+            const form = new FormData();
+            form.append('file', file);
+            form.append('fileName', file.name);
+            form.append('folderName', 'Svarajya_Nidhi');
+
+            const uploadRes = await fetch('/api/google-drive/upload', {
+                method: 'POST',
+                body: form,
+            });
+            const uploadJson = await uploadRes.json();
+            
+            if (uploadRes.ok && uploadJson.success && uploadJson.data?.fileId) {
+                await Vault.updateFile(id, { 
+                    cloudId: uploadJson.data.fileId, 
+                    storageType: 'googledrive' 
+                });
+                return true;
+            }
+        } catch (err) {
+            console.error("Manual cloud backup failed:", err);
+        }
+        return false;
     },
 
     /** Delete a file by its ID within metadata mapping AND OPFS physical filesystem. */

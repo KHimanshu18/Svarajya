@@ -152,6 +152,7 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
                     docType: 'INSURANCE',
                     linkedEntityId: id,
                     fileName: file.name,
+                    cloudId: file.cloudId || null,
                 }),
             });
 
@@ -163,7 +164,7 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
             const updateRes = await fetch(`/api/insurance/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ documentId: file.id }),
+                body: JSON.stringify({ documentId: file.cloudId || file.id }),
             });
 
             if (!updateRes.ok) {
@@ -202,45 +203,11 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
         setIsUploading(true);
         setUploadingFileName(file.name);
         try {
-            // 1. Save locally to OPFS + indexedDB
-            const newId = await Vault.saveFile('insurance', file);
-            const newFile = await Vault.getFile(newId);
+            // 1. Save locally to OPFS + indexedDB and backup to Google Drive
+            const { localId } = await Vault.saveFile('insurance', file, undefined, true);
+            const newFile = await Vault.getFile(localId);
             const files = await Vault.getFiles('insurance');
             setExistingVaultFiles(files);
-
-            // 2. Attempt to back up to Google Drive immediately
-            try {
-                const form = new FormData();
-                form.append('file', file);
-                form.append('fileName', file.name);
-                form.append('folderName', 'Svarajya_Nidhi');
-
-                const uploadRes = await fetch('/api/google-drive/upload', {
-                    method: 'POST',
-                    body: form,
-                });
-
-                const uploadJson = await uploadRes.json();
-                if (uploadRes.ok && uploadJson.success && uploadJson.data?.fileId) {
-                    // Save cloud id into the vault metadata for this file
-                    await Vault.updateFile(newId, { cloudId: uploadJson.data.fileId, storageType: 'googledrive' });
-                } else {
-                    // Non-fatal: continue with local file but notify user
-                    NotificationStore.push({
-                        type: 'warning',
-                        title: 'Cloud Backup Failed',
-                        message: uploadJson?.error || 'Could not back up file to Google Drive. File saved locally.',
-                        route: '/rajya'
-                    });
-                }
-            } catch (err) {
-                NotificationStore.push({
-                    type: 'warning',
-                    title: 'Cloud Backup Error',
-                    message: (err as any)?.message || 'Error uploading to Google Drive. File saved locally.',
-                    route: '/rajya'
-                });
-            }
 
             // 3. Link the vault file (which now may contain cloudId) to the policy
             if (newFile) {
@@ -533,8 +500,13 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
                                         <button
                                             onClick={async () => {
                                                 if (!policy.documentId) return;
-                                                const url = await Vault.getPreviewUrl(policy.documentId);
-                                                if (url) window.open(url, '_blank');
+                                                const isGoogleDriveId = !policy.documentId.startsWith('http') && policy.documentId.length > 20 && !policy.documentId.startsWith('opfs');
+                                                if (isGoogleDriveId) {
+                                                    window.open(`https://drive.google.com/file/d/${policy.documentId}/view`, '_blank', 'noopener,noreferrer');
+                                                } else {
+                                                    const url = await Vault.getPreviewUrl(policy.documentId);
+                                                    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                                                }
                                             }}
                                             className="px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-semibold"
                                         >
