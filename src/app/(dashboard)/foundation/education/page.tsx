@@ -537,6 +537,7 @@ export default function EducationPage() {
                                     storageType="googledrive"
                                     label="Upload certificate"
                                     onUploaded={(url) => setUploadedCerts(prev => ({ ...prev, "new": url || "" }))}
+                                    selectedFamilyMemberId={selectedPerson}
                                 />
                             )}
                         </div>

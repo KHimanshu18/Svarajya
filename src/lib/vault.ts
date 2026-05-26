@@ -22,6 +22,7 @@ export interface VaultFile {
     notes?: string; // custom notes
     cloudId?: string; // Reference to Google Drive or Supabase file ID
     storageType?: 'local' | 'googledrive' | 'supabase'; // primary storage type
+    linkedFamilyMemberId?: string; // Associated family member's unique database ID
 }
 
 interface KallyaniiDB extends DBSchema {
@@ -50,7 +51,14 @@ async function getDB() {
 
 export const Vault = {
     /** Save a file to OPFS, record metadata to IndexedDB. Returns localId and optional cloudId. */
-    async saveFile(folder: VaultFolder, file: File, tags?: string[], backupToCloud: boolean = true): Promise<{ localId: string; cloudId?: string }> {
+    async saveFile(
+        folder: VaultFolder,
+        file: File,
+        tags?: string[],
+        backupToCloud: boolean = true,
+        linkedFamilyMemberId?: string,
+        familyMemberName?: string
+    ): Promise<{ localId: string; cloudId?: string }> {
         const { LocalVaultEngine } = await import("./localVaultEngine");
         
         const db = await getDB();
@@ -69,6 +77,7 @@ export const Vault = {
             size: file.size,
             createdAt: Date.now(),
             tags,
+            linkedFamilyMemberId,
         };
         await db.put("vault", record);
 
@@ -81,6 +90,23 @@ export const Vault = {
                 form.append('file', file);
                 form.append('fileName', file.name);
                 form.append('folderName', 'Svarajya_Nidhi');
+                
+                if (familyMemberName) {
+                    form.append('familyMemberName', familyMemberName);
+                } else {
+                    form.append('familyMemberName', 'Myself');
+                }
+
+                // Map folder to category name
+                let category = 'Other';
+                if (folder === 'identity') category = 'Identity';
+                else if (folder === 'insurance') category = 'Insurance';
+                else if (folder === 'loans') category = 'Loans';
+                else if (folder === 'education') category = 'Education';
+                else if (folder === 'property') category = 'Property';
+                else if (folder === 'family') category = 'Family';
+                else if (folder === 'profile') category = 'Profile';
+                form.append('category', category);
 
                 const uploadRes = await fetch('/api/google-drive/upload', {
                     method: 'POST',

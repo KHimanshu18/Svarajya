@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, GraduationCap, CheckCircle2, FileText, Upload } from "lucide-react";
+import { ArrowLeft, Save, GraduationCap, CheckCircle2, FileText, Upload, Users } from "lucide-react";
 import { FileUploader } from "@/components/vault/FileUploader";
 import { Vault, VaultFile } from "@/lib/vault";
 
@@ -28,6 +28,8 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
     const [year, setYear] = useState("");
     const [specialization, setSpecialization] = useState("");
     const [certificateId, setCertificateId] = useState<string | null>(null);
+    const [familyMemberId, setFamilyMemberId] = useState<string>("");
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
     const [existingFiles, setExistingFiles] = useState<VaultFile[]>([]);
     const [fileName, setFileName] = useState<string | null>(null);
@@ -37,6 +39,11 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
         Vault.getFiles("education").then(files => {
             setExistingFiles(files);
         });
+        // Fetch family members
+        fetch('/api/family')
+            .then(res => res.ok ? res.json() : { data: [] })
+            .then(json => setFamilyMembers(json.data || []))
+            .catch(() => setFamilyMembers([]));
     }, []);
 
     useEffect(() => {
@@ -53,6 +60,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                 setYear(data.yearCompleted?.toString() || "");
                 setSpecialization(data.specialization || "");
                 setCertificateId(data.certificateUrl || null);
+                setFamilyMemberId(data.familyMemberId ?? "");
             } catch (err: any) {
                 setError(err.message || "Failed to load record");
             } finally {
@@ -91,6 +99,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                 year: year || null,
                 specialization,
                 certificateId,
+                familyMemberId: familyMemberId || null,
             };
 
             const response = await fetch(`/api/education/${id}`, {
@@ -195,6 +204,23 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                     </div>
                 </div>
 
+                {/* Certificate Owner */}
+                <div className="space-y-2">
+                    <label className="text-xs text-[var(--color-rajya-muted)] mb-1 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" /> Certificate Belongs To
+                    </label>
+                    <select
+                        value={familyMemberId}
+                        onChange={e => setFamilyMemberId(e.target.value)}
+                        className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
+                    >
+                        <option value="">Myself</option>
+                        {familyMembers.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                    </select>
+                </div>
+
                 <div className="space-y-4 pt-4 border-t border-white/10">
                     <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-[var(--color-rajya-muted)] uppercase tracking-[0.15em]">Certificate Attachment</label>
@@ -228,6 +254,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                                     storageType="googledrive"
                                     label="Upload certificate"
                                     onUploaded={(id) => setCertificateId(id)}
+                                    showFamilyMemberSelector={false}
                                 />
                             )}
                         </div>

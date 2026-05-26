@@ -1,9 +1,22 @@
 import { prisma } from '@/lib/prisma';
 
+function maskToken(t: string | null | undefined) {
+  if (!t) return null;
+  if (t.length <= 12) return `${t.slice(0, 3)}...${t.slice(-3)}`;
+  return `${t.slice(0, 6)}...${t.slice(-4)}`;
+}
+
 export async function getValidGoogleAccessToken(userId: string): Promise<string | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { googleAccessToken: true, googleRefreshToken: true, googleTokenExpiry: true },
+  });
+
+  console.log('[getValidGoogleAccessToken] Found user token metadata', {
+    hasAccessToken: !!user?.googleAccessToken,
+    accessTokenMasked: maskToken(user?.googleAccessToken),
+    hasRefreshToken: !!user?.googleRefreshToken,
+    tokenExpiry: user?.googleTokenExpiry?.toISOString?.() ?? null,
   });
 
   if (!user || !user.googleAccessToken) {
@@ -37,7 +50,8 @@ export async function getValidGoogleAccessToken(userId: string): Promise<string 
       });
 
       if (!tokenResponse.ok) {
-        console.error('Failed to refresh Google token:', await tokenResponse.text());
+        const txt = await tokenResponse.text();
+        console.error('Failed to refresh Google token:', { status: tokenResponse.status, body: txt });
         return null;
       }
 
@@ -51,6 +65,7 @@ export async function getValidGoogleAccessToken(userId: string): Promise<string 
         },
       });
 
+      console.log('[getValidGoogleAccessToken] Refreshed token', { accessTokenMasked: maskToken(tokens.access_token), expiresIn: tokens.expires_in });
       return tokens.access_token;
     } catch (error) {
       console.error('Error refreshing token:', error);

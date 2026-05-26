@@ -1010,6 +1010,7 @@ model FamilyMember {
   coveredBy InsuranceCoverage[]
   education Education[]
   incomeStreams IncomeStream[]
+  identityRecords IdentityRecord[]
 
   @@index([userId])
   @@map("family_members")
@@ -1039,24 +1040,26 @@ model Education {
 // ----------------------------------------------------------------------------
 
 model IdentityRecord {
-  id           String    @id @default(uuid())
-  userId       String
-  idType       String // "PAN", "AADHAAR", "PASSPORT", "DL", "VOTER_ID"
-  numberMasked String // Last 4 digits only
-  numberFull   String? // Encrypted full number (optional)
-  expiryDate   DateTime? @db.Date
-  issuedDate   DateTime? @db.Date
-  placeOfIssue String?
-  dobOnDoc     DateTime? @db.Date
-  nameOnDoc    String?
-  vaultFileId  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  userId         String
+  idType         String // "PAN", "AADHAAR", "PASSPORT", "DL", "VOTER_ID"
+  numberMasked   String // Last 4 digits only
+  numberFull     String? // Encrypted full number (optional)
+  expiryDate     DateTime? @db.Date
+  issuedDate     DateTime? @db.Date
+  placeOfIssue   String?
+  dobOnDoc       DateTime? @db.Date
+  nameOnDoc      String?
+  vaultFileId    String?
+  familyMemberId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  links IdentityLink[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  links        IdentityLink[]
 
-  @@unique([userId, idType])
+  @@unique([userId, idType, familyMemberId])
   @@index([userId])
   @@map("identity_records")
 }
@@ -1503,22 +1506,23 @@ model AssetInventory {
 // ----------------------------------------------------------------------------
 
 model DocumentMeta {
-  id                 String    @id @default(uuid())
-  userId             String
-  docType            String // "INSURANCE", "IDENTITY", "PROPERTY", "LOAN", "INVESTMENT", "WILL", "OTHER"
-  linkedPersonId     String? // FamilyMember ID or userId
-  linkedEntityId     String? // Policy ID, Property ID, etc.
-  fileName           String
-  fileHash           String? // For duplicate detection
-  localPathRef       String? // Path on user's device (not stored by default)
-  cloudBackupConsent Boolean   @default(false)
-  cloudStorageUrl    String? // If cloud backup enabled
-  cloudId            String? // Google Drive file ID
-  expiryDate         DateTime? @db.Date
-  versionTag         String?
-  versionHistory     Json? // Array of previous versions
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  userId               String
+  docType              String // "INSURANCE", "IDENTITY", "PROPERTY", "LOAN", "INVESTMENT", "WILL", "OTHER"
+  linkedPersonId       String? // FamilyMember ID or userId
+  linkedFamilyMemberId String? // Specific FamilyMember ID associated with this document
+  linkedEntityId       String? // Policy ID, Property ID, etc.
+  fileName             String
+  fileHash             String? // For duplicate detection
+  localPathRef         String? // Path on user's device (not stored by default)
+  cloudBackupConsent   Boolean   @default(false)
+  cloudStorageUrl      String? // If cloud backup enabled
+  cloudId              String? // Google Drive file ID
+  expiryDate           DateTime? @db.Date
+  versionTag           String?
+  versionHistory       Json? // Array of previous versions
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

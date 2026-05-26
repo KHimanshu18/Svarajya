@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -131,6 +131,7 @@ export default function VaultPage() {
                             folder={activeFolder}
                             label={`Upload to ${activeFolder}`}
                             onUploaded={handleUploaded}
+                            showFamilyMemberSelector={true}
                         />
 
                         {folderFiles.length > 0 && (

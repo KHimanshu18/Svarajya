@@ -10,6 +10,8 @@ import {
   handlePrismaError,
 } from '@/lib/middleware/standardResponse';
 import { InsurancePolicyResponse, UpdateInsuranceRequest } from '@/lib/types/api.types';
+import { syncDocumentMemberAssociation } from '@/lib/googleDriveUtils';
+import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/insurance/[id]
@@ -79,16 +81,37 @@ async function putHandler(
   }
 
   try {
-    const data: UpdateInsuranceRequest = await request.json();
+    const data: UpdateInsuranceRequest & { documentFamilyMemberId?: string | null } = await request.json();
+    const { documentFamilyMemberId, ...policyData } = data;
 
     const policy = await insuranceService.update(id, authContext.userId, {
-      ...data,
-      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-      maturityDate: data.maturityDate ? new Date(data.maturityDate) : undefined,
+      ...policyData,
+      dueDate: policyData.dueDate ? new Date(policyData.dueDate) : undefined,
+      maturityDate: policyData.maturityDate ? new Date(policyData.maturityDate) : undefined,
     });
 
     if (!policy) {
         return errorResponse(ErrorCodes.NOT_FOUND, 'Policy not found', StatusCodes.NOT_FOUND);
+    }
+
+    // Sync document family member association if provided
+    if (documentFamilyMemberId !== undefined) {
+      const newFamilyMemberId: string | null = documentFamilyMemberId || null;
+      let newMemberName: string | null = null;
+      if (newFamilyMemberId) {
+        const member = await prisma.familyMember.findUnique({
+          where: { id: newFamilyMemberId },
+          select: { name: true },
+        });
+        newMemberName = member?.name ?? null;
+      }
+      await syncDocumentMemberAssociation(
+        authContext.userId,
+        id,
+        newFamilyMemberId,
+        newMemberName,
+        'Insurance'
+      );
     }
 
     const response: InsurancePolicyResponse = {

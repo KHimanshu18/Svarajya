@@ -33,16 +33,32 @@ export default function VaultPage() {
     const router = useRouter();
     const [counts, setCounts] = useState<Record<string, number>>({});
     const [activeFolder, setActiveFolder] = useState<VaultFolder | null>(null);
-    const [folderFiles, setFolderFiles] = useState<Array<{ id: string; name: string; type: string; createdAt: number }>>([]);
+    const [folderFiles, setFolderFiles] = useState<Array<{ id: string; name: string; type: string; createdAt: number; linkedFamilyMemberId?: string }>>([]);
+    const [familyMembers, setFamilyMembers] = useState<{ id: string; name: string; relation: string }[]>([]);
+    const [filterPersonId, setFilterPersonId] = useState<string>("all");
 
     useEffect(() => {
         Vault.getFolderCounts().then(setCounts);
+
+        const fetchFamily = async () => {
+            try {
+                const res = await fetch("/api/family");
+                if (res.ok) {
+                    const json = await res.json();
+                    setFamilyMembers(json.data || []);
+                }
+            } catch (err) {
+                console.error("Failed to load family members in Nidhi Vault:", err);
+            }
+        };
+        fetchFamily();
     }, []);
 
     const openFolder = async (folder: VaultFolder) => {
         setActiveFolder(folder);
+        setFilterPersonId("all"); // Reset filter on folder change
         const files = await Vault.getFiles(folder);
-        setFolderFiles(files.map(f => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt })));
+        setFolderFiles(files.map(f => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt, linkedFamilyMemberId: f.linkedFamilyMemberId })));
     };
 
     const handleUploaded = async () => {
@@ -51,7 +67,7 @@ export default function VaultPage() {
         setCounts(newCounts);
         if (activeFolder) {
             const files = await Vault.getFiles(activeFolder);
-            setFolderFiles(files.map(f => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt })));
+            setFolderFiles(files.map(f => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt, linkedFamilyMemberId: f.linkedFamilyMemberId })));
         }
     };
 
@@ -130,36 +146,76 @@ export default function VaultPage() {
                             folder={activeFolder}
                             label={`Upload to ${activeFolder}`}
                             onUploaded={handleUploaded}
+                            showFamilyMemberSelector={true}
                         />
 
-                        {folderFiles.length > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-xs text-white/35 uppercase tracking-wider">Saved files</p>
-                                {folderFiles.map(file => (
-                                    <div
-                                        key={file.id}
-                                        className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3"
-                                    >
-                                        <div className="w-9 h-9 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
-                                            {file.type.startsWith("image/") ? (
-                                                <User className="w-4 h-4 text-white/40" />
-                                            ) : (
-                                                <FileText className="w-4 h-4 text-white/40" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-white truncate">{file.name}</p>
-                                            <p className="text-[10px] text-white/35">
-                                                {new Date(file.createdAt).toLocaleDateString("en-IN")}
-                                            </p>
-                                        </div>
-                                        <button onClick={() => handleDelete(file.id)} className="text-white/25 hover:text-red-400 transition-colors p-1">
-                                            ✕
-                                        </button>
+                        {folderFiles.length > 0 && (() => {
+                            const filteredFiles = folderFiles.filter(file => {
+                                if (filterPersonId === "all") return true;
+                                if (filterPersonId === "myself") return !file.linkedFamilyMemberId;
+                                return file.linkedFamilyMemberId === filterPersonId;
+                            });
+
+                            return (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-4">
+                                        <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Filter by Person</span>
+                                        <select
+                                            value={filterPersonId}
+                                            onChange={e => setFilterPersonId(e.target.value)}
+                                            className="bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400/40 transition-colors"
+                                        >
+                                            <option value="all">All</option>
+                                            <option value="myself">Myself</option>
+                                            {familyMembers.map(member => (
+                                                <option key={member.id} value={member.id}>
+                                                    {member.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-white/35 uppercase tracking-wider">Saved files</p>
+                                        {filteredFiles.map(file => (
+                                            <div
+                                                key={file.id}
+                                                className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3"
+                                            >
+                                                <div className="w-9 h-9 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
+                                                    {file.type.startsWith("image/") ? (
+                                                        <User className="w-4 h-4 text-white/40" />
+                                                    ) : (
+                                                        <FileText className="w-4 h-4 text-white/40" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white truncate">{file.name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <p className="text-[10px] text-white/35">
+                                                            {new Date(file.createdAt).toLocaleDateString("en-IN")}
+                                                        </p>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] text-white/45">
+                                                            👤 {file.linkedFamilyMemberId 
+                                                                ? (familyMembers.find(f => f.id === file.linkedFamilyMemberId)?.name || "Family Member") 
+                                                                : "Myself"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => handleDelete(file.id)} className="text-white/25 hover:text-red-400 transition-colors p-1">
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {filteredFiles.length === 0 && (
+                                        <div className="text-center py-8 text-white/25 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                                            <p className="text-xs italic">No documents found matching the filter.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {folderFiles.length === 0 && (
                             <div className="text-center py-12 text-white/25">

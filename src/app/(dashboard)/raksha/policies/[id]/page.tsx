@@ -15,6 +15,7 @@ import { NotificationStore } from "@/lib/stores/notificationStore";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Vault, VaultFile } from "@/lib/vault";
 import { formatRupee } from "@/lib/incomeStore";
+import { FileUploader } from "@/components/vault/FileUploader";
 
 export default function PolicyDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = React.use(params);
@@ -601,29 +602,21 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
                             </div>
                         ) : (
                             <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
-                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-white/70">
-                                    <p className="text-sm font-medium text-white mb-2">Upload a new document directly to the Insurance vault.</p>
-                                    <p className="text-xs text-white/40">After upload, the file will be automatically selected and linked to this policy.</p>
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold"
-                                    >
-                                        {isUploading ? `Uploading ${uploadingFileName || 'file'}...` : 'Choose File'}
-                                    </button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".pdf,.png,.jpg,.jpeg"
-                                        className="hidden"
-                                        onChange={handleUploadNewFile}
-                                    />
-                                    {isUploading && (
-                                        <p className="text-xs text-white/40">Uploading {uploadingFileName || 'document'} to Insurance vault...</p>
-                                    )}
-                                </div>
+                                <FileUploader
+                                    folder="insurance"
+                                    onUploaded={async (fileId) => {
+                                        setSelectedVaultFileId(fileId);
+                                        const newFile = await Vault.getFile(fileId);
+                                        if (newFile) {
+                                            const files = await Vault.getFiles('insurance');
+                                            setExistingVaultFiles(files);
+                                            handleLinkDocument(newFile);
+                                        }
+                                    }}
+                                    accept=".pdf,.png,.jpg,.jpeg"
+                                    maxSizeMB={2}
+                                    showFamilyMemberSelector={true}
+                                />
                             </div>
                         )}
                         <div className="mt-6 flex flex-wrap gap-3 justify-end">

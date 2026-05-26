@@ -18,6 +18,7 @@ export interface UpdateEducationInput {
   specialization?: string;
   linkedLoanId?: string;
   certificateUrl?: string;
+  familyMemberId?: string | null;
 }
 
 /**

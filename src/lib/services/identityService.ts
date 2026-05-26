@@ -12,6 +12,7 @@ export interface CreateIdentityRecordInput {
   dobOnDoc?: Date;
   nameOnDoc?: string;
   vaultFileId?: string;
+  familyMemberId?: string;
 }
 
 export interface UpdateIdentityRecordInput {
@@ -23,6 +24,7 @@ export interface UpdateIdentityRecordInput {
   dobOnDoc?: Date;
   nameOnDoc?: string;
   vaultFileId?: string;
+  familyMemberId?: string;
 }
 
 /**
@@ -64,6 +66,7 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
           dobOnDoc: data.dobOnDoc,
           nameOnDoc: data.nameOnDoc,
           vaultFileId: data.vaultFileId,
+          familyMemberId: data.familyMemberId || null,
           userId,
         },
       });
@@ -76,11 +79,13 @@ class IdentityService extends BaseService<IdentityRecord, CreateIdentityRecordIn
   /**
    * Get specific identity type for user
    */
-  async getByType(userId: string, idType: string): Promise<IdentityRecord | null> {
+  async getByType(userId: string, idType: string, familyMemberId?: string | null): Promise<IdentityRecord | null> {
     try {
-      return await prisma.identityRecord.findUnique({
+      return await prisma.identityRecord.findFirst({
         where: {
-          userId_idType: { userId, idType },
+          userId,
+          idType,
+          familyMemberId: familyMemberId === undefined ? undefined : (familyMemberId || null),
         },
       });
     } catch (error) {

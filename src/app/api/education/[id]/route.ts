@@ -9,6 +9,8 @@ import {
   StatusCodes,
   handlePrismaError,
 } from '@/lib/middleware/standardResponse';
+import { syncDocumentMemberAssociation } from '@/lib/googleDriveUtils';
+import { prisma } from '@/lib/prisma';
 
 /**
  * DELETE /api/education/[id]
@@ -140,14 +142,38 @@ async function putHandler(
     }
 
     const data = await request.json();
+
+    // Determine if family member changed
+    const newFamilyMemberId: string | null = data.familyMemberId || null;
+    const familyMemberChanged = (record as any).familyMemberId !== newFamilyMemberId;
+
     const updatedRecord = await educationService.update(id, {
       degree: data.degree,
-      institute: data.institution, // or data.institute
+      institute: data.institution,
       yearCompleted: data.year ? parseInt(data.year) : undefined,
       specialization: data.specialization,
       certificateUrl: data.certificateId,
-      // Add other fields as needed based on the schema
+      ...(familyMemberChanged ? { familyMemberId: newFamilyMemberId } : {}),
     });
+
+    // Sync document_meta and Google Drive folder if family member changed
+    if (familyMemberChanged) {
+      let newMemberName: string | null = null;
+      if (newFamilyMemberId) {
+        const member = await prisma.familyMember.findUnique({
+          where: { id: newFamilyMemberId },
+          select: { name: true },
+        });
+        newMemberName = member?.name ?? null;
+      }
+      await syncDocumentMemberAssociation(
+        authContext.userId,
+        id,
+        newFamilyMemberId,
+        newMemberName,
+        'Education'
+      );
+    }
 
     return successResponse(updatedRecord);
   } catch (error) {

@@ -9,6 +9,8 @@ import {
   StatusCodes,
   handlePrismaError,
 } from '@/lib/middleware/standardResponse';
+import { syncDocumentMemberAssociation } from '@/lib/googleDriveUtils';
+import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/identity/[id]
@@ -68,6 +70,7 @@ async function getHandler(
       dobOnDoc: record.dobOnDoc?.toISOString() || null,
       nameOnDoc: record.nameOnDoc,
       vaultFileId: record.vaultFileId,
+      familyMemberId: record.familyMemberId ?? null,
     };
 
     return successResponse(response);
@@ -128,6 +131,10 @@ async function putHandler(
       );
     }
 
+    // Determine if family member changed
+    const newFamilyMemberId: string | null = data.familyMemberId || null;
+    const familyMemberChanged = existing.familyMemberId !== newFamilyMemberId;
+
     // Update the record
     const updatedRecord = await identityService.update(id, {
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
@@ -136,9 +143,29 @@ async function putHandler(
       dobOnDoc: data.dobOnDoc ? new Date(data.dobOnDoc) : undefined,
       nameOnDoc: data.nameOnDoc,
       vaultFileId: data.vaultFileId,
+      familyMemberId: newFamilyMemberId,
     });
 
     console.log('[Identity PUT] Updated record:', updatedRecord.id);
+
+    // Sync document_meta and Google Drive folder if family member changed
+    if (familyMemberChanged) {
+      let newMemberName: string | null = null;
+      if (newFamilyMemberId) {
+        const member = await prisma.familyMember.findUnique({
+          where: { id: newFamilyMemberId },
+          select: { name: true },
+        });
+        newMemberName = member?.name ?? null;
+      }
+      await syncDocumentMemberAssociation(
+        authContext.userId,
+        id,
+        newFamilyMemberId,
+        newMemberName,
+        'Identity'
+      );
+    }
 
     const response = {
       id: updatedRecord.id,
@@ -150,6 +177,7 @@ async function putHandler(
       dobOnDoc: updatedRecord.dobOnDoc?.toISOString() || null,
       nameOnDoc: updatedRecord.nameOnDoc,
       vaultFileId: updatedRecord.vaultFileId,
+      familyMemberId: updatedRecord.familyMemberId ?? null,
     };
 
     return successResponse(response);

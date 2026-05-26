@@ -125,6 +125,7 @@ export interface IdentityRecordResponse {
   dobOnDoc?: string | null;
   nameOnDoc?: string | null;
   vaultFileId?: string | null;
+  familyMemberId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,6 +140,7 @@ export interface CreateIdentityRecordRequest {
   dobOnDoc?: string;
   nameOnDoc?: string;
   vaultFileId?: string;
+  familyMemberId?: string;
 }
 
 export interface UpdateIdentityRecordRequest {
@@ -150,6 +152,7 @@ export interface UpdateIdentityRecordRequest {
   dobOnDoc?: string;
   nameOnDoc?: string;
   vaultFileId?: string;
+  familyMemberId?: string;
 }
 
 // ============================================================================

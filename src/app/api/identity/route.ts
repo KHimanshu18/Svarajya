@@ -47,6 +47,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       dobOnDoc: record.dobOnDoc?.toISOString() || null,
       nameOnDoc: record.nameOnDoc,
       vaultFileId: record.vaultFileId,
+      familyMemberId: record.familyMemberId || null,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     }));
@@ -103,11 +104,12 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         dobOnDoc: data.dobOnDoc ? new Date(data.dobOnDoc) : undefined,
         nameOnDoc: data.nameOnDoc,
         vaultFileId: data.vaultFileId,
+        familyMemberId: data.familyMemberId,
       });
       console.log('[Identity POST] Updated record:', record.id);
     } else {
       console.log('[Identity POST] Creating new record for user:', authContext.userId);
-      // Create new (will handle unique constraint on userId + idType)
+      // Create new (will handle unique constraint on userId + idType + familyMemberId)
       record = await identityService.createForUser(authContext.userId, {
         idType: data.idType,
         numberMasked: data.numberMasked,
@@ -117,6 +119,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         dobOnDoc: data.dobOnDoc ? new Date(data.dobOnDoc) : undefined,
         nameOnDoc: data.nameOnDoc,
         vaultFileId: data.vaultFileId,
+        familyMemberId: data.familyMemberId,
       });
       console.log('[Identity POST] Created record:', record.id);
     }
@@ -132,6 +135,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       dobOnDoc: record.dobOnDoc?.toISOString() || null,
       nameOnDoc: record.nameOnDoc,
       vaultFileId: record.vaultFileId,
+      familyMemberId: record.familyMemberId || null,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

@@ -20,6 +20,7 @@ export interface VaultFile {
     createdAt: number; // timestamp
     tags?: string[]; // e.g. family member name
     notes?: string; // custom notes
+    linkedFamilyMemberId?: string; // Associated family member's unique database ID
 }
 
 interface KallyaniiDB extends DBSchema {
@@ -48,7 +49,7 @@ async function getDB() {
 
 export const Vault = {
     /** Save a file to OPFS, record metadata to IndexedDB. Returns the new file's ID. */
-    async saveFile(folder: VaultFolder, file: File, tags?: string[]): Promise<string> {
+    async saveFile(folder: VaultFolder, file: File, tags?: string[], linkedFamilyMemberId?: string): Promise<string> {
         const { LocalVaultEngine } = await import("@/lib/engines/localVaultEngine");
         
         const db = await getDB();
@@ -67,6 +68,7 @@ export const Vault = {
             size: file.size,
             createdAt: Date.now(),
             tags,
+            linkedFamilyMemberId,
         };
         await db.put("vault", record);
         return id;

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
     Shield, ArrowLeft, Save, Loader2,
     Calendar, Building2, User, CreditCard,
-    Check
+    Check, Users
 } from "lucide-react";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
 import { NotificationStore } from "@/lib/stores/notificationStore";
@@ -22,6 +22,7 @@ export default function EditPolicyPage({ params }: { params: Promise<{ id: strin
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [documentFamilyMemberId, setDocumentFamilyMemberId] = useState<string>("");
 
     const [formData, setFormData] = useState<any>({
         type: "LIFE",
@@ -67,6 +68,16 @@ export default function EditPolicyPage({ params }: { params: Promise<{ id: strin
                         coveredMemberIds: p.coverage ? p.coverage.map((c: any) => c.memberId) : []
                     });
                 }
+
+                // Fetch linked document meta to pre-populate document owner
+                const docsRes = await fetch(`/api/documents?linkedEntityId=${id}`);
+                if (docsRes.ok) {
+                    const docsResult = await docsRes.json();
+                    const docs: any[] = docsResult.data || [];
+                    if (docs.length > 0 && docs[0].linkedFamilyMemberId) {
+                        setDocumentFamilyMemberId(docs[0].linkedFamilyMemberId);
+                    }
+                }
             } catch (err) {
                 console.error("Failed to fetch data");
             } finally {
@@ -84,7 +95,10 @@ export default function EditPolicyPage({ params }: { params: Promise<{ id: strin
             const res = await fetch(`/api/insurance/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    documentFamilyMemberId: documentFamilyMemberId || null,
+                })
             });
 
             const result = await res.json();
@@ -283,6 +297,23 @@ export default function EditPolicyPage({ params }: { params: Promise<{ id: strin
                                 onChange={e => setFormData({ ...formData, agentContact: e.target.value })}
                                 placeholder="e.g., Ramesh - 9876543210"
                             />
+                        </div>
+
+                        {/* Document Owner */}
+                        <div className="space-y-2">
+                            <label className="text-xs text-white/40 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5" /> Policy Document Belongs To
+                            </label>
+                            <select
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500/50 outline-none"
+                                value={documentFamilyMemberId}
+                                onChange={e => setDocumentFamilyMemberId(e.target.value)}
+                            >
+                                <option value="" className="bg-slate-900">Myself</option>
+                                {familyMembers.map(m => (
+                                    <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 

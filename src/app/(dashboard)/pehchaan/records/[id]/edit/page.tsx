@@ -2,9 +2,10 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, ShieldCheck, Lock } from "lucide-react";
+import { ArrowLeft, Save, ShieldCheck, Lock, Users } from "lucide-react";
 import { DocType } from "@/lib/identityStore";
 import { Vault, VaultFile } from "@/lib/vault";
+import { FileUploader } from "@/components/vault/FileUploader";
 
 export default function EditDocument({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -22,6 +23,8 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
     const [dobOnDoc, setDobOnDoc] = useState("");
     const [nameOnDoc, setNameOnDoc] = useState("");
     const [vaultFileId, setVaultFileId] = useState<string | null>(null);
+    const [familyMemberId, setFamilyMemberId] = useState<string>("");
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
     // Date Validation State
     const [issueDateError, setIssueDateError] = useState("");
@@ -43,6 +46,12 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
             .then(res => res.ok ? res.json() : { linked: null })
             .then(data => setIsGoogleLinked(data.linked))
             .catch(() => setIsGoogleLinked(null));
+
+        // Fetch family members for dropdown
+        fetch('/api/family')
+            .then(res => res.ok ? res.json() : { data: [] })
+            .then(json => setFamilyMembers(json.data || []))
+            .catch(() => setFamilyMembers([]));
     }, []);
 
     useEffect(() => {
@@ -61,6 +70,8 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
                 if (data.dobOnDoc) setDobOnDoc(data.dobOnDoc.split('T')[0]);
                 if (data.nameOnDoc) setNameOnDoc(data.nameOnDoc);
                 if (data.vaultFileId) setVaultFileId(data.vaultFileId);
+                // Pre-select existing family member (empty string = Myself)
+                setFamilyMemberId(data.familyMemberId ?? "");
             } catch (err: any) {
                 setError(err.message || "Failed to load document");
             } finally {
@@ -134,6 +145,7 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
                 dobOnDoc: dobOnDoc || null,
                 nameOnDoc: nameOnDoc.trim(),
                 vaultFileId: vaultFileId || null,
+                familyMemberId: familyMemberId || null,
             };
 
             const apiResponse = await fetch(`/api/identity/${id}`, {
@@ -246,6 +258,23 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
                     </div>
                 </section>
 
+                {/* Document Owner */}
+                <section className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em] flex items-center gap-2">
+                        <Users className="w-3 h-3" /> Document Belongs To
+                    </label>
+                    <select
+                        value={familyMemberId}
+                        onChange={(e) => setFamilyMemberId(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400/40 transition-all appearance-none"
+                    >
+                        <option value="">Myself</option>
+                        {familyMembers.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                    </select>
+                </section>
+
                 <section className="space-y-4">
                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Full Name (on Document)</label>
                     <input
@@ -259,72 +288,16 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
 
                 {/* Upload Section */}
                 <section className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
-                        {existingVaultFiles.length > 0 && (
-                            <div className="flex items-center bg-white/5 rounded-lg p-1">
-                                <button 
-                                    onClick={() => setUploadMode('new')}
-                                    className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'new' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
-                                >Upload New</button>
-                                <button 
-                                    onClick={() => setUploadMode('select')}
-                                    className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'select' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
-                                >Select Existing</button>
-                            </div>
-                        )}
-                    </div>
-                    
-                    {uploadMode === 'new' ? (
-                        <div className="relative">
-                            {vaultFileId ? (
-                                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                                        <span className="text-sm text-white font-medium">Document attached to Vault</span>
-                                    </div>
-                                    <button onClick={() => setVaultFileId(null)} className="text-xs text-white/40 hover:text-white">Change</button>
-                                </div>
-                            ) : (
-                                <div className="w-full border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer relative">
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.png,.jpg,.jpeg"
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                try {
-                                                    const { localId, cloudId } = await Vault.saveFile("identity", file, undefined, true);
-                                                    setVaultFileId(cloudId || localId);
-                                                } catch (err) {
-                                                    console.error("Failed to save to vault", err);
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <div className="text-amber-400 mb-2">
-                                        <ShieldCheck className="w-6 h-6" />
-                                    </div>
-                                    <p className="text-sm font-medium text-white/70">Tap to upload scan</p>
-                                    <p className="text-[10px] text-white/40 mt-1">Saves securely to Nidhi Vault</p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                            {existingVaultFiles.map(file => (
-                                <button 
-                                    key={file.id} 
-                                    onClick={() => setVaultFileId(file.id)}
-                                    className={`p-3 rounded-xl border text-left flex flex-col gap-2 transition-all ${vaultFileId === file.id ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
-                                >
-                                    <span className="text-xs text-white font-medium truncate w-full">{file.name}</span>
-                                    <span className="text-[10px] text-white/40">{new Date(file.createdAt).toLocaleDateString()}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
+                    <FileUploader
+                        folder="identity"
+                        onUploaded={(fileId) => {
+                            setVaultFileId(fileId);
+                        }}
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        maxSizeMB={2}
+                        showFamilyMemberSelector={false}
+                    />
                 </section>
 
                 {error && (

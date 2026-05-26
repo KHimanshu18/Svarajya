@@ -30,8 +30,10 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folderName = (formData.get('folderName') as string) || 'Sva-Rajya';
+    const folderName = (formData.get('folderName') as string) || 'Svarajya_Nidhi';
     const fileName = (formData.get('fileName') as string) || file?.name;
+    const familyMemberName = (formData.get('familyMemberName') as string) || 'Myself';
+    const category = (formData.get('category') as string) || 'Other';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -57,8 +59,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 1. Find or create the folder
-    const folderId = await getOrCreateFolder(providerToken, folderName);
+    // 1. Resolve or create the nested folder structure: Svarajya_Nidhi/{familyMemberName}/{category}/
+    const foldersToCreate = [folderName, familyMemberName, category];
+    const folderId = await getOrCreateNestedFolders(providerToken, foldersToCreate);
 
     // 2. Upload the file
     const metadata = {
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
         fileName: driveFile.name,
         webViewLink: driveFile.webViewLink,
         webContentLink: driveFile.webContentLink,
+        cloudStorageUrl: `Svarajya_Nidhi/${familyMemberName}/${category}/${fileName}`,
       },
     });
   } catch (err: any) {
@@ -117,10 +121,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function getOrCreateFolder(accessToken: string, folderName: string): Promise<string> {
-  // Search for existing folder
+async function getOrCreateFolder(accessToken: string, folderName: string, parentId?: string): Promise<string> {
+  let query = `name='${folderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  if (parentId) {
+    query += ` and '${parentId}' in parents`;
+  } else {
+    query += ` and 'root' in parents`;
+  }
+
   const searchRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id)`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -131,18 +141,31 @@ async function getOrCreateFolder(accessToken: string, folderName: string): Promi
   }
 
   // Create new folder
+  const body: any = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+  };
+  if (parentId) {
+    body.parents = [parentId];
+  }
+
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-    }),
+    body: JSON.stringify(body),
   });
 
   const created = await createRes.json();
   return created.id;
+}
+
+async function getOrCreateNestedFolders(accessToken: string, folders: string[]): Promise<string> {
+  let parentId: string | undefined = undefined;
+  for (const folder of folders) {
+    parentId = await getOrCreateFolder(accessToken, folder, parentId);
+  }
+  return parentId!;
 }

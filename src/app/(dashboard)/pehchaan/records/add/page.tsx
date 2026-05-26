@@ -9,6 +9,7 @@ import { IdentityStore, DocType } from "@/lib/identityStore";
 import { OnboardingStore } from "@/lib/stores/onboardingStore";
 import { DocumentValidator } from "@/lib/documentValidation";
 import { Vault, VaultFile } from "@/lib/vault";
+import { FileUploader } from "@/components/vault/FileUploader";
 
 /**
  * PEHCHAAN: ADD DOCUMENT MODULE
@@ -34,11 +35,14 @@ interface ApiIdentityRecord {
     createdAt: string;
     updatedAt: string;
 }
-
 function AddDocumentForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const preselectedType = searchParams.get("type") as DocType | null;
+
+    // Family State
+    const [familyMembers, setFamilyMembers] = useState<{ id: string; name: string; relation: string }[]>([]);
+    const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string>("");
 
     // DB records fetched on load
     const [dbDocs, setDbDocs] = useState<ApiIdentityRecord[]>([]);
@@ -137,6 +141,13 @@ function AddDocumentForm() {
                     setIsGoogleLinked(statusData.linked);
                 }
 
+                // Fetch family members
+                const famRes = await fetch('/api/family');
+                if (famRes.ok) {
+                    const famJson = await famRes.json();
+                    setFamilyMembers(famJson.data || []);
+                }
+
                 const res = await fetch("/api/identity");
                 if (res.ok) {
                     const json = await res.json();
@@ -146,7 +157,7 @@ function AddDocumentForm() {
                     // If a preselected type is already submitted, redirect immediately
                     if (preselectedType) {
                         const match = records.find(
-                            (r) => r.idType.toLowerCase() === preselectedType.toLowerCase()
+                            (r) => r.idType.toLowerCase() === preselectedType.toLowerCase() && (r.familyMemberId === null || r.familyMemberId === undefined)
                         );
                         if (match) {
                             router.replace(`/pehchaan/records/doc/${match.id}`);
@@ -165,10 +176,10 @@ function AddDocumentForm() {
     }, []);
 
     /**
-     * Helper: find a DB record for a given DocType.
+     * Helper: find a DB record for a given DocType and familyMemberId.
      */
-    const getDbRecord = (type: DocType): ApiIdentityRecord | undefined =>
-        dbDocs.find((r) => r.idType.toLowerCase() === type.toLowerCase());
+    const getDbRecord = (type: DocType, famMemberId: string | null = selectedFamilyMemberId || null): ApiIdentityRecord | undefined =>
+        dbDocs.find((r) => r.idType.toLowerCase() === type.toLowerCase() && (r.familyMemberId || null) === (famMemberId || null));
 
     const activeDbRecord = getDbRecord(docType);
     const isViewingExisting = !!activeDbRecord;
@@ -272,6 +283,7 @@ function AddDocumentForm() {
                 dobOnDoc: dobOnDoc || null,
                 nameOnDoc: nameOnDoc.trim(),
                 vaultFileId,
+                familyMemberId: selectedFamilyMemberId || null,
             };
 
             const apiResponse = await fetch("/api/identity", {
@@ -441,6 +453,8 @@ function AddDocumentForm() {
                     </p>
                 </section>
 
+
+
                 {/* Read-only view for already-submitted doc type */}
                 <AnimatePresence mode="wait">
                     {isViewingExisting ? (
@@ -608,72 +622,17 @@ function AddDocumentForm() {
 
                             {/* Upload Section */}
                             <section className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
-                                    {existingVaultFiles.length > 0 && (
-                                        <div className="flex items-center bg-white/5 rounded-lg p-1">
-                                            <button 
-                                                onClick={() => setUploadMode('new')}
-                                                className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'new' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
-                                            >Upload New</button>
-                                            <button 
-                                                onClick={() => setUploadMode('select')}
-                                                className={`text-[10px] px-3 py-1 rounded-md transition-colors ${uploadMode === 'select' ? 'bg-amber-400 text-black font-bold' : 'text-white/50 hover:text-white'}`}
-                                            >Select Existing</button>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {uploadMode === 'new' ? (
-                                    <div className="relative">
-                                        {vaultFileId ? (
-                                            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                                                    <span className="text-sm text-white font-medium">Document attached to Vault</span>
-                                                </div>
-                                                <button onClick={() => setVaultFileId(null)} className="text-xs text-white/40 hover:text-white">Change</button>
-                                            </div>
-                                        ) : (
-                                            <div className="w-full border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer relative">
-                                                <input
-                                                    type="file"
-                                                    accept=".pdf,.png,.jpg,.jpeg"
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                    onChange={async (e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            try {
-                                                                const { localId, cloudId } = await Vault.saveFile("identity", file, undefined, true);
-                                                                setVaultFileId(cloudId || localId);
-                                                            } catch (err) {
-                                                                console.error("Failed to save to vault", err);
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                                <div className="text-amber-400 mb-2">
-                                                    <ShieldCheck className="w-6 h-6" />
-                                                </div>
-                                                <p className="text-sm font-medium text-white/70">Tap to upload scan</p>
-                                                <p className="text-[10px] text-white/40 mt-1">Saves securely to Nidhi Vault</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {existingVaultFiles.map(file => (
-                                            <button 
-                                                key={file.id} 
-                                                onClick={() => setVaultFileId(file.id)}
-                                                className={`p-3 rounded-xl border text-left flex flex-col gap-2 transition-all ${vaultFileId === file.id ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
-                                            >
-                                                <span className="text-xs text-white font-medium truncate w-full">{file.name}</span>
-                                                <span className="text-[10px] text-white/40">{new Date(file.createdAt).toLocaleDateString()}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Official Digital Scan</label>
+                                <FileUploader
+                                    folder="identity"
+                                    onUploaded={(fileId) => {
+                                        setVaultFileId(fileId);
+                                    }}
+                                    accept=".pdf,.png,.jpg,.jpeg"
+                                    maxSizeMB={2}
+                                    showFamilyMemberSelector={true}
+                                    onFamilyMemberChange={setSelectedFamilyMemberId}
+                                />
                             </section>
 
                             {/* Name Mapping */}

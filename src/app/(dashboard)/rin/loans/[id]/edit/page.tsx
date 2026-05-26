@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save, Landmark, CreditCard, Calendar, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Landmark, CreditCard, Calendar, Info, Loader2, Users } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
 import { NotificationStore } from "@/lib/stores/notificationStore";
 import { Vault, VaultFile } from "@/lib/vault";
+import { FileUploader } from "@/components/vault/FileUploader";
 
 const LOAN_TYPES = [
     { value: "HOME", label: "Home Loan" },
@@ -38,6 +39,8 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [documentFamilyMemberId, setDocumentFamilyMemberId] = useState<string>("");
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         type: "PERSONAL",
@@ -57,6 +60,13 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
     useEffect(() => {
         const fetchLoan = async () => {
             try {
+                // Fetch family members
+                const famRes = await fetch('/api/family');
+                if (famRes.ok) {
+                    const famJson = await famRes.json();
+                    setFamilyMembers(famJson.data || []);
+                }
+
                 const res = await fetch(`/api/loans/${id}`);
                 const json = await res.json();
                 if (json.success) {
@@ -78,6 +88,16 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                     const files = await Vault.getFiles("loans");
                     setExistingVaultFiles(files);
                     setSelectedVaultFileId(l.documentId || null);
+
+                    // Pre-populate document family member from document_meta
+                    const docsRes = await fetch(`/api/documents?linkedEntityId=${id}`);
+                    if (docsRes.ok) {
+                        const docsJson = await docsRes.json();
+                        const docs: any[] = docsJson.data || [];
+                        if (docs.length > 0 && docs[0].linkedFamilyMemberId) {
+                            setDocumentFamilyMemberId(docs[0].linkedFamilyMemberId);
+                        }
+                    }
                 } else {
                     toast("Loan not found", "error");
                     router.push("/rin/loans");
@@ -176,7 +196,7 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
         setSaving(true);
 
         try {
-            const payload = { ...formData };
+            const payload = { ...formData, documentFamilyMemberId: documentFamilyMemberId || null };
             if (!payload.documentId) {
                 delete payload.documentId;
             }
@@ -379,6 +399,23 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                     ) : (
                         <p className="text-sm text-white/50">No loan document attached yet.</p>
                     )}
+
+                    {/* Document Owner */}
+                    <div className="space-y-2 mt-4">
+                        <label className="text-xs text-white/40 uppercase tracking-widest font-semibold ml-1 flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" /> Loan Document Belongs To
+                        </label>
+                        <select
+                            value={documentFamilyMemberId}
+                            onChange={e => setDocumentFamilyMemberId(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                        >
+                            <option value="">Myself</option>
+                            {familyMembers.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 <div className="pt-6">
@@ -447,30 +484,21 @@ export default function EditLoanPage({ params }: { params: Promise<{ id: string 
                             </div>
                         ) : (
                             <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
-                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-white/70">
-                                    <p className="text-sm font-medium text-white mb-2">Upload a new document directly to the Loans vault.</p>
-                                    <p className="text-xs text-white/40">After upload, the file will be automatically selected and linked to this loan.</p>
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="px-4 py-3 rounded-2xl bg-amber-500 text-slate-950 text-sm font-semibold"
-                                    >
-                                        {isUploading ? `Uploading ${uploadingFileName || 'file'}...` : 'Choose File'}
-                                    </button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".pdf,.png,.jpg,.jpeg"
-                                        className="hidden"
-                                        onChange={handleUploadNewFile}
-                                    />
-                                    {isUploading && (
-                                        <p className="text-xs text-white/40">Uploading {uploadingFileName || 'document'} to Loans vault...</p>
-                                    )}
-                                </div>
+                                <FileUploader
+                                    folder="loans"
+                                    onUploaded={async (fileId) => {
+                                        setSelectedVaultFileId(fileId);
+                                        const newFile = await Vault.getFile(fileId);
+                                        if (newFile) {
+                                            const files = await Vault.getFiles('loans');
+                                            setExistingVaultFiles(files);
+                                            handleLinkDocument(newFile);
+                                        }
+                                    }}
+                                    accept=".pdf,.png,.jpg,.jpeg"
+                                    maxSizeMB={2}
+                                    showFamilyMemberSelector={false}
+                                />
                             </div>
                         )}
                         <div className="mt-6 flex flex-wrap gap-3 justify-end">
