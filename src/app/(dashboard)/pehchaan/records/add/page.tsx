@@ -26,6 +26,25 @@ const DOC_TYPES: { id: DocType; label: string }[] = [
     { id: "other", label: "Other" },
 ];
 const NO_EXPIRY_TYPES: DocType[] = ["aadhaar", "pan", "voter"];
+const API_ID_TYPE_MAP: Record<DocType, string[]> = {
+    aadhaar: ["AADHAAR"],
+    pan: ["PAN"],
+    passport: ["PASSPORT"],
+    dl: ["DL", "DRIVING LICENSE", "DRIVING_LICENSE"],
+    voter: ["VOTER_ID", "VOTER", "VOTER ID"],
+    other: ["OTHER"],
+};
+
+const normalizeApiIdType = (idType: string | undefined | null) => idType?.toUpperCase().trim() || "";
+
+function mapDocTypeToApiIdTypes(type: DocType) {
+    return (API_ID_TYPE_MAP[type] || [type.toUpperCase()]).map((idType) => idType.toUpperCase().trim());
+}
+
+function mapDocTypeToApiIdType(type: DocType) {
+    return mapDocTypeToApiIdTypes(type)[0];
+}
+
 interface ApiIdentityRecord {
     id: string;
     idType: string;
@@ -34,6 +53,7 @@ interface ApiIdentityRecord {
     issuedDate: string | null;
     createdAt: string;
     updatedAt: string;
+    familyMemberId?: string | null;
 }
 function AddDocumentForm() {
     const router = useRouter();
@@ -156,8 +176,8 @@ function AddDocumentForm() {
 
                     // If a preselected type is already submitted, redirect immediately
                     if (preselectedType) {
-                        const match = records.find(
-                            (r) => r.idType.toLowerCase() === preselectedType.toLowerCase() && (r.familyMemberId === null || r.familyMemberId === undefined)
+                        const match = records.find((r) =>
+                            mapDocTypeToApiIdTypes(preselectedType).includes(normalizeApiIdType(r.idType))
                         );
                         if (match) {
                             router.replace(`/pehchaan/records/doc/${match.id}`);
@@ -179,7 +199,15 @@ function AddDocumentForm() {
      * Helper: find a DB record for a given DocType and familyMemberId.
      */
     const getDbRecord = (type: DocType, famMemberId: string | null = selectedFamilyMemberId || null): ApiIdentityRecord | undefined =>
-        dbDocs.find((r) => r.idType.toLowerCase() === type.toLowerCase() && (r.familyMemberId || null) === (famMemberId || null));
+        dbDocs.find(
+            (r) => mapDocTypeToApiIdTypes(type).includes(normalizeApiIdType(r.idType)) && (r.familyMemberId || null) === (famMemberId || null)
+        );
+
+    const findAnyDbRecordByType = (type: DocType): ApiIdentityRecord | undefined =>
+        dbDocs.find((r) => mapDocTypeToApiIdTypes(type).includes(normalizeApiIdType(r.idType)));
+
+    const hasDocTypeInVault = (type: DocType) =>
+        !!findAnyDbRecordByType(type);
 
     const activeDbRecord = getDbRecord(docType);
     const isViewingExisting = !!activeDbRecord;
@@ -216,7 +244,7 @@ function AddDocumentForm() {
      * - Otherwise → clear form and switch type.
      */
     const handleSelectType = (type: DocType) => {
-        const existing = getDbRecord(type);
+        const existing = findAnyDbRecordByType(type);
         if (existing) {
             router.push(`/pehchaan/records/doc/${existing.id}`);
             return;
@@ -275,7 +303,7 @@ function AddDocumentForm() {
             // 3. API Call - Primary save method
             const numberMasked = cleanNumber.slice(-4); // Last 4 digits
             const apiPayload = {
-                idType: docType.toUpperCase(),
+                idType: mapDocTypeToApiIdType(docType),
                 numberMasked,
                 issuedDate: issuedDate || null,
                 expiryDate: NO_EXPIRY_TYPES.includes(docType) ? null : (expiryDate || null),
@@ -427,8 +455,7 @@ function AddDocumentForm() {
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {DOC_TYPES.map((dt) => {
-                            const dbRecord = getDbRecord(dt.id);
-                            const isSubmitted = !!dbRecord;
+                            const isSubmitted = hasDocTypeInVault(dt.id);
                             const isActive = docType === dt.id && !isSubmitted;
                             return (
                                 <button

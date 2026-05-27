@@ -10,6 +10,56 @@ import {
   handlePrismaError,
 } from '@/lib/middleware/standardResponse';
 import { IdentityRecordResponse, CreateIdentityRecordRequest, UpdateIdentityRecordRequest } from '@/lib/types/api.types';
+import { prisma } from '@/lib/prisma';
+
+/**
+ * Helper: Create or update document_meta record for identity documents
+ * Ensures that identity files are properly linked for family member reassociation
+ */
+async function syncIdentityDocumentMeta(
+  userId: string,
+  identityRecordId: string,
+  vaultFileId: string | undefined | null,
+  familyMemberId: string | null | undefined
+): Promise<void> {
+  if (!vaultFileId) return; // Nothing to sync if no file
+
+  try {
+    // Find or create document_meta record linking this vault file to the identity record
+    const existing = await prisma.documentMeta.findFirst({
+      where: {
+        userId,
+        linkedEntityId: identityRecordId,
+      },
+    });
+
+    if (existing) {
+      console.log('[syncIdentityDocumentMeta] Updating document_meta for', identityRecordId);
+      await prisma.documentMeta.update({
+        where: { id: existing.id },
+        data: {
+          cloudId: vaultFileId,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    } else {
+      console.log('[syncIdentityDocumentMeta] Creating document_meta for', identityRecordId);
+      await prisma.documentMeta.create({
+        data: {
+          userId,
+          docType: 'IDENTITY',
+          linkedEntityId: identityRecordId,
+          cloudId: vaultFileId,
+          fileName: `Identity-${identityRecordId}`,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[syncIdentityDocumentMeta] Error:', err);
+    // Non-fatal - don't throw
+  }
+}
 
 /**
  * GET /api/identity
@@ -123,6 +173,14 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       });
       console.log('[Identity POST] Created record:', record.id);
     }
+
+    // Sync document_meta for file management (e.g., family member reassociation)
+    await syncIdentityDocumentMeta(
+      authContext.userId,
+      record.id,
+      data.vaultFileId,
+      data.familyMemberId
+    );
 
     const response: IdentityRecordResponse = {
       id: record.id,

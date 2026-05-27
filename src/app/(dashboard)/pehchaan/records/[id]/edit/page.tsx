@@ -148,6 +148,12 @@ export default function EditDocument({ params }: { params: Promise<{ id: string 
                 familyMemberId: familyMemberId || null,
             };
 
+            console.log('[Edit Document] Saving with payload:', {
+                vaultFileId: apiPayload.vaultFileId,
+                familyMemberId: apiPayload.familyMemberId,
+                docData_familyMemberId: docData?.familyMemberId,
+            });
+
             const apiResponse = await fetch(`/api/identity/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },

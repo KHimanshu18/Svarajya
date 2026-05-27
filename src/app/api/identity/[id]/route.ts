@@ -9,8 +9,58 @@ import {
   StatusCodes,
   handlePrismaError,
 } from '@/lib/middleware/standardResponse';
-import { syncDocumentMemberAssociation } from '@/lib/googleDriveUtils';
+import { syncDocumentMemberAssociation, moveGoogleDriveFile } from '@/lib/googleDriveUtils';
 import { prisma } from '@/lib/prisma';
+
+/**
+ * Helper: Create or update document_meta record for identity documents
+ * Ensures that identity files are properly linked for family member reassociation
+ */
+async function syncIdentityDocumentMeta(
+  userId: string,
+  identityRecordId: string,
+  vaultFileId: string | undefined | null,
+  familyMemberId: string | null | undefined
+): Promise<void> {
+  if (!vaultFileId) return; // Nothing to sync if no file
+
+  try {
+    // Find or create document_meta record linking this vault file to the identity record
+    const existing = await prisma.documentMeta.findFirst({
+      where: {
+        userId,
+        linkedEntityId: identityRecordId,
+      },
+    });
+
+    if (existing) {
+      console.log('[syncIdentityDocumentMeta] Updating document_meta for', identityRecordId);
+      await prisma.documentMeta.update({
+        where: { id: existing.id },
+        data: {
+          cloudId: vaultFileId,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    } else {
+      console.log('[syncIdentityDocumentMeta] Creating document_meta for', identityRecordId);
+      await prisma.documentMeta.create({
+        data: {
+          userId,
+          docType: 'IDENTITY',
+          linkedEntityId: identityRecordId,
+          cloudId: vaultFileId,
+          fileName: `Identity-${identityRecordId}`,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[syncIdentityDocumentMeta] Error:', err);
+    // Non-fatal - don't throw
+  }
+}
+
 
 /**
  * GET /api/identity/[id]
@@ -131,9 +181,16 @@ async function putHandler(
       );
     }
 
-    // Determine if family member changed
+    // Normalize family member IDs (treat empty string as null)
     const newFamilyMemberId: string | null = data.familyMemberId || null;
-    const familyMemberChanged = existing.familyMemberId !== newFamilyMemberId;
+    const existingFamilyMemberId: string | null = existing.familyMemberId || null;
+    const familyMemberChanged = existingFamilyMemberId !== newFamilyMemberId;
+
+    console.log('[Identity PUT] familyMemberChanged:', familyMemberChanged, {
+      existing: existingFamilyMemberId,
+      new: newFamilyMemberId,
+      vaultFileId: data.vaultFileId,
+    });
 
     // Update the record
     const updatedRecord = await identityService.update(id, {
@@ -143,10 +200,18 @@ async function putHandler(
       dobOnDoc: data.dobOnDoc ? new Date(data.dobOnDoc) : undefined,
       nameOnDoc: data.nameOnDoc,
       vaultFileId: data.vaultFileId,
-      familyMemberId: newFamilyMemberId,
+      familyMemberId: newFamilyMemberId || undefined,
     });
 
     console.log('[Identity PUT] Updated record:', updatedRecord.id);
+
+    // Always sync document_meta to ensure it's created/updated (especially for initial file uploads)
+    await syncIdentityDocumentMeta(
+      authContext.userId,
+      id,
+      data.vaultFileId,
+      newFamilyMemberId
+    );
 
     // Sync document_meta and Google Drive folder if family member changed
     if (familyMemberChanged) {
@@ -158,6 +223,14 @@ async function putHandler(
         });
         newMemberName = member?.name ?? null;
       }
+
+      console.log('[Identity PUT] Calling syncDocumentMemberAssociation:', {
+        recordId: id,
+        newFamilyMemberId,
+        newMemberName,
+        vaultFileId: data.vaultFileId,
+      });
+
       await syncDocumentMemberAssociation(
         authContext.userId,
         id,
@@ -165,6 +238,17 @@ async function putHandler(
         newMemberName,
         'Identity'
       );
+
+      // Also directly move the vault file if it exists (for cases where document_meta might not be synced)
+      if (data.vaultFileId) {
+        console.log('[Identity PUT] Also moving vault file directly:', data.vaultFileId);
+        await moveGoogleDriveFile(
+          authContext.userId,
+          data.vaultFileId,
+          newMemberName,
+          'Identity'
+        );
+      }
     }
 
     const response = {

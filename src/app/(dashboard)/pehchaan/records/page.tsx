@@ -20,6 +20,24 @@ const DOC_META: Record<DocType, { label: string; icon: React.ReactNode }> = {
     other: { label: "Other", icon: <MoreHorizontal className="w-5 h-5" /> },
 };
 
+const API_ID_TYPE_TO_DOC_TYPE: Record<string, DocType> = {
+    AADHAAR: 'aadhaar',
+    PAN: 'pan',
+    PASSPORT: 'passport',
+    DL: 'dl',
+    "DRIVING LICENSE": 'dl',
+    DRIVING_LICENSE: 'dl',
+    VOTER_ID: 'voter',
+    "VOTER ID": 'voter',
+    VOTER: 'voter',
+    OTHER: 'other',
+};
+
+const normalizeApiIdType = (idType: string): DocType => {
+    const upper = idType?.toUpperCase().trim();
+    return API_ID_TYPE_TO_DOC_TYPE[upper] ?? 'other';
+};
+
 // const DOC_TYPES: DocType[] = ["aadhaar", "pan", "passport", "dl", "voter", "other"]; // unused
 
 export default function IdentityHub() {
@@ -91,7 +109,7 @@ export default function IdentityHub() {
     // Map DB documents to display format
     const displayDocs = dbDocuments.map(d => ({
         id: d.id,
-        docType: d.idType.toLowerCase() as DocType,
+        docType: normalizeApiIdType(d.idType),
         docNumber: '****' + d.numberMasked,
         expiryDate: d.expiryDate,
         issueDate: d.issuedDate,
