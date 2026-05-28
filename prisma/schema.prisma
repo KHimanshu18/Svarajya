@@ -1,12 +1,3 @@
-// ============================================================================
-// PRISMA SCHEMA — LIFE BALANCE + SVARAJYA CENTRAL ROOM
-// ============================================================================
-// Database: PostgreSQL
-// ORM: Prisma
-// Version: 1.0.0
-// Last Updated: 2025
-// ============================================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,52 +8,42 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================================================
-// SECTION 1: ADMIN PORTAL (SVARAJYA CENTRAL ROOM)
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Admin Users & Authentication
-// ----------------------------------------------------------------------------
-
 model AdminUser {
-  id                     String      @id @default(uuid())
-  email                  String      @unique
-  password               String // bcrypt hashed
-  name                   String
-  role                   AdminRole
-  status                 AdminStatus @default(ACTIVE)
-  twoFactorSecret        String? // TOTP secret for 2FA
-  twoFactorOtpExpiresAt  DateTime?
-  mobile                 String?
-  inviteToken            String?
-  inviteExpiresAt        DateTime?
-  previousPassword       String?
-  deletedAt              DateTime?
-  twoFactorRecoveryCodes String?
-  twoFactorEnabled       Boolean     @default(false)
-  lastLoginAt            DateTime?
-  lastLoginIp            String?
-  failedLoginCount       Int         @default(0)
-  lockedUntil            DateTime?
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
-  createdBy              String?
-
-  // Relations
-  sessions                AdminSession[]
+  id                      String                        @id @default(uuid())
+  email                   String                        @unique
+  password                String
+  name                    String
+  role                    AdminRole
+  status                  AdminStatus                   @default(ACTIVE)
+  twoFactorSecret         String?
+  twoFactorEnabled        Boolean                       @default(false)
+  lastLoginAt             DateTime?
+  lastLoginIp             String?
+  failedLoginCount        Int                           @default(0)
+  lockedUntil             DateTime?
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  createdBy               String?
+  deletedAt               DateTime?
+  inviteExpiresAt         DateTime?
+  inviteToken             String?
+  previousPassword        String?
+  twoFactorRecoveryCodes  String?
+  twoFactorOtpExpiresAt   DateTime?                     @db.Timestamp(6)
+  mobile                  String?
   auditLogs               AdminAuditLog[]
-  dataAccessLogs          DataAccessLog[]
-  moduleChanges           Module[]                      @relation("ModuleUpdatedBy")
-  parameterChanges        SystemParameter[]             @relation("ParameterUpdatedBy")
-  flagChanges             FeatureFlag[]                 @relation("FlagUpdatedBy")
-  tutorialChanges         Tutorial[]                    @relation("TutorialUpdatedBy")
-  questionChanges         Question[]                    @relation("QuestionUpdatedBy")
-  supportTickets          SupportTicket[]               @relation("TicketAssignedTo")
+  sessions                AdminSession[]
   broadcasts              Broadcast[]
-  reports                 ScheduledReport[]
   parameterHistory        CalculationParameterHistory[]
+  dataAccessLogs          DataAccessLog[]
+  flagChanges             FeatureFlag[]                 @relation("FlagUpdatedBy")
   moduleAccessPermissions ModuleAccessPermission[]
+  moduleChanges           Module[]                      @relation("ModuleUpdatedBy")
+  questionChanges         Question[]                    @relation("QuestionUpdatedBy")
+  reports                 ScheduledReport[]
+  supportTickets          SupportTicket[]               @relation("TicketAssignedTo")
+  parameterChanges        SystemParameter[]             @relation("ParameterUpdatedBy")
+  tutorialChanges         Tutorial[]                    @relation("TutorialUpdatedBy")
 
   @@index([email])
   @@index([role])
@@ -70,35 +51,17 @@ model AdminUser {
   @@map("admin_users")
 }
 
-enum AdminRole {
-  SUPER_ADMIN
-  CONTENT_ADMIN
-  QUIZ_ADMIN
-  COMPLIANCE_ADMIN
-  COHORT_ADMIN
-  SUPPORT_ADMIN
-}
-
-enum AdminStatus {
-  ACTIVE
-  INACTIVE
-  LOCKED
-  PENDING_INVITE
-  INVITE_ACCEPTED
-}
-
 model AdminSession {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   adminUserId    String
-  token          String   @unique
-  refreshToken   String   @unique
+  token          String    @unique
+  refreshToken   String    @unique
   ipAddress      String
   userAgent      String?
   expiresAt      DateTime
-  createdAt      DateTime @default(now())
-  lastActivityAt DateTime @default(now())
-
-  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  lastActivityAt DateTime  @default(now())
+  adminUser      AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
 
   @@index([adminUserId])
   @@index([token])
@@ -107,37 +70,31 @@ model AdminSession {
 }
 
 model ModuleAccessPermission {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   adminUserId String
-  moduleCode  String // "TUTORIALS", "USERS", "FLAGS", etc.
-  granted     Boolean  @default(true)
+  moduleCode  String
+  granted     Boolean   @default(true)
   grantedBy   String?
-  grantedAt   DateTime @default(now())
-
-  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  grantedAt   DateTime  @default(now())
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
 
   @@unique([adminUserId, moduleCode])
   @@index([adminUserId])
   @@map("module_access_permissions")
 }
 
-// ----------------------------------------------------------------------------
-// Audit & Compliance
-// ----------------------------------------------------------------------------
-
 model AdminAuditLog {
   id          String      @id @default(uuid())
   adminUserId String
   actionType  AuditAction
-  entityType  String // "module", "question", "feature_flag", "user_account", etc.
+  entityType  String
   entityId    String?
-  oldValue    Json? // Store before state
-  newValue    Json? // Store after state
+  oldValue    Json?
+  newValue    Json?
   ipAddress   String
   userAgent   String?
   timestamp   DateTime    @default(now())
-
-  adminUser AdminUser @relation(fields: [adminUserId], references: [id])
+  adminUser   AdminUser   @relation(fields: [adminUserId], references: [id])
 
   @@index([adminUserId])
   @@index([entityType])
@@ -146,35 +103,17 @@ model AdminAuditLog {
   @@map("admin_audit_logs")
 }
 
-enum AuditAction {
-  CREATE
-  UPDATE
-  DELETE
-  PUBLISH
-  ARCHIVE
-  ROLLBACK
-  EXPORT
-  RESET
-  LOGIN
-  LOGIN_FAIL
-  LOGOUT
-  FORCE_LOGOUT
-  VIEW
-  TOGGLE
-}
-
 model DataAccessLog {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   adminUserId     String
-  userId          String // User whose data was accessed
-  actionPerformed String // "viewed_progress", "reset_module", "exported_data", "suspended_account"
-  dataScope       String // "progress_only", "full_export", "account_action"
-  justification   String? // Admin must provide reason
+  userId          String
+  actionPerformed String
+  dataScope       String
+  justification   String?
   ipAddress       String
-  timestamp       DateTime @default(now())
-
-  adminUser AdminUser @relation(fields: [adminUserId], references: [id])
-  user      User      @relation(fields: [userId], references: [id])
+  timestamp       DateTime  @default(now())
+  adminUser       AdminUser @relation(fields: [adminUserId], references: [id])
+  user            User      @relation(fields: [userId], references: [id])
 
   @@index([adminUserId])
   @@index([userId])
@@ -185,15 +124,14 @@ model DataAccessLog {
 model ConsentRecord {
   id           String    @id @default(uuid())
   userId       String
-  consentType  String // "cloud_backup", "ai_advisor", "whatsapp_notifications", "terms_v1.2"
+  consentType  String
   consentGiven Boolean
   consentedAt  DateTime?
   revokedAt    DateTime?
-  version      String? // e.g., "v1.2" for terms
+  version      String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, consentType])
   @@index([userId])
@@ -201,35 +139,22 @@ model ConsentRecord {
   @@map("consent_records")
 }
 
-// ----------------------------------------------------------------------------
-// System Configuration
-// ----------------------------------------------------------------------------
-
 model SystemParameter {
-  id          String    @id @default(uuid())
-  key         String    @unique
+  id          String     @id @default(uuid())
+  key         String     @unique
   value       String
-  valueType   ParamType @default(STRING)
+  valueType   ParamType  @default(STRING)
   description String?
-  category    String? // "security", "financial", "general"
-  version     Int       @default(1)
+  category    String?
+  version     Int        @default(1)
   updatedBy   String?
-  updatedAt   DateTime  @updatedAt
-  createdAt   DateTime  @default(now())
-
-  admin AdminUser? @relation("ParameterUpdatedBy", fields: [updatedBy], references: [id])
+  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime   @default(now())
+  admin       AdminUser? @relation("ParameterUpdatedBy", fields: [updatedBy], references: [id])
 
   @@index([key])
   @@index([category])
   @@map("system_parameters")
-}
-
-enum ParamType {
-  STRING
-  INTEGER
-  FLOAT
-  BOOLEAN
-  JSON
 }
 
 model SystemSetting {
@@ -242,58 +167,48 @@ model SystemSetting {
   @@map("system_settings")
 }
 
-// ----------------------------------------------------------------------------
-// Feature Flags
-// ----------------------------------------------------------------------------
-
 model FeatureFlag {
-  id              String    @id @default(uuid())
-  name            String    @unique
+  id              String        @id @default(uuid())
+  name            String        @unique
   description     String?
-  enabled         Boolean   @default(false)
-  personaScope    Json? // ["INDIVIDUAL_SALARIED", "FAMILY"] or null for all
-  cohortScope     String? // Cohort ID or null for all
-  geoScope        Json? // ["MH", "DL"] state codes or null for all
+  enabled         Boolean       @default(false)
+  personaScope    Json?
+  cohortScope     String?
+  geoScope        Json?
   startDate       DateTime?
   endDate         DateTime?
-  dependsOnFlagId String? // Another flag that must be enabled first
+  dependsOnFlagId String?
   createdBy       String
   updatedBy       String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  creator    AdminUser     @relation("FlagUpdatedBy", fields: [createdBy], references: [id])
-  dependsOn  FeatureFlag?  @relation("FlagDependency", fields: [dependsOnFlagId], references: [id])
-  dependents FeatureFlag[] @relation("FlagDependency")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  creator         AdminUser     @relation("FlagUpdatedBy", fields: [createdBy], references: [id])
+  dependsOn       FeatureFlag?  @relation("FlagDependency", fields: [dependsOnFlagId], references: [id])
+  dependents      FeatureFlag[] @relation("FlagDependency")
 
   @@index([name])
   @@index([enabled])
   @@map("feature_flags")
 }
 
-// ----------------------------------------------------------------------------
-// Modules & Submodules (Registry)
-// ----------------------------------------------------------------------------
-
 model Module {
-  id               String        @id @default(uuid())
-  code             String        @unique // M01, M02, etc.
+  id               String               @id @default(uuid())
+  code             String               @unique
   name             String
   nameHindi        String?
   zoneType         ZoneType
   iconRef          String?
   description      String?
   displayOrder     Int
-  isMvp            Boolean       @default(false)
-  visibilityStatus ContentStatus @default(DRAFT)
+  isMvp            Boolean              @default(false)
+  visibilityStatus ContentStatus        @default(DRAFT)
   featureFlagId    String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   updatedBy        String?
-
-  admin        AdminUser?           @relation("ModuleUpdatedBy", fields: [updatedBy], references: [id])
-  submodules   Submodule[]
-  userProgress UserModuleProgress[]
+  admin            AdminUser?           @relation("ModuleUpdatedBy", fields: [updatedBy], references: [id])
+  submodules       Submodule[]
+  userProgress     UserModuleProgress[]
 
   @@index([code])
   @@index([visibilityStatus])
@@ -301,85 +216,59 @@ model Module {
   @@map("modules")
 }
 
-enum ZoneType {
-  RAKSHA // Insurance
-  KOSH // Income/Wealth
-  VYAYA // Expenses
-  RIN // Loans
-  DURG // Emergency
-  MITRA // Nominee/Legacy
-  BHOOMI // Property
-  GRANTHAGAAR // Documents
-  KAR // Tax
-  OTHER
-}
-
-enum ContentStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-  HIDDEN
-}
-
 model Submodule {
-  id               String        @id @default(uuid())
+  id               String                @id @default(uuid())
   moduleId         String
-  code             String        @unique // M01.S01, M01.S02, etc.
+  code             String                @unique
   name             String
   nameHindi        String?
   adhyayaTitle     String?
-  tutorialCount    Int           @default(0)
-  gameTemplateType String? // "FORT_DEFENSE", "MANDALA_LINK", etc.
-  gameCount        Int           @default(0)
-  fieldCount       Int           @default(0)
-  completionRules  Json? // Store as JSON
+  tutorialCount    Int                   @default(0)
+  gameTemplateType String?
+  gameCount        Int                   @default(0)
+  fieldCount       Int                   @default(0)
+  completionRules  Json?
   displayOrder     Int
-  visibilityStatus ContentStatus @default(DRAFT)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  module       Module                @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  tutorials    Tutorial[]
-  questions    Question[]
-  userProgress UserChapterProgress[]
+  visibilityStatus ContentStatus         @default(DRAFT)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  questions        Question[]
+  module           Module                @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  tutorials        Tutorial[]
+  userProgress     UserChapterProgress[]
 
   @@index([moduleId])
   @@index([code])
   @@map("submodules")
 }
 
-// ----------------------------------------------------------------------------
-// Content: Tutorials
-// ----------------------------------------------------------------------------
-
 model Tutorial {
-  id               String        @id @default(uuid())
+  id               String               @id @default(uuid())
   submoduleId      String
-  language         String        @default("en") // "en", "hi"
+  language         String               @default("en")
   title            String
   description      String?
   youtubeUrl       String?
   youtubeId        String?
   durationSeconds  Int?
   transcriptText   String?
-  mustWatch        Boolean       @default(false)
-  visibilityStatus ContentStatus @default(DRAFT)
-  personaScope     Json? // null = all
+  mustWatch        Boolean              @default(false)
+  visibilityStatus ContentStatus        @default(DRAFT)
+  personaScope     Json?
   cohortScope      String?
   publishStartDate DateTime?
   publishEndDate   DateTime?
   displayOrder     Int
-  version          Int           @default(1)
+  version          Int                  @default(1)
   changeNotes      String?
   createdBy        String
   updatedBy        String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  submodule   Submodule            @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
-  creator     AdminUser            @relation("TutorialUpdatedBy", fields: [createdBy], references: [id])
-  completions TutorialCompletion[]
-  analytics   TutorialAnalytics[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  analytics        TutorialAnalytics[]
+  completions      TutorialCompletion[]
+  creator          AdminUser            @relation("TutorialUpdatedBy", fields: [createdBy], references: [id])
+  submodule        Submodule            @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
 
   @@index([submoduleId])
   @@index([language])
@@ -392,11 +281,10 @@ model TutorialCompletion {
   userId        String
   tutorialId    String
   watchedAt     DateTime @default(now())
-  watchDuration Int? // seconds watched
+  watchDuration Int?
   completed     Boolean  @default(false)
-
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tutorial Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  tutorial      Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, tutorialId])
   @@index([userId])
@@ -411,19 +299,14 @@ model TutorialAnalytics {
   startedCount     Int      @default(0)
   completedCount   Int      @default(0)
   avgWatchDuration Float?
-  dropOffPoint     Int? // seconds where most users stop
-
-  tutorial Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  dropOffPoint     Int?
+  tutorial         Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
 
   @@unique([tutorialId, date])
   @@index([tutorialId])
   @@index([date])
   @@map("tutorial_analytics")
 }
-
-// ----------------------------------------------------------------------------
-// Content: Quiz & Questions
-// ----------------------------------------------------------------------------
 
 model Question {
   id               String        @id @default(uuid())
@@ -443,11 +326,10 @@ model Question {
   updatedBy        String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-
-  submodule    Submodule     @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
-  creator      AdminUser     @relation("QuestionUpdatedBy", fields: [createdBy], references: [id])
-  fieldMapping FieldMapping? @relation(fields: [fieldMappingId], references: [id])
-  answers      QuizAnswer[]
+  creator          AdminUser     @relation("QuestionUpdatedBy", fields: [createdBy], references: [id])
+  fieldMapping     FieldMapping? @relation(fields: [fieldMappingId], references: [id])
+  submodule        Submodule     @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
+  answers          QuizAnswer[]
 
   @@index([submoduleId])
   @@index([questionType])
@@ -455,29 +337,15 @@ model Question {
   @@map("questions")
 }
 
-enum QuestionType {
-  MCQ
-  NUMERIC
-  BOOLEAN
-  MULTI_SELECT
-  DATE
-  PHONE
-  EMAIL
-  SLIDER
-  CONFIRM
-  TEXT
-}
-
 model FieldMapping {
-  id              String   @id @default(uuid())
-  databaseTable   String // "incomeStream", "insurancePolicy", etc.
-  databaseField   String // "gross", "premium", etc.
-  validationRule  Json? // regex, min, max, format
-  calculationDeps Json? // Which calculations use this field
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  questions Question[]
+  id              String     @id @default(uuid())
+  databaseTable   String
+  databaseField   String
+  validationRule  Json?
+  calculationDeps Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  questions       Question[]
 
   @@unique([databaseTable, databaseField])
   @@index([databaseTable])
@@ -488,29 +356,24 @@ model QuizAnswer {
   id            String   @id @default(uuid())
   userId        String
   questionId    String
-  answerValue   Json // Stores answer in appropriate format
+  answerValue   Json
   attemptNumber Int      @default(1)
   answeredAt    DateTime @default(now())
-
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question      Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([questionId])
   @@map("quiz_answers")
 }
 
-// ----------------------------------------------------------------------------
-// Financial Calculation Parameters
-// ----------------------------------------------------------------------------
-
 model CalculationParameter {
   id           String                        @id @default(uuid())
-  key          String                        @unique // "emi_burden_threshold", "raksha_weight", etc.
+  key          String                        @unique
   value        Float
   defaultValue Float
   description  String?
-  category     String? // "threshold", "weight"
+  category     String?
   version      Int                           @default(1)
   updatedAt    DateTime                      @updatedAt
   createdAt    DateTime                      @default(now())
@@ -522,17 +385,16 @@ model CalculationParameter {
 }
 
 model CalculationParameterHistory {
-  id           String   @id @default(uuid())
+  id           String               @id @default(uuid())
   parameterId  String
-  parameterKey String // Denormalized for easy querying
+  parameterKey String
   oldValue     Float
   newValue     Float
   changedBy    String
   reason       String?
-  changedAt    DateTime @default(now())
-
-  parameter CalculationParameter @relation(fields: [parameterId], references: [id], onDelete: Cascade)
-  admin     AdminUser            @relation(fields: [changedBy], references: [id])
+  changedAt    DateTime             @default(now())
+  admin        AdminUser            @relation(fields: [changedBy], references: [id])
+  parameter    CalculationParameter @relation(fields: [parameterId], references: [id], onDelete: Cascade)
 
   @@index([parameterId])
   @@index([parameterKey])
@@ -540,24 +402,19 @@ model CalculationParameterHistory {
   @@map("calculation_parameter_history")
 }
 
-// ----------------------------------------------------------------------------
-// Notifications & Alerts
-// ----------------------------------------------------------------------------
-
 model NotificationTemplate {
-  id               String        @id @default(uuid())
-  name             String        @unique
+  id               String         @id @default(uuid())
+  name             String         @unique
   channel          NotifChannel
-  language         String        @default("en")
+  language         String         @default("en")
   subject          String?
-  bodyTemplate     String // Can include variables like {user_name}, {due_date}
-  triggerEvent     String // "insurance_renewal_due", "module_completed", etc.
+  bodyTemplate     String
+  triggerEvent     String
   personaScope     Json?
-  visibilityStatus ContentStatus @default(DRAFT)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  notifications Notification[]
+  visibilityStatus ContentStatus  @default(DRAFT)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  notifications    Notification[]
 
   @@index([name])
   @@index([channel])
@@ -565,15 +422,8 @@ model NotificationTemplate {
   @@map("notification_templates")
 }
 
-enum NotifChannel {
-  IN_APP
-  EMAIL
-  PUSH
-  WHATSAPP
-}
-
 model Notification {
-  id          String       @id @default(uuid())
+  id          String                @id @default(uuid())
   userId      String
   templateId  String?
   channel     NotifChannel
@@ -583,26 +433,16 @@ model Notification {
   deliveredAt DateTime?
   openedAt    DateTime?
   clickedAt   DateTime?
-  status      NotifStatus  @default(PENDING)
+  status      NotifStatus           @default(PENDING)
+  createdAt   DateTime              @default(now())
   link        String?
-  createdAt   DateTime     @default(now())
-
-  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+  template    NotificationTemplate? @relation(fields: [templateId], references: [id])
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@map("notifications")
-}
-
-enum NotifStatus {
-  PENDING
-  SENT
-  DELIVERED
-  OPENED
-  CLICKED
-  FAILED
 }
 
 model Broadcast {
@@ -612,7 +452,7 @@ model Broadcast {
   body           String
   ctaText        String?
   ctaUrl         String?
-  targetScope    Json // {persona: [], cohort: [], engagementSegment: []}
+  targetScope    Json
   channel        NotifChannel
   scheduledFor   DateTime?
   expiresAt      DateTime?
@@ -623,41 +463,27 @@ model Broadcast {
   openedCount    Int             @default(0)
   clickedCount   Int             @default(0)
   createdAt      DateTime        @default(now())
-
-  admin AdminUser @relation(fields: [createdBy], references: [id])
+  admin          AdminUser       @relation(fields: [createdBy], references: [id])
 
   @@index([status])
   @@index([scheduledFor])
   @@map("broadcasts")
 }
 
-enum BroadcastStatus {
-  DRAFT
-  SCHEDULED
-  SENDING
-  SENT
-  FAILED
-}
-
-// ----------------------------------------------------------------------------
-// Cohorts
-// ----------------------------------------------------------------------------
-
 model Cohort {
-  id               String    @id @default(uuid())
+  id               String       @id @default(uuid())
   name             String
   description      String?
   startDate        DateTime
   endDate          DateTime?
-  assignedModules  Json // Array of module codes
+  assignedModules  Json
   weeklyTasks      Json?
   announcementText String?
-  visibilityFlag   Boolean   @default(true)
+  visibilityFlag   Boolean      @default(true)
   maxCapacity      Int?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  members UserCohort[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  members          UserCohort[]
 
   @@index([name])
   @@map("cohorts")
@@ -669,9 +495,8 @@ model UserCohort {
   cohortId String
   joinedAt DateTime  @default(now())
   leftAt   DateTime?
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  cohort   Cohort    @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, cohortId])
   @@index([userId])
@@ -679,16 +504,12 @@ model UserCohort {
   @@map("user_cohorts")
 }
 
-// ----------------------------------------------------------------------------
-// IKS (Visual Assets)
-// ----------------------------------------------------------------------------
-
 model IKSAsset {
   id             String    @id @default(uuid())
   assetType      AssetType
   fileUrl        String
   fileName       String
-  moduleScope    String? // Module code or null for global
+  moduleScope    String?
   language       String?
   version        Int       @default(1)
   visibilityFlag Boolean   @default(true)
@@ -700,39 +521,26 @@ model IKSAsset {
   @@map("iks_assets")
 }
 
-enum AssetType {
-  ICON
-  STORY_CARD
-  MAP_ELEMENT
-  ANIMATION
-  SOUND
-}
-
-// ----------------------------------------------------------------------------
-// Support & Feedback
-// ----------------------------------------------------------------------------
-
 model SupportTicket {
-  id               String         @id @default(uuid())
+  id               String           @id @default(uuid())
   userId           String
   category         TicketCategory
   subject          String
   description      String
-  status           TicketStatus   @default(OPEN)
-  priority         TicketPriority @default(MEDIUM)
+  status           TicketStatus     @default(OPEN)
+  priority         TicketPriority   @default(MEDIUM)
   assignedTo       String?
   deviceInfo       Json?
   appVersion       String?
-  screenshots      Json? // Array of URLs
+  screenshots      Json?
   internalNotes    String?
   resolvedAt       DateTime?
-  userSatisfaction Int? // 1-5 rating
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedAdmin AdminUser?       @relation("TicketAssignedTo", fields: [assignedTo], references: [id])
-  responses     TicketResponse[]
+  userSatisfaction Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  assignedAdmin    AdminUser?       @relation("TicketAssignedTo", fields: [assignedTo], references: [id])
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses        TicketResponse[]
 
   @@index([userId])
   @@index([status])
@@ -740,40 +548,15 @@ model SupportTicket {
   @@map("support_tickets")
 }
 
-enum TicketCategory {
-  BUG
-  QUESTION
-  SUGGESTION
-  ACCOUNT_ISSUE
-  DATA_CONCERN
-  OTHER
-}
-
-enum TicketStatus {
-  OPEN
-  IN_PROGRESS
-  WAITING_ON_USER
-  RESOLVED
-  CLOSED
-}
-
-enum TicketPriority {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
 model TicketResponse {
-  id            String   @id @default(uuid())
+  id            String        @id @default(uuid())
   ticketId      String
-  responderId   String? // Can be admin or user
-  responderType String // "admin" or "user"
+  responderId   String?
+  responderType String
   message       String
-  isInternal    Boolean  @default(false) // Internal admin notes
-  createdAt     DateTime @default(now())
-
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  isInternal    Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@map("ticket_responses")
@@ -783,28 +566,18 @@ model UserFeedback {
   id           String       @id @default(uuid())
   userId       String
   feedbackType FeedbackType
-  entityType   String? // "chapter", "module", "game"
+  entityType   String?
   entityId     String?
-  rating       Int? // 1-5 stars
-  sentiment    String? // "positive", "neutral", "negative"
+  rating       Int?
+  sentiment    String?
   comment      String?
   createdAt    DateTime     @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([feedbackType])
   @@index([entityType])
   @@map("user_feedback")
-}
-
-enum FeedbackType {
-  CHAPTER_RATING
-  MODULE_RATING
-  GAME_RATING
-  NPS_SURVEY
-  GENERAL_FEEDBACK
-  FEATURE_REQUEST
 }
 
 model FAQ {
@@ -814,7 +587,7 @@ model FAQ {
   answer          String
   language        String   @default("en")
   displayOrder    Int
-  linkedEntity    String? // "M08.S02" or "tutorial_xyz"
+  linkedEntity    String?
   viewCount       Int      @default(0)
   helpfulCount    Int      @default(0)
   notHelpfulCount Int      @default(0)
@@ -827,127 +600,94 @@ model FAQ {
   @@map("faqs")
 }
 
-// ----------------------------------------------------------------------------
-// Reports
-// ----------------------------------------------------------------------------
-
 model ScheduledReport {
   id         String          @id @default(uuid())
   createdBy  String
   reportType ReportType
   frequency  ReportFrequency
-  recipients Json // Array of email addresses
-  format     String          @default("PDF") // "PDF", "CSV"
+  recipients Json
+  format     String          @default("PDF")
   lastRunAt  DateTime?
   nextRunAt  DateTime
   isActive   Boolean         @default(true)
   createdAt  DateTime        @default(now())
-
-  admin AdminUser @relation(fields: [createdBy], references: [id])
+  admin      AdminUser       @relation(fields: [createdBy], references: [id])
 
   @@index([nextRunAt])
   @@map("scheduled_reports")
 }
 
-enum ReportType {
-  DAILY_SUMMARY
-  WEEKLY_ENGAGEMENT
-  MONTHLY_HEALTH
-  CUSTOM
-}
-
-enum ReportFrequency {
-  DAILY
-  WEEKLY
-  MONTHLY
-}
-
-// ============================================================================
-// SECTION 2: USER APP (LIFE BALANCE)
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Users & Authentication
-// ----------------------------------------------------------------------------
-
-enum AuthProvider {
-  EMAIL
-  GOOGLE
-}
-
 model User {
-  id                     String      @id @default(uuid())
-  email                  String?     @unique
-  phone                  String?     @unique
+  id                     String                @id @default(uuid())
+  email                  String?               @unique
+  phone                  String?               @unique
   passwordHash           String?
   name                   String?
-  dob                    DateTime?   @db.Date
+  dob                    DateTime?             @db.Date
   gender                 String?
   panMasked              String?
   aadhaarMasked          String?
   primaryMobile          String?
-  secondaryMobile        String?
   primaryEmail           String?
   recoveryEmail          String?
   address                String?
   maritalStatus          String?
-  occupationType         String? // "SALARIED", "SELF_EMPLOYED", "PROFESSIONAL"
+  occupationType         String?
   employerCompany        String?
   profileType            ProfileType
-  status                 UserStatus  @default(ACTIVE)
-  language               String      @default("en")
-  is_first_login         Boolean     @default(true)
-  googleLinked           Boolean     @default(false)
-  googleRefreshToken     String?
-  googleAccessToken      String?
-  googleTokenExpiry      DateTime?
-  authProvider           AuthProvider @default(EMAIL)
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
+  status                 UserStatus            @default(ACTIVE)
+  language               String                @default("en")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
   lastActiveAt           DateTime?
   deviceInfo             Json?
+  googleAccessToken      String?
+  googleLinked           Boolean               @default(false)
+  googleRefreshToken     String?
+  googleTokenExpiry      DateTime?
+  is_first_login         Boolean               @default(true)
+  secondaryMobile        String?
   settings               Json?
-  twoFactorSecret        String?
   twoFactorRecoveryCodes String?
-
-  // Relations
-  sessions           UserSession[]
-  familyMembers      FamilyMember[]
-  education          Education[]
-  identityRecords    IdentityRecord[]
-  identityLinks      IdentityLink[]
-  credentials        CredentialRecord[]
-  incomeStreams      IncomeStream[]
-  expenses           ExpenseEntry[]
-  budgetPlans        BudgetPlan[]
-  expenseCategories  ExpenseCategory[]
-  bankAccounts       BankAccount[]
-  investments        InvestmentHolding[]
-  insurancePolicies  InsurancePolicy[]
-  loans              LoanAccount[]
-  properties         PropertyAsset[]
-  subscriptions      Subscription[]
-  goals              Goal[]
-  nomineeMapping     NomineeMapping[]
-  willStatus         WillStatus?
-  assetInventory     AssetInventory[]
-  documentMeta       DocumentMeta[]
-  reminders          Reminder[]
-  chapterProgress    UserChapterProgress[]
-  moduleProgress     UserModuleProgress[]
-  gameRuns           GameRun[]
-  gamificationState  GamificationState?
-  tutorialCompletion TutorialCompletion[]
-  quizAnswers        QuizAnswer[]
-  notifications      Notification[]
-  supportTickets     SupportTicket[]
-  feedback           UserFeedback[]
-  activityEvents     ActivityEvent[]
-  dataAccessLogs     DataAccessLog[]
-  consentRecords     ConsentRecord[]
-  cohorts            UserCohort[]
-  rajyaScore         RajyaScore?
-  cashWallet         CashWallet?
+  twoFactorSecret        String?
+  authProvider           String?               @default("EMAIL")
+  activityEvents         ActivityEvent[]
+  assetInventory         AssetInventory[]
+  bankAccounts           BankAccount[]
+  budgetPlans            BudgetPlan[]
+  cashWallet             CashWallet?
+  consentRecords         ConsentRecord[]
+  credentials            CredentialRecord[]
+  dataAccessLogs         DataAccessLog[]
+  documentMeta           DocumentMeta[]
+  education              Education[]
+  expenseCategories      ExpenseCategory[]
+  expenses               ExpenseEntry[]
+  familyMembers          FamilyMember[]
+  gameRuns               GameRun[]
+  gamificationState      GamificationState?
+  goals                  Goal[]
+  identityLinks          IdentityLink[]
+  identityRecords        IdentityRecord[]
+  incomeStreams          IncomeStream[]
+  insurancePolicies      InsurancePolicy[]
+  investments            InvestmentHolding[]
+  loans                  LoanAccount[]
+  nomineeMapping         NomineeMapping[]
+  notifications          Notification[]
+  properties             PropertyAsset[]
+  quizAnswers            QuizAnswer[]
+  rajyaScore             RajyaScore?
+  reminders              Reminder[]
+  subscriptions          Subscription[]
+  supportTickets         SupportTicket[]
+  tutorialCompletion     TutorialCompletion[]
+  chapterProgress        UserChapterProgress[]
+  cohorts                UserCohort[]
+  feedback               UserFeedback[]
+  moduleProgress         UserModuleProgress[]
+  sessions               UserSession[]
+  willStatus             WillStatus?
 
   @@index([email])
   @@index([phone])
@@ -956,32 +696,18 @@ model User {
   @@map("users")
 }
 
-enum ProfileType {
-  INDIVIDUAL_SALARIED
-  INDIVIDUAL_SELF_EMPLOYED
-  FAMILY
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  DELETED
-  PENDING_VERIFICATION
-}
-
 model UserSession {
   id             String   @id @default(uuid())
   userId         String
   token          String   @unique
   refreshToken   String   @unique
-  deviceType     String? // "mobile", "desktop", "tablet"
+  deviceType     String?
   ipAddress      String?
   userAgent      String?
   expiresAt      DateTime
   createdAt      DateTime @default(now())
   lastActivityAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
@@ -989,181 +715,153 @@ model UserSession {
   @@map("user_sessions")
 }
 
-// ----------------------------------------------------------------------------
-// Family Management
-// ----------------------------------------------------------------------------
-
 model FamilyMember {
-  id              String    @id @default(uuid())
-  userId          String // Family head
+  id              String              @id @default(uuid())
+  userId          String
   name            String
-  relation        String // "spouse", "child", "parent", etc.
-  dob             DateTime? @db.Date
-  isDependent     Boolean   @default(false)
-  nomineeEligible Boolean   @default(true)
-  accessLevel     String    @default("VIEW") // "VIEW", "EDIT", "HIDDEN"
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nomineeIn NomineeMapping[]
-  coveredBy InsuranceCoverage[]
-  education Education[]
-  incomeStreams IncomeStream[]
-  identityRecords IdentityRecord[]
+  relation        String
+  dob             DateTime?           @db.Date
+  isDependent     Boolean             @default(false)
+  nomineeEligible Boolean             @default(true)
+  accessLevel     String              @default("VIEW")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  education       Education[]
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeStreams   IncomeStream[]
+  coveredBy       InsuranceCoverage[]
+  nomineeIn       NomineeMapping[]
 
   @@index([userId])
   @@map("family_members")
 }
 
 model Education {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   userId         String
   degree         String
   institute      String
   yearCompleted  Int?
   specialization String?
-  linkedLoanId   String? // If education loan exists
+  linkedLoanId   String?
+  createdAt      DateTime      @default(now())
   certificateUrl String?
-  familyMemberId String? // null = self (Adhipati), otherwise links to a family member
-  createdAt      DateTime @default(now())
-
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  familyMemberId String?
+  familyMember   FamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("education")
 }
 
-// ----------------------------------------------------------------------------
-// Digital Identity & KYC
-// ----------------------------------------------------------------------------
-
 model IdentityRecord {
-  id             String    @id @default(uuid())
+  id             String         @id @default(uuid())
   userId         String
-  idType         String // "PAN", "AADHAAR", "PASSPORT", "DL", "VOTER_ID"
-  numberMasked   String // Last 4 digits only
-  numberFull     String? // Encrypted full number (optional)
-  expiryDate     DateTime? @db.Date
-  issuedDate     DateTime? @db.Date
-  placeOfIssue   String?
-  dobOnDoc       DateTime? @db.Date
+  idType         String
+  numberMasked   String
+  numberFull     String?
+  expiryDate     DateTime?      @db.Date
+  issuedDate     DateTime?      @db.Date
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  dobOnDoc       DateTime?      @db.Date
   nameOnDoc      String?
+  placeOfIssue   String?
   vaultFileId    String?
   familyMemberId String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  links          IdentityLink[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
-  links        IdentityLink[]
-
-  @@unique([userId, idType, familyMemberId])
+  @@unique([userId, idType])
+  @@unique([userId, idType, familyMemberId], map: "identity_records_userid_idtype_familymemberid_key")
   @@index([userId])
   @@map("identity_records")
 }
 
 model IdentityLink {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   userId      String
   identityId  String
-  linkedType  String // "mobile", "email", "bank", "investment"
-  linkedValue String // Phone/email/account number
-  serviceName String? // "HDFC Bank", "Zerodha", etc.
-  createdAt   DateTime @default(now())
-
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  identity IdentityRecord @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  linkedType  String
+  linkedValue String
+  serviceName String?
+  createdAt   DateTime       @default(now())
+  identity    IdentityRecord @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([identityId])
   @@map("identity_links")
 }
 
-// ----------------------------------------------------------------------------
-// Credential Vault
-// ----------------------------------------------------------------------------
-
 model CredentialRecord {
   id                String    @id @default(uuid())
   userId            String
-  portalType        String // "bank", "investment", "insurance", "gov", "other"
+  portalType        String
   portalName        String
   portalUrl         String?
   loginId           String?
   registeredEmail   String?
   registeredMobile  String?
-  storageMode       String    @default("REFERENCE") // "REFERENCE", "ENCRYPTED"
-  encryptedPassword String? // Only if user chooses encrypted storage
-  linkedMemberId    String? // Family member ID if applicable
+  storageMode       String    @default("REFERENCE")
+  encryptedPassword String?
+  linkedMemberId    String?
   registrationDate  DateTime? @db.Date
-  twoFAStatus       String?   @default("unknown")
-  twoFAType         String?   @default("none")
-  nomineeAwareness  Boolean?  @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomineeAwareness  Boolean?  @default(true)
+  twoFAStatus       String?   @default("unknown")
+  twoFAType         String?   @default("none")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([portalType])
   @@map("credential_records")
 }
 
-// ----------------------------------------------------------------------------
-// Income Management
-// ----------------------------------------------------------------------------
-
 model IncomeStream {
-  id                String   @id @default(uuid())
+  id                String        @id @default(uuid())
   userId            String
-  type              String // "SALARY", "RENTAL", "FREELANCE", "INTEREST", "BUSINESS", "OTHER"
+  type              String
   source            String?
-  frequency         String   @default("MONTHLY") // "MONTHLY", "QUARTERLY", "ANNUAL"
+  frequency         String        @default("MONTHLY")
   amountGross       Float
-  deductions        Float    @default(0)
+  deductions        Float         @default(0)
   amountNet         Float
-  creditedAccountId String? // BankAccount ID
-  riskLevel         String? // "LOW", "MEDIUM", "HIGH"
+  creditedAccountId String?
+  isPrimary         Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  allocationMonths  Int?
+  description       String?
   expectedGrowthPct Int?
   historicalIncome  Json?
   notes             String?
-  allocationMonths  Int?
+  riskLevel         String?
   tdsAmount         Float?
-  description       String?
-  isPrimary         Boolean  @default(false)
   familyMemberId    String?
   lastReviewedAt    DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  familyMember      FamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
   @@map("income_streams")
 }
 
-// ----------------------------------------------------------------------------
-// Expense Management
-// ----------------------------------------------------------------------------
-
 model ExpenseEntry {
   id          String   @id @default(uuid())
   userId      String
   date        DateTime @default(now()) @db.Date
   amount      Float
-  category    String // "FOOD", "TRANSPORT", "HOUSING", "UTILITIES", etc.
-  mode        String? // "CASH", "CARD", "UPI", "BANK_TRANSFER"
-  frequency   String? // "MONTHLY", "QUARTERLY", "ANNUAL"
-  accountId   String? // BankAccount ID if applicable
+  category    String
+  mode        String?
+  accountId   String?
   description String?
   isRecurring Boolean  @default(false)
   createdAt   DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frequency   String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([date])
@@ -1178,55 +876,47 @@ model ExpenseCategory {
   emoji     String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("expense_categories")
 }
 
-
 model BudgetPlan {
   id             String   @id @default(uuid())
   userId         String
   totalMonthly   Float
-  categories     Json // {category: budget_amount}
-  overspendRules Json? // Alert thresholds
+  categories     Json
+  overspendRules Json?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("budget_plans")
 }
 
-// ----------------------------------------------------------------------------
-// Bank Accounts
-// ----------------------------------------------------------------------------
-
 model BankAccount {
-  id                String    @id @default(uuid())
+  id                String           @id @default(uuid())
   userId            String
   bankName          String
-  accountType       String // "SAVINGS", "CURRENT", "FD", "RD"
-  accountNumber     String?   // Encrypted (optional - not required by PRD)
-  accountLast4      String
-  nickname          String?
+  accountType       String
+  accountNumber     String?
   ifsc              String?
-  holders           Json? // Array of names if joint account
+  holders           Json?
   openingBalance    Float?
   currentBalance    Float?
+  status            String           @default("ACTIVE")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  accountLast4      String
+  isPrimary         Boolean          @default(false)
   latestBalanceAsOf DateTime?
-  status            String    @default("ACTIVE") // "ACTIVE", "DORMANT", "CLOSED"
-  isPrimary         Boolean   @default(false)
+  nickname          String?
   notes             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balanceHistory BalanceHistory[]
+  balanceHistory    BalanceHistory[]
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -1239,78 +929,66 @@ model BalanceHistory {
   balance       Float
   recordedAt    DateTime    @default(now())
   note          String?
-
-  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  bankAccount   BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
 
   @@index([bankAccountId])
   @@map("balance_history")
 }
 
 model CashWallet {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  cashInHand    Float    @default(0)
-  emergencyCash Float    @default(0)
-  pettyCash              Float    @default(0)
-  idleThresholdAmount    Float    @default(0)   // Idle money detection threshold
-  updatedAt              DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  cashInHand          Float    @default(0)
+  emergencyCash       Float    @default(0)
+  pettyCash           Float    @default(0)
+  updatedAt           DateTime @updatedAt
+  idleThresholdAmount Float    @default(0)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("cash_wallets")
 }
 
-// ----------------------------------------------------------------------------
-// Investments
-// ----------------------------------------------------------------------------
-
 model InvestmentHolding {
   id             String    @id @default(uuid())
   userId         String
-  type           String // "MUTUAL_FUND", "STOCKS", "BONDS", "PPF", "NPS", "GOLD", "CRYPTO"
+  type           String
   name           String?
   investedAmount Float
   currentValue   Float?
   maturityDate   DateTime? @db.Date
-  lockInPeriod   Int? // Months
-  riskLevel      String? // "LOW", "MEDIUM", "HIGH"
+  lockInPeriod   Int?
+  riskLevel      String?
   linkedGoalId   String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal Goal? @relation(fields: [linkedGoalId], references: [id])
+  goal           Goal?     @relation(fields: [linkedGoalId], references: [id])
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
   @@map("investment_holdings")
 }
 
-// ----------------------------------------------------------------------------
-// Insurance
-// ----------------------------------------------------------------------------
-
 model InsurancePolicy {
-  id               String    @id @default(uuid())
+  id               String              @id @default(uuid())
   userId           String
-  type             String // "LIFE", "HEALTH", "VEHICLE", "HOME", "TRAVEL"
+  type             String
   policyNumber     String
   insurerName      String?
   sumAssured       Float
   premium          Float
-  premiumFrequency String    @default("ANNUAL") // "MONTHLY", "QUARTERLY", "ANNUAL"
-  dueDate          DateTime  @db.Date
-  maturityDate     DateTime? @db.Date
-  nomineeId        String? // FamilyMember ID
+  premiumFrequency String              @default("ANNUAL")
+  dueDate          DateTime            @db.Date
+  maturityDate     DateTime?           @db.Date
+  nomineeId        String?
   agentContact     String?
-  status           String    @default("ACTIVE") // "ACTIVE", "LAPSED", "MATURED"
+  status           String              @default("ACTIVE")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
   documentId       String?
   reminderId       String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  coverage InsuranceCoverage[]
+  coverage         InsuranceCoverage[]
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
@@ -1319,40 +997,34 @@ model InsurancePolicy {
 }
 
 model InsuranceCoverage {
-  id       String @id @default(uuid())
+  id       String          @id @default(uuid())
   policyId String
-  memberId String // FamilyMember ID
-
-  policy InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  member FamilyMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+  member   FamilyMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  policy   InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
   @@unique([policyId, memberId])
   @@map("insurance_coverage")
 }
 
-// ----------------------------------------------------------------------------
-// Loans & Liabilities
-// ----------------------------------------------------------------------------
-
 model LoanAccount {
   id                String    @id @default(uuid())
   userId            String
-  type              String // "HOME", "PERSONAL", "VEHICLE", "EDUCATION", "BUSINESS"
+  type              String
   lenderName        String?
   principal         Float
   outstandingAmount Float
   emi               Float
   interestRate      Float
-  tenure            Int // Months
+  tenure            Int
   startDate         DateTime  @db.Date
   endDate           DateTime? @db.Date
-  linkedPropertyId  String? // If home loan
-  status            String    @default("ACTIVE") // "ACTIVE", "CLOSED", "FORECLOSED"
-  documentId        String?
+  linkedPropertyId  String?
+  status            String    @default("ACTIVE")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId        String?
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
@@ -1360,14 +1032,10 @@ model LoanAccount {
   @@map("loan_accounts")
 }
 
-// ----------------------------------------------------------------------------
-// Property
-// ----------------------------------------------------------------------------
-
 model PropertyAsset {
   id              String    @id @default(uuid())
   userId          String
-  type            String // "RESIDENTIAL", "COMMERCIAL", "LAND"
+  type            String
   address         String?
   purchaseDate    DateTime? @db.Date
   purchaseAmount  Float?
@@ -1376,84 +1044,72 @@ model PropertyAsset {
   linkedLoanId    String?
   rentalIncome    Float?
   annualCosts     Float?
+  vaultFileIds    Json?
+  secretFieldId   String?
   propertyTax     Float?
   vacancyMonths   Int       @default(0)
+  ownershipType   String
+  coOwners        Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
   @@map("property_assets")
 }
 
-// ----------------------------------------------------------------------------
-// Subscriptions
-// ----------------------------------------------------------------------------
-
 model Subscription {
   id           String    @id @default(uuid())
   userId       String
   name         String
-  category     String? // "STREAMING", "SOFTWARE", "GYM", "SIM", "OTHER"
+  category     String?
   amount       Float
   renewalDate  DateTime  @db.Date
   lastUsedDate DateTime? @db.Date
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([renewalDate])
   @@map("subscriptions")
 }
 
-// ----------------------------------------------------------------------------
-// Goals
-// ----------------------------------------------------------------------------
-
 model Goal {
-  id                     String   @id @default(uuid())
+  id                     String              @id @default(uuid())
   userId                 String
   name                   String
   targetAmount           Float
-  targetDate             DateTime @db.Date
-  currentSaved           Float    @default(0)
+  targetDate             DateTime            @db.Date
+  currentSaved           Float               @default(0)
   requiredMonthlySavings Float?
-  priority               String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH"
-  status                 String   @default("IN_PROGRESS") // "IN_PROGRESS", "ACHIEVED", "PAUSED"
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  investments InvestmentHolding[]
+  priority               String              @default("MEDIUM")
+  status                 String              @default("IN_PROGRESS")
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  user                   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investments            InvestmentHolding[]
 
   @@index([userId])
   @@index([status])
   @@map("goals")
 }
 
-// ----------------------------------------------------------------------------
-// Nominee & Will
-// ----------------------------------------------------------------------------
-
 model NomineeMapping {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   userId         String
-  assetRef       String // "insurance_policy_xyz", "property_abc", "investment_123"
-  assetType      String // "INSURANCE", "PROPERTY", "INVESTMENT", "BANK"
-  nomineeId      String // FamilyMember ID
-  sharePercent   Float    @default(100)
-  proofDocLinked Boolean  @default(false)
-  confirmed      Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nominee FamilyMember @relation(fields: [nomineeId], references: [id])
+  assetRef       String
+  assetType      String
+  nomineeId      String
+  sharePercent   Float        @default(100)
+  proofDocLinked Boolean      @default(false)
+  confirmed      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nominee        FamilyMember @relation(fields: [nomineeId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([assetType])
@@ -1471,86 +1127,73 @@ model WillStatus {
   lastReviewDate  DateTime? @db.Date
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("will_status")
 }
 
-// ----------------------------------------------------------------------------
-// Asset Inventory (Non-Financial)
-// ----------------------------------------------------------------------------
-
 model AssetInventory {
   id             String   @id @default(uuid())
   userId         String
-  itemType       String // "JEWELRY", "ELECTRONICS", "VEHICLE", "ART", "OTHER"
+  itemType       String
   description    String
   purchaseValue  Float?
   currentValue   Float?
-  ownerId        String? // FamilyMember ID if applicable
+  ownerId        String?
   insuredFlag    Boolean  @default(false)
   linkedPolicyId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([itemType])
   @@map("asset_inventory")
 }
 
-// ----------------------------------------------------------------------------
-// Document Vault
-// ----------------------------------------------------------------------------
-
 model DocumentMeta {
   id                   String    @id @default(uuid())
   userId               String
-  docType              String // "INSURANCE", "IDENTITY", "PROPERTY", "LOAN", "INVESTMENT", "WILL", "OTHER"
-  linkedPersonId       String? // FamilyMember ID or userId
-  linkedFamilyMemberId String? // Specific FamilyMember ID associated with this document
-  linkedEntityId       String? // Policy ID, Property ID, etc.
+  docType              String
+  linkedPersonId       String?
+  linkedEntityId       String?
   fileName             String
-  fileHash             String? // For duplicate detection
-  localPathRef         String? // Path on user's device (not stored by default)
+  fileHash             String?
+  localPathRef         String?
   cloudBackupConsent   Boolean   @default(false)
-  cloudStorageUrl      String? // If cloud backup enabled
-  cloudId              String? // Google Drive file ID
+  cloudStorageUrl      String?
   expiryDate           DateTime? @db.Date
   versionTag           String?
-  versionHistory       Json? // Array of previous versions
+  versionHistory       Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cloudId              String?
+  localId              String?
+  storageType          String?   @default("local")
+  linkedFamilyMemberId String?
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([docType])
   @@index([expiryDate])
+  @@index([linkedEntityId])
   @@map("document_meta")
 }
-
-// ----------------------------------------------------------------------------
-// Reminders
-// ----------------------------------------------------------------------------
 
 model Reminder {
   id             String    @id @default(uuid())
   userId         String
-  type           String // "INSURANCE_RENEWAL", "EMI_DUE", "SUBSCRIPTION_RENEWAL", "GOAL_MILESTONE", "DOC_EXPIRY"
+  type           String
   targetDate     DateTime  @db.Date
-  leadTime       Int       @default(7) // Days before target to send reminder
-  channel        String    @default("IN_APP") // "IN_APP", "EMAIL", "PUSH", "WHATSAPP"
+  leadTime       Int       @default(7)
+  channel        String    @default("IN_APP")
   priority       String    @default("MEDIUM")
-  linkedEntityId String? // Policy ID, Loan ID, etc.
+  linkedEntityId String?
   message        String?
   sentAt         DateTime?
-  status         String    @default("PENDING") // "PENDING", "SENT", "DISMISSED", "SNOOZED"
+  status         String    @default("PENDING")
   createdAt      DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([targetDate])
@@ -1558,20 +1201,15 @@ model Reminder {
   @@map("reminders")
 }
 
-// ----------------------------------------------------------------------------
-// Progress Tracking
-// ----------------------------------------------------------------------------
-
 model UserModuleProgress {
   id          String    @id @default(uuid())
   userId      String
   moduleId    String
   startedAt   DateTime  @default(now())
   completedAt DateTime?
-  status      String    @default("IN_PROGRESS") // "LOCKED", "IN_PROGRESS", "COMPLETED"
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  status      String    @default("IN_PROGRESS")
+  module      Module    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, moduleId])
   @@index([userId])
@@ -1583,16 +1221,15 @@ model UserChapterProgress {
   id               String    @id @default(uuid())
   userId           String
   submoduleId      String
-  tutorialsWatched Json? // Array of tutorial IDs
+  tutorialsWatched Json?
   gameStartedAt    DateTime?
   gameCompletedAt  DateTime?
   sealConfirmedAt  DateTime?
-  status           String    @default("LOCKED") // "LOCKED", "IN_PROGRESS", "COMPLETED"
+  status           String    @default("LOCKED")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  submodule Submodule @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
+  submodule        Submodule @relation(fields: [submoduleId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, submoduleId])
   @@index([userId])
@@ -1604,93 +1241,73 @@ model GameRun {
   id            String    @id @default(uuid())
   userId        String
   submoduleId   String
-  gameTemplate  String // "FORT_DEFENSE", "MANDALA_LINK", etc.
+  gameTemplate  String
   attemptNumber Int       @default(1)
   startedAt     DateTime  @default(now())
   completedAt   DateTime?
   pointsEarned  Int       @default(0)
-  status        String    @default("IN_PROGRESS") // "IN_PROGRESS", "COMPLETED", "ABANDONED"
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        String    @default("IN_PROGRESS")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([submoduleId])
   @@map("game_runs")
 }
 
-// ----------------------------------------------------------------------------
-// Gamification
-// ----------------------------------------------------------------------------
-
 model GamificationState {
   id               String    @id @default(uuid())
   userId           String    @unique
   totalPoints      Int       @default(0)
-  badgesEarned     Json? // Array of badge codes
+  badgesEarned     Json?
   currentStreak    Int       @default(0)
   longestStreak    Int       @default(0)
   rank             String    @default("BEGINNER")
   lastActivityDate DateTime? @db.Date
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("gamification_state")
 }
-
-// ----------------------------------------------------------------------------
-// Rajya Stability Index
-// ----------------------------------------------------------------------------
 
 model RajyaScore {
   id            String   @id @default(uuid())
   userId        String   @unique
   overallScore  Float
-  rank          String // "STABLE", "BALANCED", "VULNERABLE", "AT_RISK"
-  rakshaScore   Float? // Insurance zone
-  durgScore     Float? // Emergency readiness
-  rinScore      Float? // Loan burden
-  vyayaScore    Float? // Expense discipline
-  mitraScore    Float? // Nominee/legacy
-  koshScore     Float? // Income/wealth
-  goalsScore    Float? // Goal progress
-  riskFlags     Json? // Array of risk warnings
-  nextActions   Json? // Array of recommended actions
+  rank          String
+  rakshaScore   Float?
+  durgScore     Float?
+  rinScore      Float?
+  vyayaScore    Float?
+  mitraScore    Float?
+  koshScore     Float?
+  goalsScore    Float?
+  riskFlags     Json?
+  nextActions   Json?
   calculatedAt  DateTime @default(now())
   previousScore Float?
-  trend         String? // "IMPROVING", "STABLE", "DECLINING"
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trend         String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([rank])
   @@map("rajya_scores")
 }
 
-// ----------------------------------------------------------------------------
-// Activity Tracking
-// ----------------------------------------------------------------------------
-
 model ActivityEvent {
   id         String   @id @default(uuid())
   userId     String
-  eventType  String // "LOGIN", "COMPLETED_CHAPTER", "UPLOADED_DOC", "EARNED_BADGE", "COMPLETED_MODULE"
+  eventType  String
   eventData  Json?
   deviceType String?
   timestamp  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([eventType])
   @@index([timestamp])
   @@map("activity_events")
 }
-
-// ============================================================================
-// SECTION 3: ANALYTICS AGGREGATES (Pre-computed for performance)
-// ============================================================================
 
 model DailyAnalytics {
   id                    String   @id @default(uuid())
@@ -1729,7 +1346,7 @@ model WeeklyAnalytics {
 
 model MonthlyAnalytics {
   id                 String   @id @default(uuid())
-  month              DateTime @db.Date
+  month              DateTime @unique @db.Date
   mau                Int      @default(0)
   retention30Day     Float?
   retention60Day     Float?
@@ -1738,21 +1355,16 @@ model MonthlyAnalytics {
   productHealthScore Float?
   calculatedAt       DateTime @default(now())
 
-  @@unique([month])
   @@index([month])
   @@map("monthly_analytics")
 }
-
-// ============================================================================
-// SECTION 24: CONTACT & SUPPORT
-// ============================================================================
 
 model ContactMessage {
   id        String   @id @default(uuid())
   name      String
   email     String
-  message   String   @db.Text
-  status    String   @default("UNREAD") // UNREAD, READ, RESPONDED
+  message   String
+  status    String   @default("UNREAD")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1762,33 +1374,173 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
-// ============================================================================
-// INDEXES & PERFORMANCE OPTIMIZATION NOTES
-// ============================================================================
+enum AdminRole {
+  SUPER_ADMIN
+  CONTENT_ADMIN
+  QUIZ_ADMIN
+  COMPLIANCE_ADMIN
+  COHORT_ADMIN
+  SUPPORT_ADMIN
+}
 
-// Key Composite Indexes (add these manually if needed):
-// - (userId, moduleId) on user_module_progress
-// - (userId, submoduleId) on user_chapter_progress
-// - (userId, tutorialId) on tutorial_completions
-// - (userId, questionId) on quiz_answers
-// - (adminUserId, timestamp) on admin_audit_logs
-// - (userId, date) on expense_entries
-// - (userId, type) on income_streams
-// - (userId, type) on insurance_policies
-// - (userId, status) on loan_accounts
+enum AdminStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+  PENDING_INVITE
+  INVITE_ACCEPTED
+}
 
-// ============================================================================
-// MIGRATIONS & SEEDING NOTES
-// ============================================================================
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
+  ARCHIVE
+  ROLLBACK
+  EXPORT
+  RESET
+  LOGIN
+  LOGIN_FAIL
+  LOGOUT
+  FORCE_LOGOUT
+  VIEW
+  TOGGLE
+}
 
-// 1. Run: npx prisma migrate dev --name init
-// 2. Seed system parameters (calculation thresholds)
-// 3. Seed modules and submodules (all 21 modules)
-// 4. Seed default feature flags
-// 5. Create first Super Admin account
-// 6. Seed FAQ categories
-// 7. Seed notification templates
+enum ParamType {
+  STRING
+  INTEGER
+  FLOAT
+  BOOLEAN
+  JSON
+}
 
-// ============================================================================
-// END OF SCHEMA
-// ============================================================================
+enum ZoneType {
+  RAKSHA
+  KOSH
+  VYAYA
+  RIN
+  DURG
+  MITRA
+  BHOOMI
+  GRANTHAGAAR
+  KAR
+  OTHER
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  HIDDEN
+}
+
+enum QuestionType {
+  MCQ
+  NUMERIC
+  BOOLEAN
+  MULTI_SELECT
+  DATE
+  PHONE
+  EMAIL
+  SLIDER
+  CONFIRM
+  TEXT
+}
+
+enum NotifChannel {
+  IN_APP
+  EMAIL
+  PUSH
+  WHATSAPP
+}
+
+enum NotifStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  FAILED
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+}
+
+enum AssetType {
+  ICON
+  STORY_CARD
+  MAP_ELEMENT
+  ANIMATION
+  SOUND
+}
+
+enum TicketCategory {
+  BUG
+  QUESTION
+  SUGGESTION
+  ACCOUNT_ISSUE
+  DATA_CONCERN
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FeedbackType {
+  CHAPTER_RATING
+  MODULE_RATING
+  GAME_RATING
+  NPS_SURVEY
+  GENERAL_FEEDBACK
+  FEATURE_REQUEST
+}
+
+enum ReportType {
+  DAILY_SUMMARY
+  WEEKLY_ENGAGEMENT
+  MONTHLY_HEALTH
+  CUSTOM
+}
+
+enum ReportFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum ProfileType {
+  INDIVIDUAL_SALARIED
+  INDIVIDUAL_SELF_EMPLOYED
+  FAMILY
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+  PENDING_VERIFICATION
+}

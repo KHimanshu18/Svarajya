@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
     Shield, BookOpen, Coins, Activity, Users, AlertCircle, Fingerprint, Key,
-    ChevronRight, Sun, Moon, Info, Droplets
+    ChevronRight, Sun, Moon, Info, Droplets, Landmark
 } from "lucide-react";
 import { IdentityStore } from "@/lib/identityStore";
 import { CredentialStore } from "@/lib/credentialStore";
@@ -73,6 +73,7 @@ export default function Dashboard() {
         { id: 'control', title: 'Rin (Loans & Liabilities)', route: '/rin', icon: <Activity className="w-5 h-5" />, status: 'critical', completion: 10, desc: 'Debt & loan management' },
         { id: 'vyaya', title: 'Vyaya (Expenses & Leakage)', route: '/vyaya', icon: <Coins className="w-5 h-5" />, status: 'warning', completion: 40, desc: 'Track and control leakage' },
         { id: 'legacy', title: 'Mitra (Nominees & Legacy)', route: '/mitra', icon: <Users className="w-5 h-5" />, status: 'warning', completion: 30, desc: 'Trusted nominees & legacy' },
+        { id: 'bhoomi', title: 'Bhoomi (Real Estate)', route: '/bhoomi', icon: <Landmark className="w-5 h-5" />, status: 'warning', completion: 10, desc: 'Property registry & supporting documents' },
     ];
 
     const totalCompletion = KINGDOM_ZONES.reduce((sum, zone) => sum + zone.completion, 0);

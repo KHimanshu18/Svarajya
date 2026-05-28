@@ -12,8 +12,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api/auth (auth routes)
+     * - api/* (API routes should not be redirected by middleware)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/check-user|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api(?:/.*)?|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -421,6 +421,8 @@ class NotificationService extends BaseService<Notification, CreateNotificationIn
         title.toLowerCase().includes("itr")
     ) {
         return "/kar";
+    } else if (title.toLowerCase().includes("property") || title.toLowerCase().includes("bhoomi")) {
+        return "/bhoomi";
     } else if (
         title.toLowerCase().includes("goal") || 
         title.toLowerCase().includes("lakshya") || 

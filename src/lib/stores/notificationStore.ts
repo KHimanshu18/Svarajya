@@ -69,6 +69,8 @@ function mapNotification(db: any): Notification {
             link = "/foundation";
         } else if (title.toLowerCase().includes("family member review") || title.toLowerCase().includes("no family members")) {
             link = "/foundation/family";
+        } else if (title.toLowerCase().includes("property") || title.toLowerCase().includes("bhoomi")) {
+            link = "/bhoomi";
         } else if (
             title.toLowerCase().includes("profile") || 
             title.toLowerCase().includes("foundation") || 
