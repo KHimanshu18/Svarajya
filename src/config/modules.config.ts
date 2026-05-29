@@ -146,7 +146,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     color: '#F39C12',
     description: 'ITR filing, Form 16, tax savings and compliance',
     chapters: ['kar-vyavastha', 'bachao'],
-    isImplemented: false,
+    isImplemented: true,
   },
   MITRA: {
     id: 12,

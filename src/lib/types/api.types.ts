@@ -75,6 +75,93 @@ export interface UpdateProfileRequest {
   language?: string;
 }
 
+export interface TaxRecordResponse {
+  id: string;
+  assessmentYear: string;
+  financialYear: string;
+  filingType?: string | null;
+  status: string;
+  grossIncome?: number | null;
+  taxableIncome?: number | null;
+  taxPaid?: number | null;
+  taxDue?: number | null;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GstRecordResponse {
+  id: string;
+  gstin: string;
+  businessName?: string | null;
+  registrationType?: string | null;
+  filingFrequency?: string | null;
+  lastFilingDate?: string | null;
+  nextDueDate?: string | null;
+  status: string;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DinRecordResponse {
+  id: string;
+  dinNumber: string;
+  companyName?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  status: string;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KarSummaryResponse {
+  taxCount: number;
+  gstCount: number;
+  dinCount: number;
+  nextGstDue?: string | null;
+  nextDinExpiry?: string | null;
+}
+
+export interface CreateTaxRecordRequest {
+  assessmentYear: string;
+  financialYear: string;
+  filingType?: string;
+  status?: string;
+  grossIncome?: number;
+  taxableIncome?: number;
+  taxPaid?: number;
+  taxDue?: number;
+  documentUrl?: string;
+  notes?: string;
+}
+
+export interface CreateGstRecordRequest {
+  gstin: string;
+  businessName?: string;
+  registrationType?: string;
+  filingFrequency?: string;
+  lastFilingDate?: string;
+  nextDueDate?: string;
+  status?: string;
+  documentUrl?: string;
+  notes?: string;
+}
+
+export interface CreateDinRecordRequest {
+  dinNumber: string;
+  companyName?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  status?: string;
+  documentUrl?: string;
+  notes?: string;
+}
+
 // ============================================================================
 // FAMILY MEMBERS
 // ============================================================================

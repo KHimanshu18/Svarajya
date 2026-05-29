@@ -8,6 +8,7 @@ export type VaultFolder =
     | "identity"
     | "loans"
     | "property"
+    | "tax"
     | "other";
 
 export interface VaultFile {
@@ -106,6 +107,7 @@ export const Vault = {
                 else if (folder === 'property') category = 'Property';
                 else if (folder === 'family') category = 'Family';
                 else if (folder === 'profile') category = 'Profile';
+                else if (folder === 'tax') category = 'Tax';
                 form.append('category', category);
 
                 const uploadRes = await fetch('/api/google-drive/upload', {

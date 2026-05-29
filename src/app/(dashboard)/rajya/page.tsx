@@ -74,6 +74,7 @@ export default function Dashboard() {
         { id: 'vyaya', title: 'Vyaya (Expenses & Leakage)', route: '/vyaya', icon: <Coins className="w-5 h-5" />, status: 'warning', completion: 40, desc: 'Track and control leakage' },
         { id: 'legacy', title: 'Mitra (Nominees & Legacy)', route: '/mitra', icon: <Users className="w-5 h-5" />, status: 'warning', completion: 30, desc: 'Trusted nominees & legacy' },
         { id: 'bhoomi', title: 'Bhoomi (Real Estate)', route: '/bhoomi', icon: <Landmark className="w-5 h-5" />, status: 'warning', completion: 10, desc: 'Property registry & supporting documents' },
+        { id: 'kar', title: 'Kar (Tax & Compliance)', route: '/kar', icon: <BookOpen className="w-5 h-5" />, status: 'warning', completion: 10, desc: 'Tax filings, GST and DIN governance' },
     ];
 
     const totalCompletion = KINGDOM_ZONES.reduce((sum, zone) => sum + zone.completion, 0);

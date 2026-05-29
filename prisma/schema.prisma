@@ -676,6 +676,9 @@ model User {
   nomineeMapping         NomineeMapping[]
   notifications          Notification[]
   properties             PropertyAsset[]
+  taxRecords             TaxRecord[]
+  gstRecords             GstRecord[]
+  dinRecords             DinRecord[]
   quizAnswers            QuizAnswer[]
   rajyaScore             RajyaScore?
   reminders              Reminder[]
@@ -1057,6 +1060,79 @@ model PropertyAsset {
   @@index([userId])
   @@index([type])
   @@map("property_assets")
+}
+
+model TaxRecord {
+  id                    String   @id @default(uuid())
+  userId                String
+  assessmentYear        String
+  financialYear         String
+  filingType            String?  @default("ITR")
+  status                String   @default("DRAFT")
+  grossIncome           Float?
+  taxableIncome         Float?
+  taxPaid               Float?
+  taxDue                Float?
+  filingDate            DateTime? @db.Date
+  acknowledgementNumber String?
+  documentUrl           String?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("tax_records")
+}
+
+model GstRecord {
+  id               String   @id @default(uuid())
+  userId           String
+  gstin            String
+  businessName     String?
+  registrationType String?
+  filingFrequency  String?
+  lastFilingDate   DateTime? @db.Date
+  nextDueDate      DateTime? @db.Date
+  gstr1Filed       Boolean?
+  gstr3bFiled      Boolean?
+  annualReturnFiled Boolean?
+  status           String   @default("ACTIVE")
+  documentUrl      String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gstin, userId])
+  @@index([userId])
+  @@index([status])
+  @@map("gst_records")
+}
+
+model DinRecord {
+  id                String   @id @default(uuid())
+  userId            String
+  dinNumber         String
+  companyName       String?
+  issueDate         DateTime? @db.Date
+  expiryDate        DateTime? @db.Date
+  dinKycStatus      String?
+  dscExpiryDate     DateTime? @db.Date
+  mcaFilingStatus   String?
+  directorSince     DateTime? @db.Date
+  status            String   @default("VALID")
+  documentUrl       String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dinNumber, userId])
+  @@index([userId])
+  @@index([status])
+  @@map("din_records")
 }
 
 model Subscription {

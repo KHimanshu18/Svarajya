@@ -14,7 +14,7 @@ import { getValidGoogleAccessToken } from '@/lib/googleAuth';
 // Types
 // ---------------------------------------------------------------------------
 
-export type DriveCategory = 'Identity' | 'Education' | 'Insurance' | 'Loans';
+export type DriveCategory = 'Identity' | 'Education' | 'Insurance' | 'Loans' | 'Property' | 'Tax' | 'Other';
 
 // ---------------------------------------------------------------------------
 // Helpers – folder management
