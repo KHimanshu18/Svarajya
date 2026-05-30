@@ -13,7 +13,7 @@ const PROTECTED_PREFIXES = [
     "/rajya", "/dwaar", "/pehchaan", "/khate", "/kosh", "/vyaya",
     "/raksha", "/rin", "/mitra", "/leakage", "/foundation", "/suchak",
     "/beej", "/bhoomi", "/kar", "/lakshya", "/mantri", "/raj-mantri",
-    "/doot", "/sampatti", "/granthagaar", "/suraksha",
+    "/doot", "/sampatti", "/granthagaar", "/suraksha", "/succession",
     "/onboarding", "/notifications", "/vault"
 ];
 

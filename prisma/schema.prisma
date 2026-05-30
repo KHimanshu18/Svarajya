@@ -691,12 +691,29 @@ model User {
   moduleProgress         UserModuleProgress[]
   sessions               UserSession[]
   willStatus             WillStatus?
+  successionNominees     SuccessionNominee[]
+  successionWills        SuccessionWill?
+  successionEmergency    SuccessionEmergency?
+  emailVerificationCodes EmailVerificationCode[]
 
   @@index([email])
   @@index([phone])
   @@index([profileType])
   @@index([status])
   @@map("users")
+}
+
+model EmailVerificationCode {
+  id         String   @id @default(uuid())
+  userId     String
+  code       String
+  purpose    String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_verification_codes")
 }
 
 model UserSession {
@@ -734,6 +751,7 @@ model FamilyMember {
   incomeStreams   IncomeStream[]
   coveredBy       InsuranceCoverage[]
   nomineeIn       NomineeMapping[]
+  successionNominees SuccessionNominee[]
 
   @@index([userId])
   @@map("family_members")
@@ -1619,4 +1637,58 @@ enum UserStatus {
   SUSPENDED
   DELETED
   PENDING_VERIFICATION
+}
+
+model SuccessionNominee {
+  id              String       @id @default(uuid())
+  userId          String
+  assetType       String
+  assetId         String
+  nomineeId       String
+  nomineeName     String
+  relationship    String
+  sharePercentage Float        @default(100)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nominee         FamilyMember @relation(fields: [nomineeId], references: [id])
+
+  @@unique([userId, assetType, assetId, nomineeId])
+  @@map("succession_nominees")
+}
+
+model SuccessionWill {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  willExists       Boolean  @default(false)
+  dateOfWill       DateTime? @db.Date
+  registered       Boolean  @default(false)
+  executorName     String?
+  executorContact  String?
+  witnessNames     Json?
+  storageLocation  String?
+  digitalCopyUrl   String?
+  cloudConsent     Boolean  @default(false)
+  secretHint       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("succession_wills")
+}
+
+model SuccessionEmergency {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  emergencyContactName    String?
+  emergencyContactPhone   String?
+  secondaryContactName    String?
+  secondaryContactPhone   String?
+  verificationMethod      String?
+  activationWaitingPeriod Int      @default(24)
+  assetAccessScope        Json?
+  lastUpdated             DateTime @default(now())
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("succession_emergency")
 }

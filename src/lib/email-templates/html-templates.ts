@@ -175,3 +175,39 @@ export function getResetPasswordEmailHtml(name: string, resetLink: string): stri
 
   return getEmailWrapperHtml("Sva-Rajya — Password Reset Request", contentHtml);
 }
+
+export function getEmergencyOtpEmailHtml(name: string, otpCode: string) {
+  const contentHtml = `
+    <h2 style="margin: 0 0 20px 0; font-size: 24px; color: #ffffff; font-weight: normal;">
+      Emergency Access Verification Code
+    </h2>
+    <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #e2e8f0; font-family: sans-serif;">
+      Hi ${name},
+    </p>
+    <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #e2e8f0; font-family: sans-serif;">
+      Use the code below to verify the emergency access settings in your Sva-Rajya account. It will expire in 10 minutes.
+    </p>
+
+    <table style="width: 100%; margin-bottom: 30px;">
+      <tr>
+        <td align="center">
+          <div style="background: #111827; border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 16px; display: inline-block; padding: 24px 36px; letter-spacing: 0.2em; font-size: 32px; font-weight: bold; color: #fbbf24; font-family: 'Courier New', monospace;">
+            ${otpCode}
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 20px 0; font-size: 14px; color: #94a3b8; font-family: sans-serif; text-align: center;">
+      Do not share this code with anyone. If you did not request this verification, contact support immediately.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;" />
+
+    <p style="margin: 0; font-size: 12px; color: #64748b; font-family: sans-serif; text-align: center;">
+      This code is valid for 10 minutes.
+    </p>
+  `;
+
+  return getEmailWrapperHtml('Sva-Rajya — Emergency Access OTP', contentHtml);
+}
