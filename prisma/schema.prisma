@@ -863,6 +863,7 @@ model IncomeStream {
   familyMemberId    String?
   lastReviewedAt    DateTime?
   familyMember      FamilyMember? @relation(fields: [familyMemberId], references: [id])
+  creditedAccount   BankAccount?  @relation(fields: [creditedAccountId], references: [id])
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -937,6 +938,7 @@ model BankAccount {
   nickname          String?
   notes             String?
   balanceHistory    BalanceHistory[]
+  incomeStreams     IncomeStream[]
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
