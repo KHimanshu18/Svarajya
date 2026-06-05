@@ -57,6 +57,10 @@ class IncomeService extends BaseService<IncomeStream, CreateIncomeStreamInput, U
     try {
       return await prisma.incomeStream.findMany({
         where: { userId },
+        include: {
+          creditedAccount: true,
+          familyMember: true,
+        },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
