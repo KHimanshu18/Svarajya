@@ -12,6 +12,12 @@ export interface InsurancePolicyWithCoverage extends InsurancePolicy {
   reminder?: any;
 }
 
+/** Completed Raksha Internal Wiring with:
+ * Insurance & FamilyMember
+ * Insurance & Nominee
+ * Insurance & Documents
+ */
+
 export interface CreateInsurancePolicyInput {
   type: string;
   policyNumber: string;
