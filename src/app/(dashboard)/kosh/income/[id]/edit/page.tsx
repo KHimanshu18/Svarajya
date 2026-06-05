@@ -252,7 +252,7 @@ export default function EditIncomePage({ params }: { params: Promise<{ id: strin
                                 <option value="" className="bg-slate-900">Select bank account</option>
                                 {bankAccounts.map(acc => (
                                     <option key={acc.id} value={acc.id} className="bg-slate-900">
-                                        {acc.nickname || acc.bankName} - {maskAccountNumber(acc.accountLast4)} (₹{acc.latestBalance?.toLocaleString("en-IN")})
+                                        {acc.bankName}
                                     </option>
                                 ))}
                             </select>

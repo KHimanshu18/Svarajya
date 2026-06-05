@@ -827,6 +827,7 @@ model CredentialRecord {
   storageMode       String    @default("REFERENCE")
   encryptedPassword String?
   linkedMemberId    String?
+  linkedId          String?   @map("linked_id")
   registrationDate  DateTime? @db.Date
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

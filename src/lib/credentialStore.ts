@@ -41,6 +41,7 @@ export interface PortalRecord {
     registeredEmail?: string;          // Plain value from DB
     registrationDate?: string;
     linkedFamilyMemberId?: string;     // FamilyMember.id from Module 1
+    linkedId?: string;                 // Cross-module record ID (bank account, policy, loan, tax portal, investment)
     passwordStorageMode: PasswordStorageMode;
     encryptedPassword?: EncryptedSecret;
     twoFAStatus?: TwoFAStatus;
@@ -49,15 +50,11 @@ export interface PortalRecord {
     lastReviewedDate?: string;
     // Bank-specific
     bankName?: string;                 // e.g. "HDFC Bank", "SBI"
-    linkedBankAccountId?: string;      // Module 6 bank account link
     // Tax-specific
     linkedBusinessEntity?: string;     // Business name for GST/MCA
     linkedCA?: string;                 // Chartered Accountant name
     // Insurance-specific
-    linkedPolicyId?: string;           // Module 8 policy link
     nomineeAwareness?: boolean;        // Does nominee know about access?
-    // Investment-specific
-    linkedInvestmentId?: string;       // Module 7 investment link
     // Subscription-specific
     renewalDate?: string;              // Next renewal date
     linkedAutoDebitBank?: string;      // Bank account for auto-debit
@@ -80,7 +77,7 @@ export const PORTAL_CATEGORIES: { id: PortalCategory; label: string; emoji: stri
     { id: "utility", label: "Utility", emoji: "⚡" },
     { id: "subscription", label: "Subscription", emoji: "📦" },
     { id: "demat", label: "Demat / MF", emoji: "📊" },
-    { id: "other", label: "Other", emoji: "📎" },
+    { id: "other", label: "Other", emoji: "🗂️" },
 ];
 
 // ——— Category-specific micro-tutorials ———
@@ -225,6 +222,8 @@ export const CredentialStore = {
                 twoFAStatus: portal.twoFAStatus,
                 twoFAType: portal.twoFAType,
                 nomineeAwareness: portal.nomineeAwareness,
+                // Cross-module links
+                linkedId: portal.linkedId,
             };
 
             // Resolve contact point IDs to actual values for DB storage
@@ -274,6 +273,7 @@ export const CredentialStore = {
                 storageMode: portal.passwordStorageMode,
                 password: portal.encryptedPassword,
                 linkedMemberId: portal.linkedFamilyMemberId,
+                linkedId: portal.linkedId,
                 registrationDate: portal.registrationDate,
                 twoFAStatus: portal.twoFAStatus,
                 twoFAType: portal.twoFAType,
@@ -454,7 +454,7 @@ export const CredentialStore = {
             const json = await res.json();
             const dbPortals = json.data || json;
             if (Array.isArray(dbPortals)) {
-                _portals = dbPortals.map((d: any) => ({
+                    _portals = dbPortals.map((d: any) => ({
                     id: d.id,
                     platformName: d.portalName,
                     category: d.portalType,
@@ -463,11 +463,13 @@ export const CredentialStore = {
                     passwordStorageMode: d.storageMode,
                     encryptedPassword: d.password,
                     linkedFamilyMemberId: d.linkedMemberId,
-                    registeredMobile: d.registeredMobile,
-                    registeredEmail: d.registeredEmail,
+                        registeredMobile: d.registeredMobile,
+                        registeredEmail: d.registeredEmail,
                     registrationDate: d.registrationDate ? String(d.registrationDate).split('T')[0] : undefined,
                     lastReviewedDate: d.lastReviewedDate ? String(d.lastReviewedDate) : undefined,
                     renewalDate: d.renewalDate ? String(d.renewalDate).split('T')[0] : undefined,
+                        // Cross-module links
+                        linkedId: d.linkedId || d.linked_id || undefined,
                     createdAt: d.createdAt ? String(d.createdAt) : now(),
                     updatedAt: d.updatedAt ? String(d.updatedAt) : now(),
                     twoFAStatus: d.twoFAStatus || "unknown",

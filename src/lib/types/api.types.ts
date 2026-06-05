@@ -257,6 +257,7 @@ export interface CredentialRecordResponse {
   registeredMobile?: string | null;
   storageMode: string;
   linkedMemberId?: string | null;
+  linkedId?: string | null;
   registrationDate?: string | null;
   twoFAStatus?: string | null;
   twoFAType?: string | null;
@@ -275,6 +276,7 @@ export interface CreateCredentialRecordRequest {
   storageMode?: string;
   password?: string;
   linkedMemberId?: string;
+  linkedId?: string;
   registrationDate?: string;
   twoFAStatus?: string;
   twoFAType?: string;
@@ -289,6 +291,7 @@ export interface UpdateCredentialRecordRequest {
   registeredMobile?: string;
   password?: string;
   linkedMemberId?: string;
+  linkedId?: string;
   registrationDate?: string;
   twoFAStatus?: string;
   twoFAType?: string;

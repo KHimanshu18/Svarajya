@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { IncomeStore, IncomeType, Frequency, RiskLevel, FREQUENCIES } from "@/lib/incomeStore";
+import { IncomeStore, IncomeRecord, IncomeType, Frequency, RiskLevel, FREQUENCIES } from "@/lib/incomeStore";
 import { IncomeTypeChips } from "@/components/treasury/IncomeTypeChips";
 import { NumberInputRupee } from "@/components/treasury/NumberInputRupee";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
@@ -25,6 +25,8 @@ export default function AddIncomePage() {
     const [allocationMonths, setAllocationMonths] = useState<number | undefined>(undefined);
     const [creditedBank, setCreditedBank] = useState("");
     const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+    const [linkedFamilyMember, setLinkedFamilyMember] = useState("");
+    const [familyMembers, setFamilyMembers] = useState<Array<{ id: string; name: string; relation?: string }>>([]);
 
     useEffect(() => {
         const fetchBankAccounts = async () => {
@@ -37,6 +39,20 @@ export default function AddIncomePage() {
             }
         };
         void fetchBankAccounts();
+    }, []);
+
+    useEffect(() => {
+        const fetchFamilyMembers = async () => {
+            try {
+                const res = await fetch('/api/family');
+                const data = await res.json();
+                setFamilyMembers(data?.data || []);
+            } catch (err) {
+                console.error('Failed to fetch family members', err);
+            }
+        };
+
+        void fetchFamilyMembers();
     }, []);
 
     // Step 2 fields
@@ -96,6 +112,7 @@ export default function AddIncomePage() {
             // riskLevel will be saved in Step 2
             lastReviewedAt: Date.now(),
             creditedAccountId: creditedBank.trim() || undefined,
+            linkedFamilyMemberId: linkedFamilyMember.trim() || undefined,
         });
 
         setSavedRecordId(record.id);
@@ -223,12 +240,33 @@ export default function AddIncomePage() {
                                 <option value="" className="bg-slate-900">Select bank account</option>
                                 {bankAccounts.map(acc => (
                                     <option key={acc.id} value={acc.id} className="bg-slate-900">
-                                        {acc.nickname || acc.bankName} - {maskAccountNumber(acc.accountLast4)} (₹{acc.latestBalance?.toLocaleString("en-IN")})
+                                        {acc.bankName}
                                     </option>
                                 ))}
                             </select>
                             <p className="text-[10px] text-[var(--color-rajya-muted)] mt-1">
                                 🏦 Link the Pravah bank account where this income is credited.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="text-xs text-[var(--color-rajya-muted)] mb-3 block">
+                                Linked Family Member <span className="opacity-50">(Optional)</span>
+                            </label>
+                            <select
+                                value={linkedFamilyMember}
+                                onChange={e => setLinkedFamilyMember(e.target.value)}
+                                className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
+                            >
+                                <option value="" className="bg-slate-900">Select family member</option>
+                                {familyMembers.map(member => (
+                                    <option key={member.id} value={member.id} className="bg-slate-900">
+                                        {member.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[10px] text-[var(--color-rajya-muted)] mt-1">
+                                👪 Optionally associate this income source with a family member.
                             </p>
                         </div>
 

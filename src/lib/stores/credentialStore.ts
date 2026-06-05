@@ -41,6 +41,7 @@ export interface PortalRecord {
     registeredEmailId?: string;        // ContactPoint.id from Module 2
     registrationDate?: string;
     linkedFamilyMemberId?: string;     // FamilyMember.id from Module 1
+    linkedId?: string;                 // Cross-module record ID (bank account, policy, loan, tax portal, investment)
     passwordStorageMode: PasswordStorageMode;
     encryptedPassword?: EncryptedSecret;
     twoFAStatus?: TwoFAStatus;
@@ -49,15 +50,11 @@ export interface PortalRecord {
     lastReviewedDate?: string;
     // Bank-specific
     bankName?: string;                 // e.g. "HDFC Bank", "SBI"
-    linkedBankAccountId?: string;      // Module 6 bank account link
     // Tax-specific
     linkedBusinessEntity?: string;     // Business name for GST/MCA
     linkedCA?: string;                 // Chartered Accountant name
     // Insurance-specific
-    linkedPolicyId?: string;           // Module 8 policy link
     nomineeAwareness?: boolean;        // Does nominee know about access?
-    // Investment-specific
-    linkedInvestmentId?: string;       // Module 7 investment link
     // Subscription-specific
     renewalDate?: string;              // Next renewal date
     linkedAutoDebitBank?: string;      // Bank account for auto-debit
@@ -229,7 +226,15 @@ export const CredentialStore = {
         _portals.push(portal);
 
         if (typeof window !== 'undefined') {
-            const { id: _cid, ...payload } = portal;
+            const { id: _cid, linkedBankAccountId, linkedPolicyId, linkedLoanId, linkedTaxPortalId, linkedInvestmentId, ...rest } = portal as any;
+            const payload = {
+                ...rest,
+                portalName: portal.platformName,
+                portalType: portal.category,
+                portalUrl: portal.websiteUrl,
+                linkedId: portal.linkedId,
+            };
+
             fetch('/api/credentials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -252,10 +257,20 @@ export const CredentialStore = {
         _portals[idx] = { ..._portals[idx], ...patch, updatedAt: now() };
 
         if (typeof window !== 'undefined') {
+            const portal = _portals[idx];
+            const { id: _cid, linkedBankAccountId, linkedPolicyId, linkedLoanId, linkedTaxPortalId, linkedInvestmentId, ...rest } = portal as any;
+            const payload = {
+                ...rest,
+                portalName: portal.platformName,
+                portalType: portal.category,
+                portalUrl: portal.websiteUrl,
+                linkedId: portal.linkedId,
+            };
+
             fetch('/api/credentials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(_portals[idx])
+                body: JSON.stringify(payload)
             }).catch(e => console.warn("Credential sync err", e));
         }
 
@@ -443,14 +458,18 @@ export const CredentialStore = {
             if (!res.ok) return;
             const dbPortals = await res.json();
             if (!Array.isArray(dbPortals) || dbPortals.length === 0) return;
-            _portals = dbPortals.map((d: Record<string, unknown>) => ({
-                ...d,
-                registrationDate: d.registrationDate ? String(d.registrationDate).split('T')[0] : undefined,
-                lastReviewedDate: d.lastReviewedDate ? String(d.lastReviewedDate) : undefined,
-                renewalDate: d.renewalDate ? String(d.renewalDate).split('T')[0] : undefined,
-                createdAt: d.createdAt ? String(d.createdAt) : now(),
-                updatedAt: d.updatedAt ? String(d.updatedAt) : now(),
-            })) as PortalRecord[];
+            _portals = dbPortals.map((d: Record<string, unknown>) => {
+                const { linkedBankAccountId, linkedPolicyId, linkedLoanId, linkedTaxPortalId, linkedInvestmentId, ...rest } = d as any;
+                return {
+                    ...rest,
+                    linkedId: (d as any).linkedId || (d as any).linked_id || undefined,
+                    registrationDate: d.registrationDate ? String(d.registrationDate).split('T')[0] : undefined,
+                    lastReviewedDate: d.lastReviewedDate ? String(d.lastReviewedDate) : undefined,
+                    renewalDate: d.renewalDate ? String(d.renewalDate).split('T')[0] : undefined,
+                    createdAt: d.createdAt ? String(d.createdAt) : now(),
+                    updatedAt: d.updatedAt ? String(d.updatedAt) : now(),
+                };
+            }) as PortalRecord[];
         } catch (err) {
             console.warn("Failed to hydrate credentials", err);
         }

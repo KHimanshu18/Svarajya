@@ -22,9 +22,9 @@ const SECONDARY_TABS = [
     { id: "alerts-sec", label: "Alerts", icon: Bell, route: "/notifications" },
     { id: "emergency", label: "Emergency Access", icon: ShieldAlert, route: "/dwaar/portals/access" },
     { id: "backup", label: "Backup / Sync", icon: Cloud, route: "/vault" },
-    { id: "privacy", label: "Privacy", icon: Lock, route: "/rajya" },
-    { id: "settings", label: "Settings", icon: Settings, route: "/rajya" },
-    { id: "support", label: "Help & Support", icon: HelpCircle, route: "/rajya" },
+    // { id: "privacy", label: "Privacy", icon: Lock, route: "/rajya" },
+    // { id: "settings", label: "Settings", icon: Settings, route: "/rajya" },
+    // { id: "support", label: "Help & Support", icon: HelpCircle, route: "/rajya" },
 ];
 
 // Pages where the bottom nav should NOT appear (onboarding, splash, etc.)

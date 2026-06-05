@@ -272,7 +272,7 @@ export default function AddExpensePage() {
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                                 <option value="">Select account</option>
                                 {bankAccounts.map(a => (
-                                    <option key={a.id} value={a.id}>{a.bankName} - {a.accountLast4}</option>
+                                    <option key={a.id} value={a.id}>{a.bankName}</option>
                                 ))}
                             </select>
                         </div>

@@ -13,6 +13,7 @@ import { OnboardingStore } from "@/lib/onboardingStore";
 import { MasterPassphraseModal } from "@/components/credentials/MasterPassphraseModal";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 import { validateControlledEmail, validateIndianMobile } from "@/lib/contactValidation";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function AddPortalPage() {
     const router = useRouter();
@@ -39,6 +40,27 @@ export default function AddPortalPage() {
     // Family members
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
     const [linkedFamilyId, setLinkedFamilyId] = useState("");
+
+    // Cross-module linked records
+    const [linkedBankAccountId, setLinkedBankAccountId] = useState("");
+    const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+    const [bankLoading, setBankLoading] = useState(false);
+
+    const [linkedInvestmentId, setLinkedInvestmentId] = useState("");
+    const [investments, setInvestments] = useState<any[]>([]);
+    const [investLoading, setInvestLoading] = useState(false);
+
+    const [linkedInsuranceId, setLinkedInsuranceId] = useState("");
+    const [policies, setPolicies] = useState<any[]>([]);
+    const [policiesLoading, setPoliciesLoading] = useState(false);
+
+    const [linkedLoanId, setLinkedLoanId] = useState("");
+    const [loans, setLoans] = useState<any[]>([]);
+    const [loansLoading, setLoansLoading] = useState(false);
+
+    const [linkedTaxPortalId, setLinkedTaxPortalId] = useState("");
+    const [taxPortals, setTaxPortals] = useState<any[]>([]);
+    const [taxLoading, setTaxLoading] = useState(false);
 
     const [newMobile, setNewMobile] = useState("");
     const [newEmail, setNewEmail] = useState("");
@@ -131,6 +153,67 @@ export default function AddPortalPage() {
         loadData();
     }, []);
 
+    const toast = useToast();
+
+    // Fetch cross-module lists when entering step 2 for the relevant category
+    useEffect(() => {
+        if (step !== 2) return;
+
+        // Banks — use /api/bank which returns { accounts: [...] }
+        if (category === "bank") {
+            setBankLoading(true);
+            fetch('/api/bank')
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(json => setBankAccounts(json?.data?.accounts || json?.accounts || json?.data || json || []))
+                .catch(err => { console.error('Failed to load bank accounts', err); toast('Failed to load bank accounts', 'error'); })
+                .finally(() => setBankLoading(false));
+        }
+
+        // Investments/Demat — use succession assets and filter for type === 'investment'
+        if (category === 'investment' || category === 'demat') {
+            setInvestLoading(true);
+            fetch('/api/succession/assets')
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(json => {
+                    const assets = json?.data || json || [];
+                    const invs = Array.isArray(assets) ? assets.filter((a: any) => a.type === 'investment') : [];
+                    setInvestments(invs);
+                })
+                .catch(err => { console.error('Failed to load investments', err); toast('Failed to load investments', 'error'); })
+                .finally(() => setInvestLoading(false));
+        }
+
+        // Insurance — use /api/insurance which returns { policies: [...] }
+        if (category === 'insurance') {
+            setPoliciesLoading(true);
+            fetch('/api/insurance')
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(json => setPolicies(json?.data?.policies || json?.policies || json?.data || json || []))
+                .catch(err => { console.error('Failed to load policies', err); toast('Failed to load insurance policies', 'error'); })
+                .finally(() => setPoliciesLoading(false));
+        }
+
+        // Loans — /api/loans returns { loans: [...] }
+        if (category === 'loan') {
+            setLoansLoading(true);
+            fetch('/api/loans')
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(json => setLoans(json?.data?.loans || json?.loans || json?.data || json || []))
+                .catch(err => { console.error('Failed to load loans', err); toast('Failed to load loans', 'error'); })
+                .finally(() => setLoansLoading(false));
+        }
+
+        // Tax portals — use tax records endpoint (/api/tax/records)
+        if (category === 'tax') {
+            setTaxLoading(true);
+            fetch('/api/tax/records')
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(json => setTaxPortals(json?.data?.records || json?.records || json?.data || json || []))
+                .catch(err => { console.error('Failed to load tax portals', err); toast('Failed to load tax portals', 'error'); })
+                .finally(() => setTaxLoading(false));
+        }
+    }, [category, step, toast]);
+
     const handleAddMobile = () => {
         const result = validateIndianMobile(newMobile);
         if (!result.valid) {
@@ -222,6 +305,20 @@ export default function AddPortalPage() {
             };
         }
 
+        // Map selected linked ID based on category
+        let linkedId: string | undefined = undefined;
+        if (category === 'bank') {
+            linkedId = linkedBankAccountId && linkedBankAccountId !== 'skip' ? linkedBankAccountId : undefined;
+        } else if (category === 'insurance') {
+            linkedId = linkedInsuranceId && linkedInsuranceId !== 'skip' ? linkedInsuranceId : undefined;
+        } else if (category === 'loan') {
+            linkedId = linkedLoanId && linkedLoanId !== 'skip' ? linkedLoanId : undefined;
+        } else if (category === 'tax') {
+            linkedId = linkedTaxPortalId && linkedTaxPortalId !== 'skip' ? linkedTaxPortalId : undefined;
+        } else if (category === 'investment' || category === 'demat') {
+            linkedId = linkedInvestmentId && linkedInvestmentId !== 'skip' ? linkedInvestmentId : undefined;
+        }
+
         const savedPortal = CredentialStore.addPortal({
             platformName: platformName.trim(),
             category: category as PortalCategory,
@@ -233,6 +330,7 @@ export default function AddPortalPage() {
             registeredEmailId: registeredEmailId || undefined,
             registrationDate: registrationDate || undefined,
             linkedFamilyMemberId: linkedFamilyId || undefined,
+            linkedId,
             passwordStorageMode: passwordMode,
             encryptedPassword,
             twoFAStatus: twoFA,
@@ -592,12 +690,20 @@ export default function AddPortalPage() {
 
                         {/* ——— BANK-specific fields ——— */}
                         {category === "bank" && (
-                            <>
-                                <div className="space-y-2">
-                                    <label className="text-xs text-white/40">Linked Bank Account <span className="text-white/20">(Module 6)</span></label>
-                                    <p className="text-[10px] text-white/25">Bank account linking will be available after Module 6 setup.</p>
-                                </div>
-                            </>
+                            <div className="space-y-2">
+                                <label className="text-xs text-white/40">Linked Bank Account</label>
+                                <select value={linkedBankAccountId} onChange={e => setLinkedBankAccountId(e.target.value)}
+                                    className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                    <option value="">Select bank account</option>
+                                    {bankLoading && <option value="loading">Loading...</option>}
+                                    {!bankLoading && bankAccounts.length === 0 && <option value="skip">No records found — Skip / Add later</option>}
+                                    {!bankLoading && bankAccounts.map((b: any) => {
+                                        return <option key={b.id} value={b.id}>{b.bankName || b.bank || 'Bank'}</option>
+                                    })}
+                                    <option value="skip">Skip / Add later</option>
+                                </select>
+                                <p className="text-[10px] text-white/25">You can link an existing bank account from Module 6 or skip and add later.</p>
+                            </div>
                         )}
 
                         {/* ——— TAX-specific fields ——— */}
@@ -609,6 +715,32 @@ export default function AddPortalPage() {
                                         onChange={e => setLinkedBusinessEntity(e.target.value)}
                                         className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-400/60" />
                                 </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs text-white/40">Linked Tax Portal</label>
+                                    <select value={linkedTaxPortalId} onChange={e => setLinkedTaxPortalId(e.target.value)}
+                                        className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                        <option value="">Select tax portal</option>
+                                        {taxLoading && <option value="loading">Loading...</option>}
+                                        {!taxLoading && taxPortals.length === 0 && <option value="skip">No records found — Skip / Add later</option>}
+                                        {!taxLoading && taxPortals.map((t: any) => {
+                                            const isGstRecord = !!(t.gstin || t.gstNumber || (t.portalType || t.type || '').toString().toLowerCase().includes('gst'));
+                                            const isItrRecord = !!(t.filingType || t.financialYear || t.assessmentYear || (t.portalType || t.type || '').toString().toLowerCase().includes('itr'));
+                                            const itrYear = t.financialYear || t.assessmentYear || '';
+                                            const gstLabel = t.gstin || t.gstNumber || t.identifier || '';
+                                            const itrLabel = itrYear ? `ITR - AY ${itrYear}` : 'ITR';
+                                            const optionLabel = isGstRecord
+                                                ? `GST - ${gstLabel}`
+                                                : isItrRecord
+                                                    ? itrLabel
+                                                    : `${t.type || t.portalType || 'Tax'} ${t.identifier ? `- ${t.identifier}` : ''}`;
+
+                                            return <option key={t.id} value={t.id}>{optionLabel}</option>;
+                                        })}
+                                        <option value="skip">Skip / Add later</option>
+                                    </select>
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-xs text-white/40">Linked CA / Accountant <span className="text-white/20">(optional)</span></label>
                                     <input type="text" placeholder="e.g. CA Ramesh Kumar" value={linkedCA}
@@ -622,8 +754,20 @@ export default function AddPortalPage() {
                         {category === "insurance" && (
                             <>
                                 <div className="space-y-2">
-                                    <label className="text-xs text-white/40">Linked Policy <span className="text-white/20">(Module 8)</span></label>
-                                    <p className="text-[10px] text-white/25">Policy linking will be available after Module 8 setup.</p>
+                                    <label className="text-xs text-white/40">Linked Policy</label>
+                                    <select value={linkedInsuranceId} onChange={e => setLinkedInsuranceId(e.target.value)}
+                                        className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                        <option value="">Select policy</option>
+                                        {policiesLoading && <option value="loading">Loading...</option>}
+                                        {!policiesLoading && policies.length === 0 && <option value="skip">No records found — Skip / Add later</option>}
+                                    {!policiesLoading && policies.map((p: any) => {
+                                        const policyLabel = p.policyType || p.type || '';
+                                        const insurerLabel = p.insurerName || p.insurer || p.company || '';
+                                        return <option key={p.id} value={p.id}>{insurerLabel ? `${policyLabel} - ${insurerLabel}` : policyLabel}</option>;
+                                    })}
+                                        <option value="skip">Skip / Add later</option>
+                                    </select>
+                                    <p className="text-[10px] text-white/25">Link an insurance policy or skip and add later.</p>
                                 </div>
                                 <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
                                     <div>
@@ -641,8 +785,38 @@ export default function AddPortalPage() {
                         {/* ——— DEMAT/INVESTMENT-specific fields ——— */}
                         {(category === "demat" || category === "investment") && (
                             <div className="space-y-2">
-                                <label className="text-xs text-white/40">Linked Investment Account <span className="text-white/20">(Module 7)</span></label>
-                                <p className="text-[10px] text-white/25">Investment linking will be available after Module 7 setup.</p>
+                                <label className="text-xs text-white/40">Linked Investment <span className="text-white/20">(Module 7)</span></label>
+                                <select value={linkedInvestmentId} onChange={e => setLinkedInvestmentId(e.target.value)}
+                                    className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                    <option value="">Select investment</option>
+                                    {investLoading && <option value="loading">Loading...</option>}
+                                    {!investLoading && investments.length === 0 && <option value="skip">No records found — Skip / Add later</option>}
+                                    {!investLoading && investments.map((it: any) => (
+                                        <option key={it.id} value={it.id}>{`${it.type || it.investmentType || ''} • ${it.provider || it.broker || ''} • ${it.holdingName || it.name || ''}`}</option>
+                                    ))}
+                                    <option value="skip">Skip / Add later</option>
+                                </select>
+                                <p className="text-[10px] text-white/25">Link an investment record or skip and add later.</p>
+                            </div>
+                        )}
+
+                        {/* ——— LOAN-specific fields ——— */}
+                        {category === 'loan' && (
+                            <div className="space-y-2">
+                                <label className="text-xs text-white/40">Linked Loan Account</label>
+                                <select value={linkedLoanId} onChange={e => setLinkedLoanId(e.target.value)}
+                                    className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                                    <option value="">Select loan account</option>
+                                    {loansLoading && <option value="loading">Loading...</option>}
+                                    {!loansLoading && loans.length === 0 && <option value="skip">No records found — Skip / Add later</option>}
+                                    {!loansLoading && loans.map((L: any) => {
+                                        const loanLabel = L.loanType || L.type || '';
+                                        const lenderLabel = L.lenderName || L.lender || L.bank || '';
+                                        return <option key={L.id} value={L.id}>{lenderLabel ? `${loanLabel} - ${lenderLabel}` : loanLabel}</option>;
+                                    })}
+                                    <option value="skip">Skip / Add later</option>
+                                </select>
+                                <p className="text-[10px] text-white/25">Link an existing loan account or skip and add later.</p>
                             </div>
                         )}
 
