@@ -230,7 +230,7 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
         },
       });
       // Filter by decrypted account number
-      return accounts.find((a) => decryptNumber(a.accountNumber) === accountNumber) || null;
+        return accounts.find( (a) => a.accountNumber && decryptNumber(a.accountNumber) === accountNumber) || null;
     } catch (error) {
       console.error('[BankService] Error checking duplicate:', error);
       throw error;
@@ -240,18 +240,18 @@ class BankAccountService extends BaseService<BankAccount, CreateBankAccountInput
   /**
    * Soft delete bank account
    */
-  async delete(id: string, userId: string): Promise<BankAccount> {
+  async delete(id: string): Promise<BankAccount> {
     try {
       return await prisma.bankAccount.update({
-        where: { id, userId },
+        where: { id },
         data: {
           status: 'CLOSED',
           currentBalance: 0,
-        },
-      });
-    } catch (error) {
-      console.error('[BankService] Error deleting account:', error);
-      throw error;
+          },
+        });
+      } catch (error) {
+        console.error('[BankService] Error deleting account:', error);
+        throw error;
     }
   }
 }

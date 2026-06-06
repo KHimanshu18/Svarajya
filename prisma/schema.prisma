@@ -885,6 +885,7 @@ model ExpenseEntry {
   createdAt   DateTime @default(now())
   frequency   String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     BankAccount? @relation(fields: [accountId], references: [id])
 
   @@index([userId])
   @@index([date])
@@ -940,6 +941,7 @@ model BankAccount {
   notes             String?
   balanceHistory    BalanceHistory[]
   incomeStreams     IncomeStream[]
+  expenses          ExpenseEntry[]
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
