@@ -13,6 +13,8 @@ export interface CreateLoanAccountInput {
   startDate: Date | string;
   endDate?: Date | string | null;
   linkedPropertyId?: string | null;
+  paidFromAccountId?: string | null;
+  coBorrowerId?: string | null;
   documentId?: string | null;
   status?: string;
 }
@@ -28,6 +30,8 @@ export interface UpdateLoanAccountInput {
   startDate?: Date | string;
   endDate?: Date | string | null;
   linkedPropertyId?: string | null;
+  paidFromAccountId?: string | null;
+  coBorrowerId?: string | null;
   documentId?: string | null;
   status?: string;
 }

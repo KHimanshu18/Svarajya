@@ -33,6 +33,45 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
   }
 
   /**
+   * Calculate nomineeEligible based on relation, age, and dependent status
+   * Rules:
+   * - nomineeEligible = true if: spouse, parent, sibling, or child aged >= 18
+   * - nomineeEligible = false if: child aged < 18, dependent flag is true, or no DOB for children
+   */
+  private calculateNomineeEligibility(relation: string, dob?: Date | null, isDependent?: boolean): boolean {
+    // If dependent flag is true, not eligible
+    if (isDependent === true) {
+      return false;
+    }
+
+        const lowerRelation = relation.toLowerCase();
+
+        // Eligible relations: spouse, parent, sibling
+        const eligibleRelations = ['spouse', 'dampati', 'parent', 'pitri', 'matri', 'sibling', 'bhratri'];
+        if (eligibleRelations.some(keyword => lowerRelation.includes(keyword))) {
+            return true;
+        }
+
+        // For children, check age >= 18
+        const childKeywords = ['child', 'santat', 'putri', 'putra'];
+        if (childKeywords.some(keyword => lowerRelation.includes(keyword))) {
+      const today = new Date();
+      const birthDate = new Date(dob);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      return age >= 18;
+    }
+
+    // Default: not eligible
+    return false;
+  }
+
+  /**
    * Get all family members for a user with caching and selective fields
    */
   async getFamilyMembers(userid: string): Promise<Partial<FamilyMember>[]> {
@@ -74,10 +113,18 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
       // Invalidate cache for this user
       familyCache.delete(`family:${userid}`);
 
+      // Calculate nomineeEligible based on relation and age
+      const nomineeEligible = this.calculateNomineeEligibility(
+        data.relation,
+        data.dob,
+        data.isDependent
+      );
+
       return await prisma.familyMember.create({
         data: {
           ...data,
           userId: userid,
+          nomineeEligible, // Override with calculated value
         },
       });
     } catch (error) {
@@ -96,9 +143,20 @@ class FamilyService extends BaseService<FamilyMember, CreateFamilyMemberInput, U
         familyCache.delete(`family:${member.userId}`);
       }
 
+      // Determine current relation and dob (use updated values or existing ones)
+      const relation = data.relation || member?.relation || '';
+      const dob = data.dob !== undefined ? data.dob : member?.dob;
+      const isDependent = data.isDependent !== undefined ? data.isDependent : member?.isDependent;
+
+      // Calculate nomineeEligible based on updated relation and age
+      const nomineeEligible = this.calculateNomineeEligibility(relation, dob, isDependent);
+
       return await prisma.familyMember.update({
         where: { id },
-        data,
+        data: {
+          ...data,
+          nomineeEligible, // Override with calculated value
+        },
       });
     } catch (error) {
       console.error('[FamilyService] Error updating family member:', error);

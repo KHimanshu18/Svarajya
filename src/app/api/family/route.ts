@@ -44,16 +44,16 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
     const members = await familyService.getFamilyMembers(authContext.userId);
 
     const responses: FamilyMemberResponse[] = members.map((member) => ({
-      id: member.id,
-      userId: member.userId,
-      name: member.name,
-      relation: member.relation,
+      id: member.id!,
+      userId: member.userId!,
+      name: member.name!,
+      relation: member.relation!,
       dob: member.dob?.toISOString() || null,
-      isDependent: member.isDependent,
-      nomineeEligible: member.nomineeEligible,
-      accessLevel: member.accessLevel,
-      createdAt: member.createdAt.toISOString(),
-      updatedAt: member.updatedAt.toISOString(),
+      isDependent: member.isDependent ?? false,
+      nomineeEligible: member.nomineeEligible ?? false,
+      accessLevel: member.accessLevel || '',
+      createdAt: member.createdAt!.toISOString(),
+      updatedAt: member.updatedAt!.toISOString(),
     }));
 
     // Store in cache
@@ -69,6 +69,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
 /**
  * POST /api/family
  * Create or update family member - invalidates cache
+ * NOTE: nomineeEligible is calculated automatically based on relation, DOB, and isDependent
  */
 async function postHandler(request: NextRequest): Promise<NextResponse> {
   const authContext = getAuthContext(request);
@@ -98,24 +99,24 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
     let member;
 
     if ('id' in data && data.id) {
-      // Update existing
+      // Update existing (service will calculate nomineeEligible)
       member = await familyService.update(data.id, {
         name: data.name,
         relation: data.relation,
         dob: data.dob ? new Date(data.dob) : undefined,
         isDependent: data.isDependent,
-        nomineeEligible: data.nomineeEligible,
         accessLevel: data.accessLevel,
+        // nomineeEligible is calculated by the service
       });
     } else {
-      // Create new
+      // Create new (service will calculate nomineeEligible)
       member = await familyService.createForUser(authContext.userId, {
         name: data.name,
         relation: data.relation,
         dob: data.dob ? new Date(data.dob) : undefined,
         isDependent: data.isDependent,
-        nomineeEligible: data.nomineeEligible,
         accessLevel: data.accessLevel,
+        // nomineeEligible is calculated by the service
       });
     }
 

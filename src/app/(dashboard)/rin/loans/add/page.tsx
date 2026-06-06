@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Landmark, CreditCard, Calendar, Info } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -19,6 +19,9 @@ export default function AddLoanPage() {
     const router = useRouter();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
+    const [properties, setProperties] = useState<Array<{ id: string; propertyTitle: string; propertyType: string }>>([]);
+    const [bankAccounts, setBankAccounts] = useState<Array<{ id: string; bankName: string }>>([]);
+    const [familyMembers, setFamilyMembers] = useState<Array<{ id: string; name: string; relation?: string; nomineeEligible?: boolean }>>([]);
 
     const [formData, setFormData] = useState({
         type: "PERSONAL",
@@ -30,8 +33,48 @@ export default function AddLoanPage() {
         tenure: "",
         startDate: new Date().toISOString().split('T')[0],
         status: "ACTIVE",
-        linkedPropertyId: ""
+        linkedPropertyId: "",
+        paidFromAccountId: "",
+        coBorrowerId: ""
     });
+
+    // Fetch properties, bank accounts, and family members on mount
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch properties from Module 10
+                const propsRes = await fetch("/api/bhoomi/properties");
+                const propsData = await propsRes.json();
+                setProperties(propsData?.data?.properties || []);
+            } catch (err) {
+                console.error("Failed to fetch properties", err);
+            }
+
+            try {
+                // Fetch bank accounts from Module 6
+                const bankRes = await fetch("/api/bank");
+                const bankData = await bankRes.json();
+                setBankAccounts(bankData?.data?.accounts || []);
+            } catch (err) {
+                console.error("Failed to fetch bank accounts", err);
+            }
+
+            try {
+                // Fetch family members from Module 1
+                const familyRes = await fetch("/api/family");
+                const familyData = await familyRes.json();
+                // Filter for spouse, parent, and adult children (nomineeEligible = true)
+                const filtered = (familyData?.data || []).filter((member: any) => 
+                    member.nomineeEligible === true
+                );
+                setFamilyMembers(filtered);
+            } catch (err) {
+                console.error("Failed to fetch family members", err);
+            }
+        };
+
+        void fetchData();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -202,19 +245,61 @@ export default function AddLoanPage() {
                     </div>
                 </div>
 
-                {/* Home Loan specific */}
+                {/* Home Loan specific - Linked Property */}
                 {formData.type === 'HOME' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-4">
-                        <label className="text-xs text-white/40 uppercase tracking-widest font-semibold ml-1">Linked Property ID (Optional)</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. PROP-123"
+                        <label className="text-xs text-white/40 uppercase tracking-widest font-semibold ml-1">Linked Property (Optional)</label>
+                        <select
                             value={formData.linkedPropertyId}
                             onChange={(e) => setFormData({ ...formData, linkedPropertyId: e.target.value })}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors"
-                        />
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                        >
+                            <option value="" className="bg-slate-900">Select a property</option>
+                            {properties.map((prop) => (
+                                <option key={prop.id} value={prop.id} className="bg-slate-900">
+                                    {prop.propertyTitle || 'Unnamed Property'} ({prop.propertyType})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-white/40">Link this loan to a property from Module 10 (Bhoomi).</p>
                     </div>
                 )}
+
+                {/* Paid From Account (Optional) */}
+                <div className="space-y-2">
+                    <label className="text-xs text-white/40 uppercase tracking-widest font-semibold ml-1">Paid From Account (Optional)</label>
+                    <select
+                        value={formData.paidFromAccountId}
+                        onChange={(e) => setFormData({ ...formData, paidFromAccountId: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                    >
+                        <option value="" className="bg-slate-900">Select a bank account</option>
+                        {bankAccounts.map((acc) => (
+                            <option key={acc.id} value={acc.id} className="bg-slate-900">
+                                {acc.bankName}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-white/40">Select the bank account from which EMI is paid (Module 6).</p>
+                </div>
+
+                {/* Co-borrower (Optional) */}
+                <div className="space-y-2">
+                    <label className="text-xs text-white/40 uppercase tracking-widest font-semibold ml-1">Co-borrower (Optional)</label>
+                    <select
+                        value={formData.coBorrowerId}
+                        onChange={(e) => setFormData({ ...formData, coBorrowerId: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                    >
+                        <option value="" className="bg-slate-900">Select a co-borrower</option>
+                        {familyMembers.map((member) => (
+                            <option key={member.id} value={member.id} className="bg-slate-900">
+                                {member.name}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-white/40">Link a co-borrower from your family members (Module 1).</p>
+                </div>
 
                 <div className="pt-6">
                     <button

@@ -86,6 +86,8 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
       startDate: data.startDate,
       endDate: data.endDate,
       linkedPropertyId: data.linkedPropertyId,
+      paidFromAccountId: data.paidFromAccountId,
+      coBorrowerId: data.coBorrowerId,
       status: data.status || 'ACTIVE'
     });
 

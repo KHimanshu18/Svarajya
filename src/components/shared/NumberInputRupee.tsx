@@ -12,7 +12,7 @@ interface NumberInputRupeeProps {
     error?: string;
 }
 
-/** Input with â‚¹ prefix and live Indian comma formatting */
+/** Input with ₹ prefix and live Indian comma formatting */
 export function NumberInputRupee({ label, value, onChange, placeholder, optional, error }: NumberInputRupeeProps) {
     const [raw, setRaw] = useState(value > 0 ? value.toString() : "");
 
@@ -30,7 +30,7 @@ export function NumberInputRupee({ label, value, onChange, placeholder, optional
                 {label} {optional && <span className="opacity-50">(Optional)</span>}
             </label>
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-rajya-accent)] text-sm font-bold">â‚¹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-rajya-accent)] text-sm font-bold">₹</span>
                 <input
                     type="text"
                     inputMode="numeric"
@@ -41,7 +41,7 @@ export function NumberInputRupee({ label, value, onChange, placeholder, optional
                 />
             </div>
             {raw && <p className="text-[10px] text-[var(--color-rajya-muted)] mt-1">{displayValue}</p>}
-            {error && <p className="text-[10px] text-[var(--color-rajya-danger)] mt-1">âš  {error}</p>}
+            {error && <p className="text-[10px] text-[var(--color-rajya-danger)] mt-1">⚠ {error}</p>}
         </div>
     );
 }
