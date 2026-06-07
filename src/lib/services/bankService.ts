@@ -36,6 +36,8 @@ export interface CreateBankAccountInput {
   accountType: string;
   accountNumber?: string;  // Optional - encrypted if provided
   accountLast4: string;
+  // Adding joint account holder details
+  holders?: { id: string }[];
   nickname?: string;
   status?: string;
   openingBalance: number;

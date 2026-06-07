@@ -216,6 +216,9 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
         nickname: data.nickname,
         accountNumber: data.accountNumber || undefined,
         accountLast4: data.accountLast4,
+
+        holders: data.holders,
+        
         openingBalance: data.openingBalance || 0,
         currentBalance: data.currentBalance || 0,
         latestBalanceAsOf: data.latestBalanceAsOf ? new Date(data.latestBalanceAsOf) : new Date(),

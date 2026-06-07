@@ -29,8 +29,8 @@ model AdminUser {
   inviteToken             String?
   previousPassword        String?
   twoFactorRecoveryCodes  String?
-  twoFactorOtpExpiresAt   DateTime?                     @db.Timestamp(6)
   mobile                  String?
+  twoFactorOtpExpiresAt   DateTime?                     @db.Timestamp(6)
   auditLogs               AdminAuditLog[]
   sessions                AdminSession[]
   broadcasts              Broadcast[]
@@ -618,12 +618,12 @@ model ScheduledReport {
 }
 
 model User {
-  id                     String                @id @default(uuid())
-  email                  String?               @unique
-  phone                  String?               @unique
+  id                     String                  @id @default(uuid())
+  email                  String?                 @unique
+  phone                  String?                 @unique
   passwordHash           String?
   name                   String?
-  dob                    DateTime?             @db.Date
+  dob                    DateTime?               @db.Date
   gender                 String?
   panMasked              String?
   aadhaarMasked          String?
@@ -635,22 +635,22 @@ model User {
   occupationType         String?
   employerCompany        String?
   profileType            ProfileType
-  status                 UserStatus            @default(ACTIVE)
-  language               String                @default("en")
-  createdAt              DateTime              @default(now())
-  updatedAt              DateTime              @updatedAt
+  status                 UserStatus              @default(ACTIVE)
+  language               String                  @default("en")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
   lastActiveAt           DateTime?
   deviceInfo             Json?
   googleAccessToken      String?
-  googleLinked           Boolean               @default(false)
+  googleLinked           Boolean                 @default(false)
   googleRefreshToken     String?
   googleTokenExpiry      DateTime?
-  is_first_login         Boolean               @default(true)
+  is_first_login         Boolean                 @default(true)
   secondaryMobile        String?
   settings               Json?
   twoFactorRecoveryCodes String?
   twoFactorSecret        String?
-  authProvider           String?               @default("EMAIL")
+  authProvider           String?                 @default("EMAIL")
   activityEvents         ActivityEvent[]
   assetInventory         AssetInventory[]
   bankAccounts           BankAccount[]
@@ -659,14 +659,17 @@ model User {
   consentRecords         ConsentRecord[]
   credentials            CredentialRecord[]
   dataAccessLogs         DataAccessLog[]
+  dinRecords             DinRecord[]
   documentMeta           DocumentMeta[]
   education              Education[]
+  emailVerificationCodes EmailVerificationCode[]
   expenseCategories      ExpenseCategory[]
   expenses               ExpenseEntry[]
   familyMembers          FamilyMember[]
   gameRuns               GameRun[]
   gamificationState      GamificationState?
   goals                  Goal[]
+  gstRecords             GstRecord[]
   identityLinks          IdentityLink[]
   identityRecords        IdentityRecord[]
   incomeStreams          IncomeStream[]
@@ -676,14 +679,15 @@ model User {
   nomineeMapping         NomineeMapping[]
   notifications          Notification[]
   properties             PropertyAsset[]
-  taxRecords             TaxRecord[]
-  gstRecords             GstRecord[]
-  dinRecords             DinRecord[]
   quizAnswers            QuizAnswer[]
   rajyaScore             RajyaScore?
   reminders              Reminder[]
   subscriptions          Subscription[]
+  successionEmergency    SuccessionEmergency?
+  successionNominees     SuccessionNominee[]
+  successionWills        SuccessionWill?
   supportTickets         SupportTicket[]
+  taxRecords             TaxRecord[]
   tutorialCompletion     TutorialCompletion[]
   chapterProgress        UserChapterProgress[]
   cohorts                UserCohort[]
@@ -691,10 +695,6 @@ model User {
   moduleProgress         UserModuleProgress[]
   sessions               UserSession[]
   willStatus             WillStatus?
-  successionNominees     SuccessionNominee[]
-  successionWills        SuccessionWill?
-  successionEmergency    SuccessionEmergency?
-  emailVerificationCodes EmailVerificationCode[]
 
   @@index([email])
   @@index([phone])
@@ -704,13 +704,13 @@ model User {
 }
 
 model EmailVerificationCode {
-  id         String   @id @default(uuid())
-  userId     String
-  code       String
-  purpose    String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  purpose   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose])
   @@map("email_verification_codes")
@@ -736,21 +736,21 @@ model UserSession {
 }
 
 model FamilyMember {
-  id              String              @id @default(uuid())
-  userId          String
-  name            String
-  relation        String
-  dob             DateTime?           @db.Date
-  isDependent     Boolean             @default(false)
-  nomineeEligible Boolean             @default(true)
-  accessLevel     String              @default("VIEW")
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  education       Education[]
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomeStreams   IncomeStream[]
-  coveredBy       InsuranceCoverage[]
-  nomineeIn       NomineeMapping[]
+  id                 String              @id @default(uuid())
+  userId             String
+  name               String
+  relation           String
+  dob                DateTime?           @db.Date
+  isDependent        Boolean             @default(false)
+  nomineeEligible    Boolean             @default(true)
+  accessLevel        String              @default("VIEW")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  education          Education[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeStreams      IncomeStream[]
+  coveredBy          InsuranceCoverage[]
+  nomineeIn          NomineeMapping[]
   successionNominees SuccessionNominee[]
 
   @@index([userId])
@@ -833,6 +833,7 @@ model CredentialRecord {
   nomineeAwareness  Boolean?  @default(true)
   twoFAStatus       String?   @default("unknown")
   twoFAType         String?   @default("none")
+  linked_id         String?
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -862,8 +863,8 @@ model IncomeStream {
   tdsAmount         Float?
   familyMemberId    String?
   lastReviewedAt    DateTime?
-  familyMember      FamilyMember? @relation(fields: [familyMemberId], references: [id])
   creditedAccount   BankAccount?  @relation(fields: [creditedAccountId], references: [id])
+  familyMember      FamilyMember? @relation(fields: [familyMemberId], references: [id])
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -884,7 +885,6 @@ model ExpenseEntry {
   createdAt   DateTime @default(now())
   frequency   String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account     BankAccount? @relation(fields: [accountId], references: [id])
 
   @@index([userId])
   @@index([date])
@@ -939,9 +939,8 @@ model BankAccount {
   nickname          String?
   notes             String?
   balanceHistory    BalanceHistory[]
-  incomeStreams     IncomeStream[]
-  expenses          ExpenseEntry[]
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeStreams     IncomeStream[]
 
   @@index([userId])
   @@index([status])
@@ -1049,6 +1048,8 @@ model LoanAccount {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   documentId        String?
+  coBorrowerId      String?
+  paidFromAccountId String?
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -1069,14 +1070,14 @@ model PropertyAsset {
   linkedLoanId    String?
   rentalIncome    Float?
   annualCosts     Float?
-  vaultFileIds    Json?
-  secretFieldId   String?
   propertyTax     Float?
   vacancyMonths   Int       @default(0)
-  ownershipType   String
-  coOwners        Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  coOwners        Json?
+  ownershipType   String
+  secretFieldId   String?
+  vaultFileIds    Json?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -1085,12 +1086,12 @@ model PropertyAsset {
 }
 
 model TaxRecord {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid())
   userId                String
   assessmentYear        String
   financialYear         String
-  filingType            String?  @default("ITR")
-  status                String   @default("DRAFT")
+  filingType            String?   @default("ITR")
+  status                String    @default("DRAFT")
   grossIncome           Float?
   taxableIncome         Float?
   taxPaid               Float?
@@ -1099,9 +1100,9 @@ model TaxRecord {
   acknowledgementNumber String?
   documentUrl           String?
   notes                 String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -1109,23 +1110,23 @@ model TaxRecord {
 }
 
 model GstRecord {
-  id               String   @id @default(uuid())
-  userId           String
-  gstin            String
-  businessName     String?
-  registrationType String?
-  filingFrequency  String?
-  lastFilingDate   DateTime? @db.Date
-  nextDueDate      DateTime? @db.Date
-  gstr1Filed       Boolean?
-  gstr3bFiled      Boolean?
+  id                String    @id @default(uuid())
+  userId            String
+  gstin             String
+  businessName      String?
+  registrationType  String?
+  filingFrequency   String?
+  lastFilingDate    DateTime? @db.Date
+  nextDueDate       DateTime? @db.Date
+  gstr1Filed        Boolean?
+  gstr3bFiled       Boolean?
   annualReturnFiled Boolean?
-  status           String   @default("ACTIVE")
-  documentUrl      String?
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            String    @default("ACTIVE")
+  documentUrl       String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([gstin, userId])
   @@index([userId])
@@ -1134,22 +1135,22 @@ model GstRecord {
 }
 
 model DinRecord {
-  id                String   @id @default(uuid())
-  userId            String
-  dinNumber         String
-  companyName       String?
-  issueDate         DateTime? @db.Date
-  expiryDate        DateTime? @db.Date
-  dinKycStatus      String?
-  dscExpiryDate     DateTime? @db.Date
-  mcaFilingStatus   String?
-  directorSince     DateTime? @db.Date
-  status            String   @default("VALID")
-  documentUrl       String?
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String    @id @default(uuid())
+  userId          String
+  dinNumber       String
+  companyName     String?
+  issueDate       DateTime? @db.Date
+  expiryDate      DateTime? @db.Date
+  dinKycStatus    String?
+  dscExpiryDate   DateTime? @db.Date
+  mcaFilingStatus String?
+  directorSince   DateTime? @db.Date
+  status          String    @default("VALID")
+  documentUrl     String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([dinNumber, userId])
   @@index([userId])
@@ -1472,6 +1473,60 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
+model SuccessionNominee {
+  id              String       @id @default(uuid())
+  userId          String
+  assetType       String
+  assetId         String
+  nomineeId       String
+  nomineeName     String
+  relationship    String
+  sharePercentage Float        @default(100)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  nominee         FamilyMember @relation(fields: [nomineeId], references: [id])
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetType, assetId, nomineeId])
+  @@map("succession_nominees")
+}
+
+model SuccessionWill {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  willExists      Boolean   @default(false)
+  dateOfWill      DateTime? @db.Date
+  registered      Boolean   @default(false)
+  executorName    String?
+  executorContact String?
+  witnessNames    Json?
+  storageLocation String?
+  digitalCopyUrl  String?
+  cloudConsent    Boolean   @default(false)
+  secretHint      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("succession_wills")
+}
+
+model SuccessionEmergency {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  emergencyContactName    String?
+  emergencyContactPhone   String?
+  secondaryContactName    String?
+  secondaryContactPhone   String?
+  verificationMethod      String?
+  activationWaitingPeriod Int      @default(24)
+  assetAccessScope        Json?
+  lastUpdated             DateTime @default(now())
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("succession_emergency")
+}
+
 enum AdminRole {
   SUPER_ADMIN
   CONTENT_ADMIN
@@ -1641,58 +1696,4 @@ enum UserStatus {
   SUSPENDED
   DELETED
   PENDING_VERIFICATION
-}
-
-model SuccessionNominee {
-  id              String       @id @default(uuid())
-  userId          String
-  assetType       String
-  assetId         String
-  nomineeId       String
-  nomineeName     String
-  relationship    String
-  sharePercentage Float        @default(100)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nominee         FamilyMember @relation(fields: [nomineeId], references: [id])
-
-  @@unique([userId, assetType, assetId, nomineeId])
-  @@map("succession_nominees")
-}
-
-model SuccessionWill {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  willExists       Boolean  @default(false)
-  dateOfWill       DateTime? @db.Date
-  registered       Boolean  @default(false)
-  executorName     String?
-  executorContact  String?
-  witnessNames     Json?
-  storageLocation  String?
-  digitalCopyUrl   String?
-  cloudConsent     Boolean  @default(false)
-  secretHint       String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("succession_wills")
-}
-
-model SuccessionEmergency {
-  id                      String   @id @default(uuid())
-  userId                  String   @unique
-  emergencyContactName    String?
-  emergencyContactPhone   String?
-  secondaryContactName    String?
-  secondaryContactPhone   String?
-  verificationMethod      String?
-  activationWaitingPeriod Int      @default(24)
-  assetAccessScope        Json?
-  lastUpdated             DateTime @default(now())
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("succession_emergency")
 }

@@ -30,11 +30,48 @@ export default function AddBankAccount() {
     const [success, setSuccess] = useState(false);
     const [existingAccounts, setExistingAccounts] = useState<BankAccount[]>([]);
     const [saving, setSaving] = useState(false);
+    // Adding here the family members and joint accounts Holder
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [jointHolderId, setJointHolderId] = useState("");
+    // For fetching identity records
+    const [identityRecords, setIdentityRecords] = useState<any[]>([]);
+    const [linkedIdentityId, setLinkedIdentityId] = useState("");
+    // This is for fetching portal records
+    const [portalRecords, setPortalRecords] = useState<any[]>([]);
+    const [linkedPortalId, setLinkedPortalId] = useState("");
 
     useEffect(() => {
         fetchBankSummary()
             .then((summary) => setExistingAccounts(summary?.accounts || []))
             .catch(() => undefined);
+        fetch("/api/family")
+            .then((res) => res.json())
+            .then((data) => {
+                const members = data.data || data;
+                setFamilyMembers(members);
+            })
+            .catch(() => setFamilyMembers([]));
+        fetch("/api/identity")
+            .then((res) => res.json())
+            .then((data) => {
+                const records = data.data || data;
+                setIdentityRecords(records);
+            })
+            .catch(() => setIdentityRecords([]));
+        fetch("/api/credentials")
+            .then((res) => res.json())
+            .then((data) => {
+                console.log("PORTAL DATA:", data);
+
+                const records = data.data || data;
+                console.log("PORTAL RECORDS:", records);
+
+                setPortalRecords(records);
+            })
+            .catch((err) => {
+                console.error("PORTAL ERROR:", err);
+                setPortalRecords([]);
+            });
     }, []);
 
     const handleCheckPrefix = () => {
@@ -82,6 +119,12 @@ export default function AddBankAccount() {
                 accountType,
                 accountLast4: last4,
                 nickname: nickname || undefined,
+
+                holders: {
+                    jointHolderId: jointHolderId || null,
+                    linkedIdentityId: linkedIdentityId || null,
+                },
+
                 openingBalance: openBal,
                 currentBalance: currBal,
                 latestBalanceAsOf: balanceAsOf,
@@ -204,6 +247,69 @@ export default function AddBankAccount() {
                             </label>
                             <input type="text" value={nickname} onChange={e => { setNickname(e.target.value); handleCheckPrefix(); }} placeholder="Home Savings"
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50" />
+                        </div>
+
+                        {/* Joint Account Holder */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Joint Account Holder
+                            </label>
+
+                            <select
+                                value={jointHolderId}
+                                onChange={(e) => setJointHolderId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {familyMembers.map((member) => (
+                                    <option key={member.id} value={member.id}>
+                                        {member.name} ({member.relation})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* This is for linked Identity */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Linked Identity
+                            </label>
+
+                            <select
+                                value={linkedIdentityId}
+                                onChange={(e) => setLinkedIdentityId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {identityRecords.map((record) => (
+                                    <option key={record.id} value={record.id}>
+                                        {record.idType} ({record.numberMasked})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* the link related for Portal */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Linked Portal
+                            </label>
+
+                            <select
+                                value={linkedPortalId}
+                                onChange={(e) => setLinkedPortalId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {portalRecords.map((portal) => (
+                                    <option key={portal.id} value={portal.id}>
+                                        {portal.portalName} ({portal.portalType})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
