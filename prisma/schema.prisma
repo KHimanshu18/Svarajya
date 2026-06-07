@@ -880,6 +880,10 @@ model ExpenseEntry {
   category    String
   mode        String?
   accountId   String?
+
+  familyMemberId  String?
+  paidFromAccountId String?
+  
   description String?
   isRecurring Boolean  @default(false)
   createdAt   DateTime @default(now())
