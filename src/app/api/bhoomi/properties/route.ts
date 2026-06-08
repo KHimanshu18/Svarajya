@@ -59,6 +59,7 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
       purchaseDate: data.purchaseDate || null,
       purchasePrice: data.purchasePrice !== undefined && data.purchasePrice !== null && data.purchasePrice !== '' ? Number(data.purchasePrice) : undefined,
       loanId: data.loanId || null,
+      linkedInsuranceId: data.linkedInsuranceId || null,
       carryingCostsAnnual: data.carryingCostsAnnual ? Number(data.carryingCostsAnnual) : undefined,
       rentalIncomeAnnual: data.rentalIncomeAnnual ? Number(data.rentalIncomeAnnual) : undefined,
       vaultFileIds: data.vaultFileIds || null,

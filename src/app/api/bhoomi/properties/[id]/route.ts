@@ -25,6 +25,7 @@ async function handlePUT(request: NextRequest, { params }: { params: Promise<{ i
       purchaseDate: data.purchaseDate || null,
       purchasePrice: data.purchasePrice !== undefined && data.purchasePrice !== null && data.purchasePrice !== '' ? Number(data.purchasePrice) : undefined,
       loanId: data.loanId || null,
+      linkedInsuranceId: data.linkedInsuranceId || null,
       loanLinked: data.loanId ? true : undefined,
       carryingCostsAnnual: data.carryingCostsAnnual ? Number(data.carryingCostsAnnual) : undefined,
       rentalIncomeAnnual: data.rentalIncomeAnnual ? Number(data.rentalIncomeAnnual) : undefined,

@@ -16,6 +16,8 @@ interface SuccessionWill {
   executorContact: string;
   witnessNames: string[];
   digitalCopyUrl?: string;
+  digitalCopyName?: string;
+  linkedDocumentId?: string;
   lastSavedAt?: string;
 }
 
@@ -28,6 +30,8 @@ export default function WillPage() {
   const [witnessNames, setWitnessNames] = useState("");
   const [willExists, setWillExists] = useState(false);
   const [digitalCopyUrl, setDigitalCopyUrl] = useState("");
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [linkedDocumentId, setLinkedDocumentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +58,7 @@ export default function WillPage() {
           setWitnessNames((result.data.witnessNames || []).join(', '));
           setWillExists(result.data.willExists ?? false);
           setDigitalCopyUrl(result.data.digitalCopyUrl || '');
+          setLinkedDocumentId(result.data.linkedDocumentId || '');
         }
       } catch (error) {
         console.error('Failed to load will data', error);
@@ -65,6 +70,22 @@ export default function WillPage() {
 
     loadWill();
   }, [toast]);
+
+  useEffect(() => {
+    async function loadDocuments() {
+      try {
+        const response = await fetch('/api/documents', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok) {
+          setDocuments(result?.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to load documents', error);
+      }
+    }
+
+    loadDocuments();
+  }, []);
 
   const saveWill = async () => {
     if (!executorName.trim() || !executorContact.trim()) {
@@ -84,6 +105,7 @@ export default function WillPage() {
         executorContact: executorContact.trim(),
         witnessNames: witnessNames.split(',').map(name => name.trim()).filter(Boolean),
         digitalCopyUrl,
+        linkedDocumentId: linkedDocumentId || null,
       };
 
       const response = await fetch('/api/succession/will', {
@@ -205,6 +227,20 @@ export default function WillPage() {
                       )}
                     </div>
                   )}
+
+                  <div className="space-y-2 mt-4">
+                    <label className="text-sm text-slate-400 mb-1 block">Linked Document (Optional)</label>
+                    <select
+                      value={linkedDocumentId}
+                      onChange={(e) => setLinkedDocumentId(e.target.value)}
+                      className="w-full p-3 rounded-md bg-white/5 text-white border border-white/10"
+                    >
+                      <option value="">Select a document</option>
+                      {documents.map((doc: any) => (
+                        <option key={doc.id} value={doc.id}>{`${doc.docType || 'Document'} - ${doc.fileName || doc.title || doc.id}`}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>

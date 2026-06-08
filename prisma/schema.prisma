@@ -1069,9 +1069,10 @@ model PropertyAsset {
   purchaseAmount  Float?
   currentValue    Float?
   ownContribution Float?
-  linkedLoanId    String?
-  rentalIncome    Float?
-  annualCosts     Float?
+  linkedLoanId      String?
+  linkedInsuranceId String?
+  rentalIncome      Float?
+  annualCosts       Float?
   vaultFileIds    Json?
   secretFieldId   String?
   propertyTax     Float?
@@ -1675,6 +1676,7 @@ model SuccessionWill {
   witnessNames     Json?
   storageLocation  String?
   digitalCopyUrl   String?
+  linkedDocumentId String?
   cloudConsent     Boolean  @default(false)
   secretHint       String?
   createdAt        DateTime @default(now())

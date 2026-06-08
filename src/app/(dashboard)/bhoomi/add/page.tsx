@@ -28,11 +28,15 @@ export default function AddBhoomiPropertyPage() {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [loanId, setLoanId] = useState<string | null>(null);
+  const [linkedInsuranceId, setLinkedInsuranceId] = useState<string | null>(null);
   const [carryingCostsAnnual, setCarryingCostsAnnual] = useState('');
   const [rentalIncomeAnnual, setRentalIncomeAnnual] = useState('');
   const [secretFieldValue, setSecretFieldValue] = useState('');
   const [showSecretValue, setShowSecretValue] = useState(false);
   const [loans, setLoans] = useState<any[]>([]);
+  const [insurancePolicies, setInsurancePolicies] = useState<any[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [coOwners, setCoOwners] = useState<string[]>([]);
   const [vaultFileIds, setVaultFileIds] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -43,6 +47,25 @@ export default function AddBhoomiPropertyPage() {
       .then((r) => r.json())
       .then((j) => setLoans((j?.data && (j.data.loans || j.data)) || j.loans || []))
       .catch(() => setLoans([]));
+  }, []);
+
+  React.useEffect(() => {
+    fetch('/api/family')
+      .then((r) => r.json())
+      .then((j) => {
+        const members = j?.data || [];
+        // Filter for spouse, parents, adult children with nomineeEligible=true
+        const filtered = members.filter((m: any) => m.nomineeEligible === true);
+        setFamilyMembers(filtered);
+      })
+      .catch(() => setFamilyMembers([]));
+  }, []);
+
+  React.useEffect(() => {
+    fetch('/api/insurance')
+      .then((r) => r.json())
+      .then((j) => setInsurancePolicies((j?.data && (j.data.policies || j.data)) || j.policies || []))
+      .catch(() => setInsurancePolicies([]));
   }, []);
 
   const errors = useMemo(() => {
@@ -120,7 +143,7 @@ export default function AddBhoomiPropertyPage() {
     return ((rentalAmount - carryingAmount) / marketAmount) * 100;
   }, [marketValue, carryingCostsAnnual, rentalIncomeAnnual]);
 
-  const onFieldChange = (setter: (value: string) => void) => (value: string) => {
+  const onFieldChange = <T extends string | null>(setter: (value: T) => void) => (value: T) => {
     setter(value);
   };
 
@@ -147,8 +170,10 @@ export default function AddBhoomiPropertyPage() {
         purchasePrice: purchasePrice.trim() ? Number(purchasePrice) : undefined,
         purchaseDate: purchaseDate || null,
         loanId: loanId || null,
+        linkedInsuranceId: linkedInsuranceId || null,
         carryingCostsAnnual: carryingCostsAnnual.trim() ? Number(carryingCostsAnnual) : undefined,
         rentalIncomeAnnual: rentalIncomeAnnual.trim() ? Number(rentalIncomeAnnual) : undefined,
+        coOwners: coOwners.length > 0 ? coOwners : null,
         vaultFileIds,
         secretFieldId: secretFieldValue.trim() ? secretFieldValue.trim() : null,
       };
@@ -242,7 +267,14 @@ export default function AddBhoomiPropertyPage() {
                 <span className="text-sm text-slate-400 mb-2 block">Ownership</span>
                 <select
                   value={ownershipType}
-                  onChange={(e) => onFieldChange(setOwnershipType)(e.target.value)}
+                  onChange={(e) => {
+                    const newOwnershipType = e.target.value as typeof OWNERSHIP_TYPES[number];
+                    setOwnershipType(newOwnershipType);
+                    // Clear coOwners if switching to Solo
+                    if (newOwnershipType === 'Solo') {
+                      setCoOwners([]);
+                    }
+                  }}
                   className={`w-full rounded-3xl p-4 bg-slate-950 border text-white focus:outline-none focus:ring-2 focus:ring-amber-400/30 transition ${submitAttempted && errors.ownershipType ? 'border-rose-500/60' : 'border-white/10'}`}
                 >
                   {OWNERSHIP_TYPES.map((o) => (
@@ -282,7 +314,7 @@ export default function AddBhoomiPropertyPage() {
               </label>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-3">
               <label className="block">
                 <span className="text-sm text-slate-400 mb-2 block">Purchase date</span>
                 <input
@@ -302,11 +334,57 @@ export default function AddBhoomiPropertyPage() {
                 >
                   <option value="">None</option>
                   {loans.map((l) => (
-                    <option key={l.id} value={l.id}>{l.lenderName || l.type || l.id}</option>
+                    <option key={l.id} value={l.id}>{l.type && l.lenderName ? `${l.type} - ${l.lenderName}` : l.lenderName || l.type || l.id}</option>
                   ))}
                 </select>
               </label>
+              <label className="block">
+                <span className="text-sm text-slate-400 mb-2 block">Linked Insurance Policy (Optional)</span>
+                <select
+                  value={linkedInsuranceId ?? ''}
+                  onChange={(e) => onFieldChange(setLinkedInsuranceId)(e.target.value || null)}
+                  className="w-full rounded-3xl p-4 bg-slate-950 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/30 transition"
+                >
+                  <option value="">None</option>
+                  {insurancePolicies.map((policy) => (
+                    <option key={policy.id} value={policy.id}>{policy.type && policy.insurerName ? `${policy.type} - ${policy.insurerName}` : policy.insurerName || policy.type || policy.id}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">Link a Raksha insurance policy to this property.</p>
+              </label>
             </div>
+
+            {ownershipType === 'Co-owned' && (
+              <label className="block">
+                <span className="text-sm text-slate-400 mb-2 block">Co-owners</span>
+                <div className="space-y-2 max-h-48 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950 p-3">
+                  {familyMembers.length > 0 ? (
+                    familyMembers.map((member) => (
+                      <label key={member.id} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={coOwners.includes(member.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCoOwners([...coOwners, member.id]);
+                            } else {
+                              setCoOwners(coOwners.filter((id) => id !== member.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded accent-amber-400"
+                        />
+                        <span className="text-sm text-white">
+                          {member.name}{member.relation ? ` (${member.relation})` : ''}
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-400 py-2">No family members available</p>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Select family members who are co-owners of this property.</p>
+              </label>
+            )}
 
             <div className="grid gap-4 xl:grid-cols-2">
               <label className="block">
@@ -344,6 +422,32 @@ export default function AddBhoomiPropertyPage() {
                   {roiValue === null
                     ? 'Enter market value to calculate ROI'
                     : `${roiValue.toFixed(2)}% per year`}
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3">
+              <p className="text-xs text-amber-200/80 font-medium">💡 Tax Benefits (Awareness only)</p>
+              <ul className="mt-2 text-xs text-white/60 space-y-1">
+                <li>• Home loan interest may be eligible for Section 24(b) deduction</li>
+                <li>• Property tax paid can be claimed as deduction</li>
+                <li>• Consult your tax advisor for capital gains tax on property sale</li>
+              </ul>
+            </div>
+
+            {(loanId || Number(carryingCostsAnnual) > 0) && (
+              <div className="rounded-3xl bg-slate-950/80 border border-white/10 p-4 text-slate-100">
+                <p className="text-sm text-slate-400 font-semibold mb-2">Tax Benefits (Awareness only)</p>
+                <ul className="list-disc pl-5 space-y-2 text-sm text-slate-300">
+                  {loanId && (
+                    <li>You may be eligible for Section 24(b) tax deduction on home loan interest.</li>
+                  )}
+                  {Number(carryingCostsAnnual) > 0 && (
+                    <li>Property tax paid can be claimed as deduction.</li>
+                  )}
+                </ul>
+                <p className="mt-3 text-xs text-amber-200">
+                  <a href="/kar" className="underline">Visit Kar for a detailed tax checklist.</a>
                 </p>
               </div>
             )}

@@ -11,6 +11,7 @@ export interface CreateBhoomiPropertyInput {
   purchaseDate?: Date | string | null;
   purchasePrice?: number | null;
   loanId?: string | null;
+  linkedInsuranceId?: string | null;
   carryingCostsAnnual?: number | null;
   rentalIncomeAnnual?: number | null;
   vaultFileIds?: any;
@@ -26,6 +27,7 @@ export interface UpdateBhoomiPropertyInput {
   purchaseDate?: Date | string | null;
   purchasePrice?: number | null;
   loanId?: string | null;
+  linkedInsuranceId?: string | null;
   loanLinked?: boolean;
   carryingCostsAnnual?: number | null;
   rentalIncomeAnnual?: number | null;
@@ -55,6 +57,7 @@ class BhoomiService extends BaseService<PropertyAsset, CreateBhoomiPropertyInput
           currentValue: true,
           ownContribution: true,
           linkedLoanId: true,
+          linkedInsuranceId: true,
           rentalIncome: true,
           annualCosts: true,
           vaultFileIds: true,
@@ -87,6 +90,7 @@ class BhoomiService extends BaseService<PropertyAsset, CreateBhoomiPropertyInput
           currentValue: true,
           ownContribution: true,
           linkedLoanId: true,
+          linkedInsuranceId: true,
           rentalIncome: true,
           annualCosts: true,
           vaultFileIds: true,
@@ -116,6 +120,7 @@ class BhoomiService extends BaseService<PropertyAsset, CreateBhoomiPropertyInput
           purchaseAmount: data.purchasePrice ?? undefined,
           currentValue: data.marketValue ?? undefined,
           linkedLoanId: data.loanId ?? null,
+          linkedInsuranceId: data.linkedInsuranceId ?? null,
           rentalIncome: data.rentalIncomeAnnual ?? undefined,
           annualCosts: data.carryingCostsAnnual ?? undefined,
           vaultFileIds: data.vaultFileIds === undefined ? undefined : data.vaultFileIds,
@@ -141,6 +146,7 @@ class BhoomiService extends BaseService<PropertyAsset, CreateBhoomiPropertyInput
           purchaseAmount: data.purchasePrice ?? undefined,
           currentValue: data.marketValue ?? undefined,
           linkedLoanId: data.loanId ?? null,
+          linkedInsuranceId: data.linkedInsuranceId ?? null,
           rentalIncome: data.rentalIncomeAnnual ?? undefined,
           annualCosts: data.carryingCostsAnnual ?? undefined,
           vaultFileIds: data.vaultFileIds === undefined ? undefined : data.vaultFileIds,

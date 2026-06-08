@@ -73,6 +73,22 @@ async function handleGET(request: NextRequest) {
       });
     }
 
+    const loans = await prisma.loanAccount.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { id: true, type: true, lenderName: true, outstandingAmount: true },
+    });
+
+    for (const loan of loans) {
+      const key = `loan::${loan.id}`;
+      assets.push({
+        id: loan.id,
+        title: `${loan.type || 'Loan'} - ${loan.lenderName || 'Lender'}`,
+        type: 'loan',
+        nominee: (nomineeMap.get(key) || []).length > 0,
+        value: loan.outstandingAmount ?? 0,
+      });
+    }
+
     return successResponse(assets);
   } catch (error) {
     console.error('[Succession Assets GET]', error);
