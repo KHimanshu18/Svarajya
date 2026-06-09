@@ -345,7 +345,8 @@ export default function EducationPage() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen relative p-6 pb-24">
+        <div className="flex flex-col min-h-screen relative p-6 pb-24 max-w-5xl mx-auto w-full">
+        <div className="absolute inset-0 bg-[var(--color-rajya-card)]/50 border border-[var(--color-rajya-accent-dim)] rounded-2xl pointer-events-none -z-10 shadow-lg" />
             <div className="flex items-center gap-3 pt-8 mb-4">
                 <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0">
                     <ArrowLeft className="w-4 h-4 text-white/60" />

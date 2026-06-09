@@ -47,21 +47,25 @@ export function GlobalTopRightMenu() {
     };
 
     return (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 pointer-events-auto">
-            <button
-                onClick={handleToggleTheme}
-                className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-amber-400 hover:bg-white/10 transition-colors shadow-lg"
-                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button
-                onClick={handleLogout}
-                className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md border border-red-500/30 flex items-center justify-center text-red-500 hover:bg-red-500/10 transition-colors shadow-lg"
-                title="Log Out"
-            >
-                <LogOut className="w-4 h-4 ml-0.5" />
-            </button>
-        </div>
-    );
+        <div className="absolute top-3 right-4 z-50 flex items-center gap-1 pointer-events-auto">
+            <button
+                onClick={handleToggleTheme}
+                // Added m-0 to override any global button margins
+                className="m-0 w-8 h-8 p-0 rounded-full flex items-center justify-center transition-all shadow-sm backdrop-blur-md bg-white border border-gray-200 text-amber-500 hover:bg-gray-50 dark:bg-slate-900/60 dark:border-white/10 dark:text-amber-400 dark:hover:bg-white/10"
+                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+                {theme === "dark" ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+            </button>
+
+            <button
+                onClick={handleLogout}
+                // Added m-0 here as well
+                className="m-0 w-8 h-8 p-0 rounded-full flex items-center justify-center transition-all shadow-sm backdrop-blur-md bg-white border border-red-200 text-red-500 hover:bg-red-50 dark:bg-slate-900/60 dark:border-red-500/30 dark:text-red-500 dark:hover:bg-red-500/10"
+                title="Log Out"
+            >
+                {/* Removed the ml-0.5 class that was pushing this icon off-center */}
+                <LogOut className="w-4 h-4 shrink-0" />
+            </button>
+        </div>
+    );
 }

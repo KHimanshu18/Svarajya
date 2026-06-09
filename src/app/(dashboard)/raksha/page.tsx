@@ -42,12 +42,12 @@ export default function RakshaModule() {
     const hasLifeHealth = selectedPolicies.includes('term') && selectedPolicies.includes('health');
 
     return (
-        <div className="flex flex-col min-h-screen relative">
-            {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-amber-500/4 blur-[120px] rounded-full pointer-events-none" />
+        <div className="flex flex-col min-h-screen relative p-6 pb-24 lg:p-10 max-w-5xl mx-auto w-full">
+        {/* Background Card Base */}
+        <div className="absolute inset-0 bg-[var(--color-rajya-card)]/50 border border-[var(--color-rajya-accent-dim)] rounded-2xl pointer-events-none -z-10 shadow-lg" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/5 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-            <div className="relative z-10 flex flex-col flex-1 p-6 pb-28">
+        <div className="relative z-10 w-full">
                 {/* Header */}
                 <div className="flex items-center gap-3 pt-8 mb-6">
                     <button onClick={() => router.push("/rajya")} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center shrink-0 hover:bg-white/10 transition-colors">

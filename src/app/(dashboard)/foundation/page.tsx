@@ -211,8 +211,8 @@ export default function FoundationHub() {
     }, [toast]);
 
     return (
-        <div className="flex flex-col min-h-screen p-6 pb-24 relative">
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
+        <div className="flex flex-col min-h-screen p-6 pb-24 relative max-w-5xl mx-auto w-full">
+            <div className="absolute inset-0 bg-[var(--color-rajya-card)]/50 border border-[var(--color-rajya-accent-dim)] rounded-2xl pointer-events-none -z-10 shadow-lg" />
 
             <div className="relative z-10 flex flex-col min-h-screen">
                 {/* Header */}

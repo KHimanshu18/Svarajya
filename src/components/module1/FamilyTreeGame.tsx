@@ -35,6 +35,7 @@ const RELATION_OPTIONS = [
     "Other"
 ];
 const ROLE_OPTIONS = ["Viewer", "Executor", "Emergency-only", "None"];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAddMember, onRemoveMember, onEditMember, isSaving }: FamilyTreeProps) {
     const [isAdding, setIsAdding] = useState(false);
@@ -61,7 +62,6 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
     });
 
     const handleMobileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        // Remove any non-digit characters and limit to 10 digits
         const value = e.target.value.replace(/\D/g, "").slice(0, 10);
         setFormData(prev => ({ ...prev, phone: value }));
         setMobileError("");
@@ -74,8 +74,8 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
     }, []);
 
     const handleEmailBlur = useCallback(() => {
-        if (formData.email && !formData.email.endsWith("@gmail.com")) {
-            setEmailError("Only @gmail.com email addresses are allowed");
+        if (formData.email && !EMAIL_REGEX.test(formData.email)) {
+            setEmailError("Please enter a valid email address");
         }
     }, [formData.email]);
 
@@ -106,7 +106,6 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             return;
         }
 
-        // Year validation: only 4-digit years between 1900 and current year
         const yearPart = formData.dob.split('-')[0];
         if (yearPart.length !== 4) {
             setErrorMsg("Year must be exactly 4 digits.");
@@ -114,19 +113,16 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
         }
         const targetBirthYear = parseInt(yearPart);
 
-        // Mobile validation if provided
         if (formData.phone && formData.phone.length !== 10) {
             setMobileError("Mobile number must be exactly 10 digits");
             return;
         }
 
-        // Email validation if provided
-        if (formData.email && !formData.email.endsWith("@gmail.com")) {
-            setEmailError("Only @gmail.com email addresses are allowed");
+        if (formData.email && !EMAIL_REGEX.test(formData.email)) {
+            setEmailError("Please enter a valid email address");
             return;
         }
 
-        // Duplicate detection
         const isDuplicate = members.some(m => 
             (isEditing ? m.id !== editingMemberId : true) &&
             m.name.toLowerCase() === formData.name.toLowerCase() && 
@@ -137,11 +133,10 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             return;
         }
 
-        // Age/Date validations
         const currentYear = new Date().getFullYear();
         const today = new Date().toISOString().split("T")[0];
         if (formData.dob > today) {
-            setErrorMsg("Date of Birth cannot be in the future.");
+            setErrorMsg("Date of birth cannot be in the future.");
             return;
         }
 
@@ -190,7 +185,6 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
     }, [formData, members, onAddMember, onEditMember, isEditing, editingMemberId]);
 
     useLayoutEffect(() => {
-        // Clear refs for members no longer present to avoid drawing to stale DOM elements
         const currentIds = new Set(members.map(m => m.id));
         Object.keys(memberRefs.current).forEach(id => {
             if (!currentIds.has(id)) {
@@ -198,10 +192,8 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             }
         });
 
-        // Reset lines immediately to avoid seeing old lines during transition
         setLines([]);
 
-        // Small delay to ensure DOM updates (especially AnimatePresence exits)
         const timer = setTimeout(() => {
             const cont = containerRef.current;
             const center = centerRef.current;
@@ -225,7 +217,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
             });
 
             setLines(newLines);
-        }, 100); // 100ms delay to allow framer-motion animations to settle
+        }, 100);
 
         const handleResize = () => {
             const cont = containerRef.current;
@@ -261,7 +253,6 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
 
             {/* Visual Tree Display */}
             <div ref={containerRef} className="relative min-h-[300px] flex flex-col items-center justify-center bg-black/20 rounded-2xl border border-white/5 p-6 overflow-hidden">
-                {/* Background Mandala Hint */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
                     <div className="w-64 h-64 border-[0.5px] border-[var(--color-rajya-accent)] rounded-full animate-[spin_60s_linear_infinite]" />
                     <div className="absolute w-48 h-48 border-[0.5px] border-[var(--color-rajya-accent)] rounded-full animate-[spin_45s_reverse_linear_infinite]" />
@@ -273,7 +264,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                     <span className="text-xs font-bold uppercase tracking-widest block text-center">Adhipati</span>
                 </div>
 
-                {/* Family Nodes Container - Grid layout: 5 per row on large screens */}
+                {/* Family Nodes Container */}
                 <div className="z-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
                     <AnimatePresence>
                         {members.length === 0 && !isAdding && (
@@ -326,7 +317,6 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                     </AnimatePresence>
                 </div>
 
-                {/* Connection Lines simulation */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none -z-10">
                     {lines.map((ln, idx) => (
                         <line
@@ -355,7 +345,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                     setIsEditing(false);
                                     setFormData({ name: "", relationship: "Spouse (Dampati)", dob: "", phone: "", email: "", dependent: false, nomineeEligible: true, accessRole: "None" });
                                 }}
-                                className="w-full border border-dashed border-[var(--color-rajya-accent-dim)] hover:border-[var(--color-rajya-accent)] text-[var(--color-rajya-muted)] hover:text-[var(--color-rajya-accent)] py-4 rounded-2xl flex items-center justify-center gap-2 transition-all transition-colors group bg-white/5"
+                                className="w-full border border-dashed border-[var(--color-rajya-accent-dim)] hover:border-[var(--color-rajya-accent)] text-[var(--color-rajya-muted)] hover:text-[var(--color-rajya-accent)] py-4 rounded-2xl flex items-center justify-center gap-2 transition-all group bg-white/5"
                             >
                                 <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                 <span>Forge New Link (Max 5)</span>
@@ -415,7 +405,7 @@ export const FamilyTreeGame = React.memo(function FamilyTreeGame({ members, onAd
                                 <div className="space-y-1">
                                     <input
                                         type="email"
-                                        placeholder="Email ID (@gmail.com)"
+                                        placeholder="Email address"
                                         value={formData.email}
                                         onChange={handleEmailChange}
                                         onBlur={handleEmailBlur}

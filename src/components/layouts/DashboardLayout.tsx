@@ -24,10 +24,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <DesktopRightPanel />
             </div>
 
-            {/* Mobile: existing layout unchanged */}
-            <div className="lg:hidden">
+            {/* Mobile: Patched scrolling and navigation bar clipping bugs */}
+            <div className="lg:hidden flex flex-col min-h-screen w-full bg-[var(--color-rajya-bg)]">
                 <GlobalTopRightMenu />
-                {children}
+                
+                {/* Modified: Added a flex-1 main container with independent vertical scrolling and bottom buffer */}
+                <main className="flex-1 w-full overflow-y-auto pb-24">
+                    {children}
+                </main>
+                
                 <BottomNav />
             </div>
         </>

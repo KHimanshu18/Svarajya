@@ -57,8 +57,26 @@ export default function DOBStep() {
 
     const handleContinue = () => {
         if (!dob) { setError("Please enter your date of birth."); return; }
-        const age = new Date().getFullYear() - new Date(dob).getFullYear();
-        if (age < 18) { setError("This version supports users aged 18 and above."); return; }
+
+        const selectedDob = new Date(dob);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (selectedDob.getTime() > today.getTime()) {
+            setError("Date of birth cannot be in the future.");
+            return;
+        }
+
+        const yearDiff = today.getFullYear() - selectedDob.getFullYear();
+        const monthDiff = today.getMonth() - selectedDob.getMonth();
+        const dayDiff = today.getDate() - selectedDob.getDate();
+        const age = monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0) ? yearDiff : yearDiff - 1;
+
+        if (age < 18) {
+            setError("This version supports users aged 18 and above.");
+            return;
+        }
+
         setError("");
         OnboardingStore.set({ dob, lifePhase });
 

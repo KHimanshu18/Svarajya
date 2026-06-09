@@ -26,23 +26,27 @@ export default function Submodule1B() {
             const response = await fetch('/api/family', { cache: 'no-store' });
             if (response.ok) {
                 const json = await response.json();
-                // Handle both response formats: { data: [...] } or just [...]
                 const profileData = json?.data || json;
 
                 if (Array.isArray(profileData)) {
-                    const loadedMembers = profileData.map((member: any) => ({
-                        id: member.id,
-                        name: member.name || "",
-                        relationship: member.relation || "Other",
-                        dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : "",
-                        phone: member.phone || "",
-                        email: member.email || "",
-                        dependent: member.isDependent === true,
-                        nomineeEligible: member.nomineeEligible ?? true,
-                        accessRole: member.accessLevel === "write" ? "Executor" :
-                            member.accessLevel === "read" ? "Viewer" :
-                                member.accessLevel === "emergency" ? "Emergency-only" : "None",
-                    }));
+                    const loadedMembers: FamilyMember[] = profileData.map((member: any) => {
+                        const accessRole: FamilyMember["accessRole"] =
+                            member.accessLevel === "write" ? "Executor" :
+                                member.accessLevel === "read" ? "Viewer" :
+                                    member.accessLevel === "emergency" ? "Emergency-only" : "None";
+
+                        return {
+                            id: String(member.id),
+                            name: member.name || "",
+                            relationship: member.relation || "Other",
+                            dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : "",
+                            phone: member.phone || "",
+                            email: member.email || "",
+                            dependent: member.isDependent === true,
+                            nomineeEligible: member.nomineeEligible ?? true,
+                            accessRole,
+                        };
+                    });
 
                     console.log("Synced members from DB:", loadedMembers);
                     setMembers(loadedMembers);
@@ -82,9 +86,9 @@ export default function Submodule1B() {
             return;
         }
 
-        // Email validation (@gmail.com)
-        if (memberData.email && !memberData.email.endsWith("@gmail.com")) {
-            toast("Email must be @gmail.com", "error");
+        // FIX (Bug 8): Swapped restrictive .endsWith logic with standard secure email test
+        if (memberData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberData.email)) {
+            toast("Please enter a valid email address.", "error");
             return;
         }
 
@@ -136,9 +140,9 @@ export default function Submodule1B() {
             return;
         }
 
-        // Email validation (@gmail.com)
-        if (memberData.email && !memberData.email.endsWith("@gmail.com")) {
-            toast("Email must be @gmail.com", "error");
+        // FIX (Bug 8): Clean domain parsing setup applied to editing updates too
+        if (memberData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberData.email)) {
+            toast("Please enter a valid email address.", "error");
             return;
         }
 
@@ -198,13 +202,11 @@ export default function Submodule1B() {
 
             if (!response.ok) {
                 const error = await response.json();
-                // If API fails, refresh to restore correct state
                 await fetchFamilyMembers();
                 throw new Error(error.message || "Failed to delete member");
             }
 
             toast("Family member removed successfully", "success");
-            // Final sync with database
             await fetchFamilyMembers();
         } catch (error) {
             console.error("Delete failed:", error);
@@ -240,8 +242,8 @@ export default function Submodule1B() {
 
     if (isLoading && step === "tutorial") {
         return (
-            <div className="flex flex-col min-h-screen relative p-6">
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
+            <div className="flex flex-col min-h-screen relative p-6 max-w-5xl mx-auto w-full">
+                <div className="absolute inset-0 bg-[var(--color-rajya-card)]/50 border border-[var(--color-rajya-accent-dim)] rounded-2xl pointer-events-none -z-10 shadow-lg" />
                 <div className="relative z-10 flex items-center justify-center min-h-screen">
                     <div className="text-amber-400 text-center">
                         <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -252,9 +254,10 @@ export default function Submodule1B() {
         );
     }
 
+    // FIX (Bug 15 Sizing Parity): Replaced full viewport styles with structural container dimensions
     return (
-        <div className="flex flex-col min-h-screen relative p-6">
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a1628] to-slate-950 pointer-events-none" />
+        <div className="flex flex-col min-h-screen relative p-6 max-w-5xl mx-auto w-full">
+            <div className="absolute inset-0 bg-[var(--color-rajya-card)]/50 border border-[var(--color-rajya-accent-dim)] rounded-2xl pointer-events-none -z-10 shadow-lg" />
 
             <div className="relative z-10">
                 {/* Header */}
@@ -320,18 +323,6 @@ export default function Submodule1B() {
                                 onRemoveMember={handleRemoveMember}
                                 onEditMember={handleEditMember}
                             />
-
-                            <div className="pt-8">
-                                <button
-                                    onClick={handleSealMandal}
-                                    className="w-full bg-amber-400 text-black font-semibold py-4 rounded-xl text-sm hover:bg-amber-300 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    {isLoading ? (
-                                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                    ) : null}
-                                    Save & Continue ({members.length}/5 members)
-                                </button>
-                            </div>
                         </motion.div>
                     )}
 

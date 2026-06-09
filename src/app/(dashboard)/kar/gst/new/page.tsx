@@ -35,6 +35,7 @@ export default function NewGstPage() {
   const [form, setForm] = useState<Partial<GstForm>>({});
   const [saving, setSaving] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const errors = useMemo(() => {
     const fieldErrors: Record<string, string> = {};
@@ -69,6 +70,8 @@ export default function NewGstPage() {
       fieldErrors.nextDueDate = "Next due date is required.";
     } else if (!isValidDate(form.nextDueDate)) {
       fieldErrors.nextDueDate = "Enter a valid date.";
+    } else if (form.nextDueDate < new Date().toISOString().split("T")[0]) {
+      fieldErrors.nextDueDate = "Next due date cannot be in the past.";
     }
 
     if (!form.gstr1Filed) {
@@ -93,7 +96,7 @@ export default function NewGstPage() {
   const invalidFieldKeys = Object.keys(errors);
   const hasErrors = invalidFieldKeys.length > 0;
   const isFormValid = !hasErrors;
-  const showErrors = submitAttempted || Object.values(form).some((value) => value !== undefined && value !== "");
+  const showErrors = submitAttempted;
 
   function onUploaded(url: string) {
     setForm((f) => ({ ...(f || {}), documentUrl: url }));
@@ -141,9 +144,10 @@ export default function NewGstPage() {
               placeholder="15-character GSTIN"
               value={form.gstin || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstin: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.gstin ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, gstin: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.gstin) && errors.gstin ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {showErrors && errors.gstin && <p className="text-xs text-rose-400 mt-1">{errors.gstin}</p>}
+            {(submitAttempted || touched.gstin) && errors.gstin && <p className="text-xs text-rose-400 mt-1">{errors.gstin}</p>}
           </div>
 
           <div>
@@ -152,9 +156,10 @@ export default function NewGstPage() {
               placeholder="Business name"
               value={form.businessName || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), businessName: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.businessName ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, businessName: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.businessName) && errors.businessName ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {showErrors && errors.businessName && <p className="text-xs text-rose-400 mt-1">{errors.businessName}</p>}
+            {(submitAttempted || touched.businessName) && errors.businessName && <p className="text-xs text-rose-400 mt-1">{errors.businessName}</p>}
           </div>
 
           <div>
@@ -162,13 +167,14 @@ export default function NewGstPage() {
             <select
               value={form.filingFrequency || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), filingFrequency: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.filingFrequency ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, filingFrequency: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.filingFrequency) && errors.filingFrequency ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select filing frequency</option>
               <option value="Monthly">Monthly</option>
               <option value="Quarterly">Quarterly</option>
             </select>
-            {showErrors && errors.filingFrequency && <p className="text-xs text-rose-400 mt-1">{errors.filingFrequency}</p>}
+            {(submitAttempted || touched.filingFrequency) && errors.filingFrequency && <p className="text-xs text-rose-400 mt-1">{errors.filingFrequency}</p>}
           </div>
 
           <div>
@@ -177,9 +183,10 @@ export default function NewGstPage() {
               type="date"
               value={form.lastFilingDate || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), lastFilingDate: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.lastFilingDate ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, lastFilingDate: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.lastFilingDate) && errors.lastFilingDate ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {showErrors && errors.lastFilingDate && <p className="text-xs text-rose-400 mt-1">{errors.lastFilingDate}</p>}
+            {(submitAttempted || touched.lastFilingDate) && errors.lastFilingDate && <p className="text-xs text-rose-400 mt-1">{errors.lastFilingDate}</p>}
           </div>
 
           <div>
@@ -187,10 +194,12 @@ export default function NewGstPage() {
             <input
               type="date"
               value={form.nextDueDate || ''}
+              min={new Date().toISOString().split("T")[0]}
               onChange={(e) => setForm((f) => ({ ...(f || {}), nextDueDate: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.nextDueDate ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, nextDueDate: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.nextDueDate) && errors.nextDueDate ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {showErrors && errors.nextDueDate && <p className="text-xs text-rose-400 mt-1">{errors.nextDueDate}</p>}
+            {(submitAttempted || touched.nextDueDate) && errors.nextDueDate && <p className="text-xs text-rose-400 mt-1">{errors.nextDueDate}</p>}
           </div>
 
           <div>
@@ -198,13 +207,14 @@ export default function NewGstPage() {
             <select
               value={form.gstr1Filed || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr1Filed: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.gstr1Filed ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, gstr1Filed: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.gstr1Filed) && errors.gstr1Filed ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
-            {showErrors && errors.gstr1Filed && <p className="text-xs text-rose-400 mt-1">{errors.gstr1Filed}</p>}
+            {(submitAttempted || touched.gstr1Filed) && errors.gstr1Filed && <p className="text-xs text-rose-400 mt-1">{errors.gstr1Filed}</p>}
           </div>
 
           <div>
@@ -212,13 +222,14 @@ export default function NewGstPage() {
             <select
               value={form.gstr3bFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr3bFiled: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.gstr3bFiled ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, gstr3bFiled: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.gstr3bFiled) && errors.gstr3bFiled ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
-            {showErrors && errors.gstr3bFiled && <p className="text-xs text-rose-400 mt-1">{errors.gstr3bFiled}</p>}
+            {(submitAttempted || touched.gstr3bFiled) && errors.gstr3bFiled && <p className="text-xs text-rose-400 mt-1">{errors.gstr3bFiled}</p>}
           </div>
 
           <div>
@@ -226,13 +237,14 @@ export default function NewGstPage() {
             <select
               value={form.annualReturnFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), annualReturnFiled: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.annualReturnFiled ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, annualReturnFiled: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.annualReturnFiled) && errors.annualReturnFiled ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
-            {showErrors && errors.annualReturnFiled && <p className="text-xs text-rose-400 mt-1">{errors.annualReturnFiled}</p>}
+            {(submitAttempted || touched.annualReturnFiled) && errors.annualReturnFiled && <p className="text-xs text-rose-400 mt-1">{errors.annualReturnFiled}</p>}
           </div>
 
           <div>
@@ -240,13 +252,14 @@ export default function NewGstPage() {
             <select
               value={form.status || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), status: e.target.value }))}
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.status ? 'border-rose-500/60' : 'border-white/10'}`}
+              onBlur={() => setTouched((prev) => ({ ...prev, status: true }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${(submitAttempted || touched.status) && errors.status ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            {showErrors && errors.status && <p className="text-xs text-rose-400 mt-1">{errors.status}</p>}
+            {(submitAttempted || touched.status) && errors.status && <p className="text-xs text-rose-400 mt-1">{errors.status}</p>}
           </div>
 
           <div className="rounded-2xl p-3 bg-white/5">

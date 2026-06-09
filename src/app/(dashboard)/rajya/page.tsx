@@ -204,7 +204,7 @@ export default function Dashboard() {
                 )}
 
                 <div className="mb-6 relative z-10">
-                    <p className="text-[10px] text-[var(--color-rajya-muted)]/50 uppercase tracking-wider mb-2">🎓 Getting Started</p>
+                    <p className="text-xs md:text-sm tracking-wider text-[var(--color-rajya-muted)]/50 uppercase mb-2">🎓 Getting Started</p>
                     <VideoTutorialPlaceholder youtubeId="iWsQY6Ha4OE" label="Complete guide to managing your personal finances" />
                 </div>
 
