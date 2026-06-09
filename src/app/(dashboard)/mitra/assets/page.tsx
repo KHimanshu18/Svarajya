@@ -371,7 +371,7 @@ export default function AssetNomineeDashboard() {
                                     >
                                         {eligibleNominees.map(m => (
                                             <option key={m.id} value={m.id} className="bg-slate-950 text-white">
-                                                {m.name} ({m.relation})
+                                                {m.name}
                                             </option>
                                         ))}
                                     </select>
