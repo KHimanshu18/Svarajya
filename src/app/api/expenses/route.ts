@@ -43,6 +43,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       category: exp.category,
       mode: exp.mode,
       accountId: exp.accountId,
+      familyMemberId: exp.familyMemberId || null,
       description: exp.description,
       isRecurring: exp.isRecurring,
       createdAt: exp.createdAt.toISOString(),
@@ -83,6 +84,8 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
 
     let expense;
 
+    const familyMemberId = data.familyMemberId ?? data.linkedFamilyMemberId;
+
     if ('id' in data && data.id) {
       // Update existing
       expense = await expenseService.update(data.id, {
@@ -91,6 +94,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         category: data.category,
         mode: data.mode,
         accountId: data.accountId,
+        familyMemberId: familyMemberId ?? undefined,
         description: data.description,
         isRecurring: data.isRecurring,
       });
@@ -102,6 +106,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         category: data.category,
         mode: data.mode,
         accountId: data.accountId,
+        familyMemberId: familyMemberId ?? undefined,
         description: data.description,
         isRecurring: data.isRecurring,
       });
@@ -115,6 +120,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       category: expense.category,
       mode: expense.mode,
       accountId: expense.accountId,
+      familyMemberId: expense.familyMemberId || null,
       description: expense.description,
       isRecurring: expense.isRecurring,
       createdAt: expense.createdAt.toISOString(),

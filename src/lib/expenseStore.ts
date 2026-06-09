@@ -199,6 +199,7 @@ export const ExpenseStore = {
                     frequency: entry.frequency,
                     description: entry.description,
                     accountId: entry.accountId,
+                    linkedFamilyMemberId: entry.linkedFamilyMemberId,
                 })
             }).then(async (res) => {
                 if (res.ok) {
@@ -230,6 +231,7 @@ export const ExpenseStore = {
                     frequency: entry.frequency,
                     description: entry.description,
                     accountId: entry.accountId,
+                    linkedFamilyMemberId: entry.linkedFamilyMemberId,
                 })
             }).catch(e => console.warn('Expense update sync err', e));
         }

@@ -8,6 +8,7 @@ export interface CreateExpenseEntryInput {
   category: string;
   mode?: string;
   accountId?: string;
+  familyMemberId?: string | null;
   description?: string;
   isRecurring?: boolean;
 }
@@ -18,6 +19,7 @@ export interface UpdateExpenseEntryInput {
   category?: string;
   mode?: string;
   accountId?: string;
+  familyMemberId?: string | null;
   description?: string;
   isRecurring?: boolean;
 }

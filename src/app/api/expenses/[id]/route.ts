@@ -17,9 +17,11 @@ async function putHandler(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const data = await request.json();
+    const familyMemberId = data.familyMemberId ?? data.linkedFamilyMemberId;
     const updated = await expenseService.update(id, {
       ...data,
       date: data.date ? new Date(data.date) : undefined,
+      familyMemberId: familyMemberId ?? undefined,
     });
     return successResponse(updated);
   } catch (error) {
