@@ -194,12 +194,25 @@ export default function AddPortalPage() {
     const handleSave = async () => {
         if (!loginId.trim()) { setError("Login ID is required."); return; }
 
-        if (registrationDate && renewalDate) {
-            if (new Date(renewalDate) < new Date(registrationDate)) {
-                setError("Renewal date cannot be before registration date.");
-                return;
-            }
+        if (registrationDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const selectedRegistrationDate = new Date(registrationDate);
+            selectedRegistrationDate.setHours(0, 0, 0, 0);
+
+            if (selectedRegistrationDate > today) {
+            setError("Registration date cannot be in the future.");
+            return;
         }
+    }
+
+    if (registrationDate && renewalDate) {
+        if (new Date(renewalDate) < new Date(registrationDate)) {
+            setError("Renewal date cannot be before registration date.");
+            return;
+        }
+    }
 
         if (passwordMode === "encrypted") {
             if (!CredentialStore.isVaultCreated()) { setShowPassModal("create"); return; }

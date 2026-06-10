@@ -27,6 +27,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
     const [institution, setInstitution] = useState("");
     const [year, setYear] = useState("");
     const [specialization, setSpecialization] = useState("");
+    const [hasLoan, setHasLoan] = useState(false);
     const [certificateId, setCertificateId] = useState<string | null>(null);
     const [familyMemberId, setFamilyMemberId] = useState<string>("");
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
@@ -59,6 +60,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                 setInstitution(data.institute || "");
                 setYear(data.yearCompleted?.toString() || "");
                 setSpecialization(data.specialization || "");
+                setHasLoan(!!data.hasLoan || !!data.linkedLoanId);
                 setCertificateId(data.certificateUrl || null);
                 setFamilyMemberId(data.familyMemberId ?? "");
             } catch (err: any) {
@@ -90,7 +92,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
             setError("Degree and Institution are required.");
             return;
         }
-
+        
         setIsSaving(true);
         try {
             const apiPayload = {
@@ -98,6 +100,7 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                 institution,
                 year: year || null,
                 specialization,
+                hasLoan,
                 certificateId,
                 familyMemberId: familyMemberId || null,
             };
@@ -203,7 +206,30 @@ export default function EditEducation({ params }: { params: Promise<{ id: string
                         />
                     </div>
                 </div>
+                <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div>
+                        <p className="text-sm text-[var(--color-rajya-text)]">Education Loan?</p>
+                        <p className="text-[10px] text-[var(--color-rajya-muted)]">
+                            Is there an active loan for this degree?
+                        </p>
+                    </div>
 
+                    <button
+                        type="button"
+                        onClick={() => setHasLoan(!hasLoan)}
+                        className={`w-12 h-7 rounded-full border transition-colors flex items-center px-0.5 ${
+                            hasLoan
+                                ? "bg-[var(--color-rajya-danger)] border-[var(--color-rajya-danger)]"
+                                : "bg-white/10 border-white/20"
+                        }`}
+                    >
+                        <div
+                            className={`w-6 h-6 rounded-full bg-white transition-transform ${
+                                hasLoan ? "translate-x-5" : "translate-x-0"
+                            }`}
+                        />
+                    </button>
+                </div>
                 {/* Certificate Owner */}
                 <div className="space-y-2">
                     <label className="text-xs text-[var(--color-rajya-muted)] mb-1 flex items-center gap-1.5">

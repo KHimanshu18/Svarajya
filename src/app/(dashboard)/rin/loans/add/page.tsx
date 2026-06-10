@@ -35,6 +35,17 @@ export default function AddLoanPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        const selectedDate = new Date(formData.startDate);
+        const today = new Date();
+
+        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        if (selectedDate > today) {
+            toast("Start date cannot be in the future.", "error");
+            return;
+        }
         setLoading(true);
 
         try {

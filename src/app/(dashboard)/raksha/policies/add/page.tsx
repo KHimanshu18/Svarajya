@@ -26,8 +26,8 @@ export default function AddPolicyPage() {
         type: "LIFE",
         policyNumber: "",
         insurerName: "",
-        sumAssured: 0,
-        premium: 0,
+        sumAssured: "",
+        premium: "" ,
         premiumFrequency: "ANNUAL",
         dueDate: "",
         maturityDate: "",
@@ -56,12 +56,27 @@ export default function AddPolicyPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+    
+        const dueDate = new Date(formData.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+
+        if (dueDate < today) {
+            alert("Next due date cannot be in the past.");
+            setSubmitting(false);
+            return;
+    }
         
         try {
             const res = await fetch('/api/insurance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    sumAssured: Number(formData.sumAssured),
+                    premium: Number(formData.premium),
+                })
             });
             
             const result = await res.json();
@@ -182,27 +197,55 @@ export default function AddPolicyPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Sum Assured (₹)</label>
-                                <input 
-                                    type="number"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                    value={formData.sumAssured}
-                                    onChange={e => setFormData({...formData, sumAssured: Number(e.target.value)})}
-                                    required
-                                    min="1"
-                                />
-                            </div>
+                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">
+                                    Sum Assured
+                                </label>
+
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                                        ₹
+                                    </span>
+
+                                    <input 
+                                        type="number"
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                                        value={formData.sumAssured}
+                                        onChange={e =>
+                                            setFormData({
+                                                ...formData,
+                                                sumAssured: e.target.value.replace(/^0+(?=\d)/, "")
+                                            })
+                        }
+                        required
+                        min="1"
+                    />
+                </div>
+            </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Premium Amount (₹)</label>
-                                <input 
-                                    type="number"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                    value={formData.premium}
-                                    onChange={e => setFormData({...formData, premium: Number(e.target.value)})}
-                                    required
-                                    min="1"
-                                />
+                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">
+                                    Premium Amount
+                                </label>    
+
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                                        ₹
+                                    </span>
+
+                                    <input 
+                                        type="number"
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                                        value={formData.premium}
+                                        onChange={e =>
+                                            setFormData({
+                                                ...formData,
+                                                premium: e.target.value.replace(/^0+(?=\d)/, "")
+                                            })
+                                        }
+                                        required    
+                                        min="1"
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-2">

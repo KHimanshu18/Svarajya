@@ -21,7 +21,7 @@ export default function RajyaNirmaanIntro() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ 
                         isFirstLogin: false,
-                        _internal_secret: 'SVARAJYA_INTERNAL_SYNC_2025' // Use the fallback secret for internal client calls
+                        _internal_secret: 'SVARAJYA_INTERNAL_SYNC_2025'
                     }),
                 });
                 if (!res.ok) {
@@ -145,13 +145,15 @@ export default function RajyaNirmaanIntro() {
                         </motion.div>
                     )}
 
-                    <button
-                        onClick={() => setShowWhy(!showWhy)}
-                        className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/60 transition-colors"
-                    >
-                        <Info className="w-3.5 h-3.5" />
-                        {showWhy ? "Hide" : "Why this matters"}
-                    </button>
+                    <div className="flex justify-center mt-2">
+                        <button
+                            onClick={() => setShowWhy(!showWhy)}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-white/35 hover:text-white/60 transition-colors"
+                        >
+                            <Info className="w-3.5 h-3.5" />
+                            {showWhy ? "Hide" : "Why this matters"}
+                        </button>
+                    </div>
                 </div>
 
                 {/* CTA */}
