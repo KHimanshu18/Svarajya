@@ -185,18 +185,30 @@ export async function syncDocumentMemberAssociation(
     for (const doc of docs) {
       // Update DB
 
-      console.log('[syncDocumentMemberAssociation] Processing doc:', doc.id);
-  console.log('[syncDocumentMemberAssociation] doc.cloudId:', doc.cloudId);
-  console.log('[syncDocumentMemberAssociation] newMemberName:', newMemberName);
-  console.log('[syncDocumentMemberAssociation] category:', category);
+
       await prisma.documentMeta.update({
         where: { id: doc.id },
         data: { linkedFamilyMemberId: newFamilyMemberId },
       });
 
       // Move Drive file if cloudId present
-      if (doc.cloudId) {
-        await moveGoogleDriveFile(userId, doc.cloudId, newMemberName, category);
+      if (!doc.cloudId) {
+        console.warn(
+          '[syncDocumentMemberAssociation] Missing cloudId for document',
+          doc.id
+        );
+      } else {
+        const moved = await moveGoogleDriveFile(
+          userId,
+          doc.cloudId,
+          newMemberName,
+          category
+        );
+
+        console.log(
+          '[syncDocumentMemberAssociation] Move result:',
+          moved
+        );
       }
     }
   } catch (err) {
