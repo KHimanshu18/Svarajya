@@ -153,6 +153,11 @@ async function putHandler(
       yearCompleted: data.year ? parseInt(data.year) : undefined,
       specialization: data.specialization,
       certificateUrl: data.certificateId,
+
+      linkedLoanId: data.hasLoan
+        ? "EDUCATION_LOAN_ACTIVE"
+        : null,
+
       ...(familyMemberChanged ? { familyMemberId: newFamilyMemberId } : {}),
     });
 

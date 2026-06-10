@@ -7,8 +7,9 @@ export interface CreateEducationInput {
   institute: string;
   yearCompleted?: number;
   specialization?: string;
-  linkedLoanId?: string;
+  linkedLoanId?: string | null;
   certificateUrl?: string;
+  familyMemberId?: string;
 }
 
 export interface UpdateEducationInput {
@@ -16,7 +17,7 @@ export interface UpdateEducationInput {
   institute?: string;
   yearCompleted?: number;
   specialization?: string;
-  linkedLoanId?: string;
+  linkedLoanId?: string | null;
   certificateUrl?: string;
   familyMemberId?: string | null;
 }

@@ -77,6 +77,9 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       specialization: body.specialization,
       certificateUrl: body.certificateId,
       familyMemberId: body.familyMemberId || undefined,
+
+      // Education Loan Toggle
+      linkedLoanId: body.hasLoan ? "EDUCATION_LOAN_ACTIVE" : null,
     };
 
     if (!createData.degree || !createData.institute) {
