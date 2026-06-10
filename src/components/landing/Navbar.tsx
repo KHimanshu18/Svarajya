@@ -1,48 +1,52 @@
 "use client";
-import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
-import { Menu, X, Crown, Globe, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/landing/ui/Button';
-import { useLanguage, languageNames, Language } from '@/context/landing/LanguageContext';
-import { useRouter } from 'next/navigation';
-
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Menu, X, Crown, Globe, ChevronDown } from "lucide-react";
+import { Button } from "@/components/landing/ui/Button";
+import {
+  useLanguage,
+  languageNames,
+  Language,
+} from "@/context/landing/LanguageContext";
+import { useRouter } from "next/navigation";
 
 export function Navbar() {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false)
-  const router = useRouter()
-  const { t, language, setLanguage } = useLanguage()
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const router = useRouter();
+  const { t, language, setLanguage } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const navItems = [
-    { label: t('nav.home'), href: '#hero' },
-    { label: t('nav.features'), href: '#problem' },
-    { label: t('nav.map'), href: '#concept' },
-    { label: t('nav.story'), href: '#story' },
-    
-  ]
+    { label: t("nav.home"), href: "#hero" },
+    { label: t("nav.features"), href: "#problem" },
+    { label: t("nav.map"), href: "#concept" },
+    { label: t("nav.story"), href: "#story" },
+  ];
 
   const scrollToSection = (href: string) => {
-    const element = document.querySelector(href)
+    const element = document.querySelector(href);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+      element.scrollIntoView({ behavior: "smooth" });
     }
-    setIsMobileMenuOpen(false)
-  }
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-300 ${
-          isScrolled ? 'bg-parchment/95 backdrop-blur-sm shadow-md' : 'bg-transparent'
+          isScrolled ?
+            "bg-parchment/95 backdrop-blur-sm shadow-md"
+          : "bg-transparent"
         }`}
       >
         <div className="max-w-6xl mx-auto h-full px-6 flex items-center justify-between">
@@ -50,7 +54,7 @@ export function Navbar() {
           <motion.div
             className="flex items-center gap-2 cursor-pointer"
             whileHover={{ scale: 1.02 }}
-            onClick={() => scrollToSection('#hero')}
+            onClick={() => scrollToSection("#hero")}
           >
             <div className="w-10 h-10 rounded-xl bg-linear-to-br from-svarajya-blue to-svarajya-blue/80 flex items-center justify-center shadow-md">
               <Crown className="w-5 h-5 text-mudra-gold" />
@@ -87,7 +91,7 @@ export function Navbar() {
                   {language.toUpperCase()}
                 </span>
                 <ChevronDown
-                  className={`w-4 h-4 text-fort-stone/60 transition-transform ${isLangMenuOpen ? 'rotate-180' : ''}`}
+                  className={`w-4 h-4 text-fort-stone/60 transition-transform ${isLangMenuOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
@@ -103,11 +107,13 @@ export function Navbar() {
                       <button
                         key={lang}
                         onClick={() => {
-                          setLanguage(lang)
-                          setIsLangMenuOpen(false)
+                          setLanguage(lang);
+                          setIsLangMenuOpen(false);
                         }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-parchment transition-colors ${
-                          language === lang ? 'text-mudra-gold font-medium' : 'text-fort-stone'
+                          language === lang ?
+                            "text-mudra-gold font-medium"
+                          : "text-fort-stone"
                         }`}
                       >
                         {languageNames[lang]}
@@ -118,8 +124,12 @@ export function Navbar() {
               </AnimatePresence>
             </div>
 
-            <Button variant="gold" size="sm" onClick={() => router.push('/start')}>
-              {t('nav.login')}
+            <Button
+              variant="gold"
+              size="sm"
+              onClick={() => router.push("/start")}
+            >
+              {t("nav.login")}
             </Button>
           </div>
 
@@ -128,7 +138,9 @@ export function Navbar() {
             className="md:hidden p-2 text-fort-stone"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ?
+              <X className="w-6 h-6" />
+            : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </nav>
@@ -137,9 +149,9 @@ export function Navbar() {
       <motion.div
         initial={false}
         animate={
-          isMobileMenuOpen
-            ? { opacity: 1, pointerEvents: 'auto' as const }
-            : { opacity: 0, pointerEvents: 'none' as const }
+          isMobileMenuOpen ?
+            { opacity: 1, pointerEvents: "auto" as const }
+          : { opacity: 0, pointerEvents: "none" as const }
         }
         className="fixed inset-0 z-40 bg-fort-stone/60 backdrop-blur-sm md:hidden"
         onClick={() => setIsMobileMenuOpen(false)}
@@ -148,8 +160,8 @@ export function Navbar() {
       {/* Mobile Menu Panel */}
       <motion.div
         initial={false}
-        animate={isMobileMenuOpen ? { x: 0 } : { x: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        animate={isMobileMenuOpen ? { x: 0 } : { x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className="fixed top-0 right-0 bottom-0 w-72 z-50 bg-parchment shadow-2xl md:hidden"
       >
         <div className="p-6 pt-20">
@@ -160,9 +172,9 @@ export function Navbar() {
                 key={lang}
                 onClick={() => setLanguage(lang)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  language === lang
-                    ? 'bg-svarajya-blue text-white'
-                    : 'bg-card-white text-fort-stone'
+                  language === lang ?
+                    "bg-svarajya-blue text-white"
+                  : "bg-card-white text-fort-stone"
                 }`}
               >
                 {lang.toUpperCase()}
@@ -181,14 +193,17 @@ export function Navbar() {
               </button>
             ))}
             <div className="pt-4 border-t border-parchment-dark/30">
-              <Button variant="gold" className="w-full" onClick={() => router.push('/start')}>
-                {t('nav.login')}
+              <Button
+                variant="gold"
+                className="w-full"
+                onClick={() => router.push("/start")}
+              >
+                {t("nav.login")}
               </Button>
             </div>
           </div>
         </div>
       </motion.div>
     </>
-  )
+  );
 }
-
