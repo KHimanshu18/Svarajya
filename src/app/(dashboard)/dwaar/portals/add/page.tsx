@@ -193,7 +193,18 @@ export default function AddPortalPage() {
     // Step 2 save
     const handleSave = async () => {
         if (!loginId.trim()) { setError("Login ID is required."); return; }
+        if (registrationDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
+            const selectedRegistrationDate = new Date(registrationDate);
+            selectedRegistrationDate.setHours(0, 0, 0, 0);
+
+            if (selectedRegistrationDate > today) {
+                setError("Registration date cannot be in the future.");
+                return;
+            }
+        }
         if (registrationDate && renewalDate) {
             if (new Date(renewalDate) < new Date(registrationDate)) {
                 setError("Renewal date cannot be before registration date.");
