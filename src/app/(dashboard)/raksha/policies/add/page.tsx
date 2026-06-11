@@ -26,8 +26,8 @@ export default function AddPolicyPage() {
         type: "LIFE",
         policyNumber: "",
         insurerName: "",
-        sumAssured: 0,
-        premium: 0,
+        sumAssured: "",
+        premium: "",
         premiumFrequency: "ANNUAL",
         dueDate: "",
         maturityDate: "",
@@ -61,7 +61,11 @@ export default function AddPolicyPage() {
             const res = await fetch('/api/insurance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    sumAssured: Number(formData.sumAssured),
+                    premium: Number(formData.premium),
+                })
             });
             
             const result = await res.json();
@@ -173,66 +177,91 @@ export default function AddPolicyPage() {
                         </div>
                     </div>
 
-                    {/* Financials Section */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
-                        <div className="flex items-center gap-2 mb-2 text-[var(--color-rajya-accent)]">
-                            <CreditCard className="w-4 h-4" />
-                            <h3 className="text-xs font-bold uppercase tracking-widest">Financial Cover</h3>
-                        </div>
+        {/* Financials Section */}
+                    
+<div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
+    <div className="flex items-center gap-2 mb-2 text-[var(--color-rajya-accent)]">
+        <CreditCard className="w-4 h-4" />
+        <h3 className="text-xs font-bold uppercase tracking-widest">Financial Cover</h3>
+    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Sum Assured (₹)</label>
-                                <input 
-                                    type="number"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                    value={formData.sumAssured}
-                                    onChange={e => setFormData({...formData, sumAssured: Number(e.target.value)})}
-                                    required
-                                    min="1"
-                                />
-                            </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider ml-1">
+                Sum Assured
+            </label>
 
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Premium Amount (₹)</label>
-                                <input 
-                                    type="number"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                    value={formData.premium}
-                                    onChange={e => setFormData({...formData, premium: Number(e.target.value)})}
-                                    required
-                                    min="1"
-                                />
-                            </div>
+            <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">₹</span>
 
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Premium Frequency</label>
-                                <select 
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                    value={formData.premiumFrequency}
-                                    onChange={e => setFormData({...formData, premiumFrequency: e.target.value})}
-                                >
-                                    {FREQUENCIES.map(freq => (
-                                        <option key={freq} value={freq} className="bg-slate-900">{freq}</option>
-                                    ))}
-                                </select>
-                            </div>
+                <input
+                    type="number"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                    value={formData.sumAssured}
+                    onChange={e =>
+                        setFormData({
+                            ...formData,
+                            sumAssured: e.target.value.replace(/^0+(?=\d)/, "")
+                        })
+                    }
+                    required
+                    min="1"
+                />
+            </div>
+        </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Next Due Date</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                                    <input 
-                                        type="date"
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
-                                        value={formData.dueDate}
-                                        onChange={e => setFormData({...formData, dueDate: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider ml-1">
+                Premium Amount
+            </label>
+
+            <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">₹</span>
+
+                <input
+                    type="number"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                    value={formData.premium}
+                    onChange={e =>
+                        setFormData({
+                            ...formData,
+                            premium: e.target.value.replace(/^0+(?=\d)/, "")
+                        })
+                    }
+                    required
+                    min="1"
+                />
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Premium Frequency</label>
+            <select
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                value={formData.premiumFrequency}
+                onChange={e => setFormData({...formData, premiumFrequency: e.target.value})}
+            >
+                {FREQUENCIES.map(freq => (
+                    <option key={freq} value={freq} className="bg-slate-900">{freq}</option>
+                ))}
+            </select>
+        </div>
+
+        <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider ml-1">Next Due Date</label>
+            <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input
+                    type="date"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--color-rajya-accent)]/50 outline-none transition-all"
+                    value={formData.dueDate}
+                    onChange={e => setFormData({...formData, dueDate: e.target.value})}
+                    required
+                />
+            </div>
+        </div>
+    </div>
+</div>
 
                     {/* Coverage & Nominee Section */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
