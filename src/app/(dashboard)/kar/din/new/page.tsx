@@ -50,8 +50,7 @@ export default function NewDinPage() {
     if (!dinNumber) {
       fieldErrors.dinNumber = "DIN number is required.";
     } else if (!/^\d{8}[A-Z0-9]?$/.test(dinNumber)) {
-      fieldErrors.dinNumber =
-        "DIN must be 8 digits or 8 digits followed by an alphanumeric character.";
+      fieldErrors.dinNumber = "DIN must be 8 digits or 8 digits followed by an alphanumeric character.";
     }
 
     if (!companyName) {
@@ -72,10 +71,7 @@ export default function NewDinPage() {
       fieldErrors.expiryDate = "Expiry date is required.";
     } else if (!isValidDate(form.expiryDate)) {
       fieldErrors.expiryDate = "Enter a valid expiry date.";
-    } else if (
-      form.issueDate &&
-      !isDateAfter(form.issueDate, form.expiryDate)
-    ) {
+    } else if (form.issueDate && !isDateAfter(form.issueDate, form.expiryDate)) {
       fieldErrors.expiryDate = "Expiry date must be after issue date.";
     }
 
@@ -122,16 +118,16 @@ export default function NewDinPage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/din/records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/din/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error?.message || "Save failed");
-      router.push("/kar/din");
+      if (!res.ok) throw new Error(j?.error?.message || 'Save failed');
+      router.push('/kar/din');
     } catch (e) {
-      toast((e as Error).message || "Unable to save", "error");
+      toast((e as Error).message || 'Unable to save', 'error');
     } finally {
       setSaving(false);
     }
@@ -140,211 +136,131 @@ export default function NewDinPage() {
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-2xl mx-auto bg-slate-900/80 rounded-2xl p-6">
-        <button
-          onClick={() => router.push("/kar/din")}
-          className="text-sm text-white/60 hover:text-white mb-5 inline-flex items-center gap-2"
-        >
+        <button onClick={() => router.push('/kar/din')} className="text-sm text-white/60 hover:text-white mb-5 inline-flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" /> Back to DIN records
         </button>
 
         <h1 className="text-xl font-semibold text-white">Add DIN Record</h1>
-        <p className="text-sm text-white/60 mt-1">
-          Create a new director identification number record on a separate page.
-        </p>
+        <p className="text-sm text-white/60 mt-1">Create a new director identification number record on a separate page.</p>
 
         <div className="grid gap-3 mt-6">
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              DIN number
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">DIN number</label>
             <input
               placeholder="8-digit DIN"
-              value={form.dinNumber || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), dinNumber: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dinNumber ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.dinNumber || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), dinNumber: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dinNumber ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.dinNumber && (
-              <p className="text-xs text-rose-400 mt-1">{errors.dinNumber}</p>
-            )}
+            {submitAttempted && errors.dinNumber && <p className="text-xs text-rose-400 mt-1">{errors.dinNumber}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              Company name
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">Company name</label>
             <input
               placeholder="Company name"
-              value={form.companyName || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), companyName: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.companyName ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.companyName || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), companyName: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.companyName ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.companyName && (
-              <p className="text-xs text-rose-400 mt-1">{errors.companyName}</p>
-            )}
+            {submitAttempted && errors.companyName && <p className="text-xs text-rose-400 mt-1">{errors.companyName}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              Issue date
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">Issue date</label>
             <input
               type="date"
-              value={form.issueDate || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), issueDate: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.issueDate ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.issueDate || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), issueDate: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.issueDate ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.issueDate && (
-              <p className="text-xs text-rose-400 mt-1">{errors.issueDate}</p>
-            )}
+            {submitAttempted && errors.issueDate && <p className="text-xs text-rose-400 mt-1">{errors.issueDate}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              Expiry date
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">Expiry date</label>
             <input
               type="date"
-              value={form.expiryDate || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), expiryDate: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.expiryDate ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.expiryDate || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), expiryDate: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.expiryDate ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.expiryDate && (
-              <p className="text-xs text-rose-400 mt-1">{errors.expiryDate}</p>
-            )}
+            {submitAttempted && errors.expiryDate && <p className="text-xs text-rose-400 mt-1">{errors.expiryDate}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              DIN KYC Status
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">DIN KYC Status</label>
             <select
-              value={form.dinKycStatus || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), dinKycStatus: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dinKycStatus ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.dinKycStatus || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), dinKycStatus: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dinKycStatus ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select DIN KYC Status</option>
               <option value="Valid">Valid</option>
               <option value="Expired">Expired</option>
               <option value="Pending">Pending</option>
             </select>
-            {submitAttempted && errors.dinKycStatus && (
-              <p className="text-xs text-rose-400 mt-1">
-                {errors.dinKycStatus}
-              </p>
-            )}
+            {submitAttempted && errors.dinKycStatus && <p className="text-xs text-rose-400 mt-1">{errors.dinKycStatus}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              DSC Expiry Date
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">DSC Expiry Date</label>
             <input
               type="date"
-              value={form.dscExpiryDate || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...(f || {}),
-                  dscExpiryDate: e.target.value,
-                }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dscExpiryDate ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.dscExpiryDate || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), dscExpiryDate: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.dscExpiryDate ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.dscExpiryDate && (
-              <p className="text-xs text-rose-400 mt-1">
-                {errors.dscExpiryDate}
-              </p>
-            )}
+            {submitAttempted && errors.dscExpiryDate && <p className="text-xs text-rose-400 mt-1">{errors.dscExpiryDate}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              MCA Filing Status
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">MCA Filing Status</label>
             <select
-              value={form.mcaFilingStatus || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...(f || {}),
-                  mcaFilingStatus: e.target.value,
-                }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.mcaFilingStatus ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.mcaFilingStatus || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), mcaFilingStatus: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.mcaFilingStatus ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select MCA Filing Status</option>
               <option value="Filed">Filed</option>
               <option value="Pending">Pending</option>
               <option value="Not Applicable">Not Applicable</option>
             </select>
-            {submitAttempted && errors.mcaFilingStatus && (
-              <p className="text-xs text-rose-400 mt-1">
-                {errors.mcaFilingStatus}
-              </p>
-            )}
+            {submitAttempted && errors.mcaFilingStatus && <p className="text-xs text-rose-400 mt-1">{errors.mcaFilingStatus}</p>}
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
-              Director Since
-            </label>
+            <label className="text-sm text-slate-400 mb-1 block">Director Since</label>
             <input
               type="date"
-              value={form.directorSince || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...(f || {}),
-                  directorSince: e.target.value,
-                }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.directorSince ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.directorSince || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), directorSince: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.directorSince ? 'border-rose-500/60' : 'border-white/10'}`}
             />
-            {submitAttempted && errors.directorSince && (
-              <p className="text-xs text-rose-400 mt-1">
-                {errors.directorSince}
-              </p>
-            )}
+            {submitAttempted && errors.directorSince && <p className="text-xs text-rose-400 mt-1">{errors.directorSince}</p>}
           </div>
 
           <div>
             <label className="text-sm text-slate-400 mb-1 block">Status</label>
             <select
-              value={form.status || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...(f || {}), status: e.target.value }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.status ? "border-rose-500/60" : "border-white/10"}`}
+              value={form.status || ''}
+              onChange={(e) => setForm((f) => ({ ...(f || {}), status: e.target.value }))}
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.status ? 'border-rose-500/60' : 'border-white/10'}`}
             >
               <option value="">Select status</option>
               <option value="Active">Active</option>
               <option value="Expired">Expired</option>
             </select>
-            {submitAttempted && errors.status && (
-              <p className="text-xs text-rose-400 mt-1">{errors.status}</p>
-            )}
+            {submitAttempted && errors.status && <p className="text-xs text-rose-400 mt-1">{errors.status}</p>}
           </div>
 
           <div className="rounded-2xl p-3 bg-white/5">
-            <FileUploader
-              folder="tax"
-              tags={["DIN"]}
-              accept=".pdf,.png,.jpg,.jpeg"
-              maxSizeMB={10}
-              onUploaded={onUploaded}
-            />
+            <FileUploader folder="tax" tags={["DIN"]} accept=".pdf,.png,.jpg,.jpeg" maxSizeMB={10} onUploaded={onUploaded} />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <button
-              onClick={() => router.push("/kar/din")}
+              onClick={() => router.push('/kar/din')}
               className="px-4 py-2 bg-white/5 rounded-md hover:bg-white/10 transition"
             >
               Cancel
@@ -354,7 +270,7 @@ export default function NewDinPage() {
               disabled={saving || !isFormValid}
               className="px-4 py-2 bg-amber-400 text-black rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-amber-300 transition"
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </div>
