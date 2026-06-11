@@ -60,8 +60,23 @@ export default function AddExpensePage() {
     const entryCount = ExpenseStore.getEntryCount();
 
     const handleSave = () => {
-        const amt = parseFloat(amount);
-        if (!amt || amt <= 0) { setError("Amount must be greater than 0."); return; }
+            const amt = parseFloat(amount);
+
+        if (!amt || amt <= 0) {
+            setError("Amount must be greater than 0.");
+            return;
+        }
+
+        const selectedDate = new Date(date);
+        const today = new Date();
+
+        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        if (selectedDate > today) {
+            setError("Expense date cannot be in the future.");
+            return;
+        }
 
         // If no category chosen, default to "other"
         const finalCategory = category || "other";
