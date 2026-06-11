@@ -55,6 +55,16 @@ export default function AddPolicyPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const dueDate = new Date(formData.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+
+        if (dueDate < today) {
+            alert("Next due date cannot be in the past.");
+            return;
+        }
         setSubmitting(true);
         
         try {
