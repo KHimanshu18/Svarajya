@@ -21,6 +21,7 @@ export default function AddSubscriptionPage() {
     const [nameError, setNameError] = useState("");
     const [amountError, setAmountError] = useState("");
     const [renewalDateError, setRenewalDateError] = useState("");
+    const [lastUsedDateError, setLastUsedDateError] = useState("");
     const [saving, setSaving] = useState(false);
 
     // Form validation check
@@ -42,11 +43,36 @@ export default function AddSubscriptionPage() {
             setAmountError("");
         }
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         if (!renewalDate) {
             setRenewalDateError("Next renewal date is required");
             isValid = false;
         } else {
-            setRenewalDateError("");
+            const selectedRenewalDate = new Date(renewalDate);
+            selectedRenewalDate.setHours(0, 0, 0, 0);
+
+            if (selectedRenewalDate < today) {
+                setRenewalDateError("Next renewal date cannot be in the past");
+                isValid = false;
+            } else {
+                setRenewalDateError("");
+            }
+        }
+
+        if (lastUsedDate) {
+            const selectedLastUsedDate = new Date(lastUsedDate);
+            selectedLastUsedDate.setHours(0, 0, 0, 0);
+
+            if (selectedLastUsedDate > today) {
+                setLastUsedDateError("Last used date cannot be in the future");
+                isValid = false;
+            } else {
+                setLastUsedDateError("");
+            }
+        } else {
+            setLastUsedDateError("");
         }
 
         return isValid;
@@ -169,9 +195,12 @@ export default function AddSubscriptionPage() {
                     <input 
                         type="date" 
                         value={lastUsedDate} 
-                        onChange={e => setLastUsedDate(e.target.value)}
-                        className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3.5 text-sm text-white focus:border-amber-400/50 outline-none" 
+                        onChange={e => { setLastUsedDate(e.target.value); setLastUsedDateError(""); }}
+                        className={`w-full bg-white/6 border rounded-xl px-4 py-3.5 text-sm text-white focus:border-amber-400/50 outline-none ${
+                            lastUsedDateError ? "border-red-500/50 focus:border-red-500" : "border-white/15"
+                        }`} 
                     />
+                    {lastUsedDateError && <p className="text-[11px] text-red-400 mt-1">⚠️ {lastUsedDateError}</p>}
                     <p className="text-[10px] text-white/30 px-1">Helps calculate the Leakage Index and detect dormant subscriptions.</p>
                 </div>
 
