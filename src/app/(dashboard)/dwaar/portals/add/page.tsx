@@ -208,8 +208,10 @@ export default function AddPortalPage() {
 
         let encryptedPassword = undefined;
         if (passwordMode === "encrypted" && rawPassword) {
+            console.log("[BUG16] Starting encryption");
             const { encryptString } = await import("@/lib/crypto");
             const result = await encryptString(rawPassword, "session-key-" + Date.now());
+            console.log("[BUG16] Encryption successful");
             encryptedPassword = {
                 version: 1 as const,
                 alg: "AES-GCM" as const,
