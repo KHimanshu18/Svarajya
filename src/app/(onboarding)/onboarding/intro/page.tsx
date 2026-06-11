@@ -147,7 +147,7 @@ export default function RajyaNirmaanIntro() {
 
                     <button
                         onClick={() => setShowWhy(!showWhy)}
-                        className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/60 transition-colors"
+                        className="mt-4 mb-2 mx-auto flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-white/35 hover:text-white/60 transition-colors"
                     >
                         <Info className="w-3.5 h-3.5" />
                         {showWhy ? "Hide" : "Why this matters"}
