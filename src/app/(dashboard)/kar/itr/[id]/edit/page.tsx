@@ -23,7 +23,7 @@ const validateYearFormat = (year: string): boolean => {
 };
 
 const sanitizeYearInput = (value: string): string => {
-  return value.replace(/[^0-9-]/g, '').slice(0, 7);
+  return value.replace(/[^0-9-]/g, "").slice(0, 7);
 };
 
 export default function EditItrPage() {
@@ -47,30 +47,32 @@ export default function EditItrPage() {
       const res = await fetch(`/api/tax/records/${id}`);
       const j = await res.json();
       const record = j?.data || j || {};
-      
+
       setForm({
-        assessmentYear: record.assessmentYear || '',
-        financialYear: record.financialYear || '',
-        filingStatus: record.status || '',
-        itrType: record.filingType || '',
-        filingDate: record.filingDate?.split('T')[0] || '',
-        taxPayable: record.taxDue ?? '',
-        taxPaid: record.taxPaid ?? '',
-        acknowledgementNumber: record.acknowledgementNumber || '',
-        documentUrl: record.documentUrl || '',
+        assessmentYear: record.assessmentYear || "",
+        financialYear: record.financialYear || "",
+        filingStatus: record.status || "",
+        itrType: record.filingType || "",
+        filingDate: record.filingDate?.split("T")[0] || "",
+        taxPayable: record.taxDue ?? "",
+        taxPaid: record.taxPaid ?? "",
+        acknowledgementNumber: record.acknowledgementNumber || "",
+        documentUrl: record.documentUrl || "",
       });
-    } catch (e) { 
-      setForm({}); 
-    } finally { 
-      setLoading(false); 
+    } catch (e) {
+      setForm({});
+    } finally {
+      setLoading(false);
     }
   }
 
-  function onUploaded(fid: string) { setForm((f:any) => ({ ...(f||{}), documentUrl: fid })); }
+  function onUploaded(fid: string) {
+    setForm((f: any) => ({ ...(f || {}), documentUrl: fid }));
+  }
 
   const errors = useMemo(() => {
     if (!form) return {};
-    
+
     const fieldErrors: Record<string, string> = {};
 
     // Assessment Year validation
@@ -115,7 +117,11 @@ export default function EditItrPage() {
 
     // Tax Payable validation
     const taxPayable = Number(form.taxPayable);
-    if (form.taxPayable === "" || form.taxPayable === undefined || form.taxPayable === null) {
+    if (
+      form.taxPayable === "" ||
+      form.taxPayable === undefined ||
+      form.taxPayable === null
+    ) {
       fieldErrors.taxPayable = "Tax payable is required.";
     } else if (Number.isNaN(taxPayable) || taxPayable <= 0) {
       fieldErrors.taxPayable = "Tax payable must be greater than 0.";
@@ -123,7 +129,11 @@ export default function EditItrPage() {
 
     // Tax Paid validation
     const taxPaid = Number(form.taxPaid);
-    if (form.taxPaid === "" || form.taxPaid === undefined || form.taxPaid === null) {
+    if (
+      form.taxPaid === "" ||
+      form.taxPaid === undefined ||
+      form.taxPaid === null
+    ) {
       fieldErrors.taxPaid = "Tax paid is required.";
     } else if (Number.isNaN(taxPaid) || taxPaid < 0) {
       fieldErrors.taxPaid = "Tax paid must be 0 or greater.";
@@ -131,10 +141,15 @@ export default function EditItrPage() {
 
     // Acknowledgement Number validation (required only if filingStatus is "Filed")
     if (form.filingStatus === "Filed") {
-      if (!form.acknowledgementNumber || form.acknowledgementNumber.trim() === "") {
-        fieldErrors.acknowledgementNumber = "Acknowledgement number is required for filed returns.";
+      if (
+        !form.acknowledgementNumber ||
+        form.acknowledgementNumber.trim() === ""
+      ) {
+        fieldErrors.acknowledgementNumber =
+          "Acknowledgement number is required for filed returns.";
       } else if (form.acknowledgementNumber.trim().length < 5) {
-        fieldErrors.acknowledgementNumber = "Acknowledgement number must be at least 5 characters.";
+        fieldErrors.acknowledgementNumber =
+          "Acknowledgement number must be at least 5 characters.";
       }
     }
 
@@ -156,31 +171,40 @@ export default function EditItrPage() {
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/tax/records/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      const j = await res.json(); if (!res.ok) throw new Error(j?.error?.message || 'Save failed');
-      router.push('/kar/itr');
-    } catch (e) { 
-      toast((e as Error).message || 'Unable to save', "error");
+      const res = await fetch(`/api/tax/records/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error?.message || "Save failed");
+      router.push("/kar/itr");
+    } catch (e) {
+      toast((e as Error).message || "Unable to save", "error");
+    } finally {
+      setSaving(false);
     }
-    finally { setSaving(false); }
   }
 
   if (!id) return <div className="p-6 text-white/60">Invalid record id</div>;
-  if (loading) return (
-    <div className="p-6 flex items-center justify-center gap-3 text-white/60">
-      <span className="inline-block h-5 w-5 rounded-full border-2 border-white/20 border-t-amber-400 animate-spin" />
-      <span>Loading…</span>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-6 flex items-center justify-center gap-3 text-white/60">
+        <span className="inline-block h-5 w-5 rounded-full border-2 border-white/20 border-t-amber-400 animate-spin" />
+        <span>Loading…</span>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-2xl mx-auto bg-slate-900/80 rounded-2xl p-6">
         <h1 className="text-lg font-semibold text-white">Edit ITR Record</h1>
-        
+
         {showSummary && (
           <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-100">
-            <p className="text-sm font-semibold">Please fix the following errors:</p>
+            <p className="text-sm font-semibold">
+              Please fix the following errors:
+            </p>
             <ul className="mt-2 list-disc pl-5 text-sm space-y-1 text-rose-100/90">
               {invalidFieldKeys.map((field) => (
                 <li key={field}>{FIELD_LABELS[field] || field}</li>
@@ -192,56 +216,93 @@ export default function EditItrPage() {
         <div className="grid gap-3 mt-4">
           {/* Assessment Year */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Assessment year</label>
-            <input 
-              placeholder="e.g., 2024-25" 
+            <label className="text-sm text-slate-400 mb-1 block">
+              Assessment year
+            </label>
+            <input
+              placeholder="e.g., 2024-25"
               inputMode="numeric"
               pattern="\d{4}-\d{2}"
               maxLength={7}
-              value={form.assessmentYear || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), assessmentYear: sanitizeYearInput(e.target.value) }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.assessmentYear ? 'border-rose-500/60' : 'border-white/10'}`}
+              value={form.assessmentYear || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  assessmentYear: sanitizeYearInput(e.target.value),
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.assessmentYear ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.assessmentYear && <p className="text-xs text-rose-400 mt-1">{errors.assessmentYear}</p>}
+            {submitAttempted && errors.assessmentYear && (
+              <p className="text-xs text-rose-400 mt-1">
+                {errors.assessmentYear}
+              </p>
+            )}
           </div>
 
           {/* Financial Year */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Financial year</label>
-            <input 
-              placeholder="e.g., 2023-24" 
+            <label className="text-sm text-slate-400 mb-1 block">
+              Financial year
+            </label>
+            <input
+              placeholder="e.g., 2023-24"
               inputMode="numeric"
               pattern="\d{4}-\d{2}"
               maxLength={7}
-              value={form.financialYear || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), financialYear: sanitizeYearInput(e.target.value) }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.financialYear ? 'border-rose-500/60' : 'border-white/10'}`}
+              value={form.financialYear || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  financialYear: sanitizeYearInput(e.target.value),
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.financialYear ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.financialYear && <p className="text-xs text-rose-400 mt-1">{errors.financialYear}</p>}
+            {submitAttempted && errors.financialYear && (
+              <p className="text-xs text-rose-400 mt-1">
+                {errors.financialYear}
+              </p>
+            )}
           </div>
 
           {/* Filing Status */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Filing status</label>
-            <select 
-              value={form.filingStatus || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), filingStatus: e.target.value }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.filingStatus ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              Filing status
+            </label>
+            <select
+              value={form.filingStatus || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  filingStatus: e.target.value,
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.filingStatus ? "border-rose-500/60" : "border-white/10"}`}
             >
               <option value="">Filing status</option>
               <option value="Filed">Filed</option>
               <option value="Pending">Pending</option>
             </select>
-            {submitAttempted && errors.filingStatus && <p className="text-xs text-rose-400 mt-1">{errors.filingStatus}</p>}
+            {submitAttempted && errors.filingStatus && (
+              <p className="text-xs text-rose-400 mt-1">
+                {errors.filingStatus}
+              </p>
+            )}
           </div>
 
           {/* ITR Type */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">ITR Type</label>
-            <select 
-              value={form.itrType || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), itrType: e.target.value }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.itrType ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              ITR Type
+            </label>
+            <select
+              value={form.itrType || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({ ...(f || {}), itrType: e.target.value }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.itrType ? "border-rose-500/60" : "border-white/10"}`}
             >
               <option value="">ITR Type</option>
               <option>ITR-1</option>
@@ -249,76 +310,127 @@ export default function EditItrPage() {
               <option>ITR-3</option>
               <option>ITR-4</option>
             </select>
-            {submitAttempted && errors.itrType && <p className="text-xs text-rose-400 mt-1">{errors.itrType}</p>}
+            {submitAttempted && errors.itrType && (
+              <p className="text-xs text-rose-400 mt-1">{errors.itrType}</p>
+            )}
           </div>
 
           {/* Filing Date */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Filing date</label>
-            <input 
-              type="date" 
-              value={form.filingDate || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), filingDate: e.target.value }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.filingDate ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              Filing date
+            </label>
+            <input
+              type="date"
+              value={form.filingDate || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  filingDate: e.target.value,
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.filingDate ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.filingDate && <p className="text-xs text-rose-400 mt-1">{errors.filingDate}</p>}
+            {submitAttempted && errors.filingDate && (
+              <p className="text-xs text-rose-400 mt-1">{errors.filingDate}</p>
+            )}
           </div>
 
           {/* Tax Payable */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Tax payable</label>
-            <input 
-              type="number" 
-              placeholder="₹0" 
-              value={form.taxPayable ?? '' as any} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), taxPayable: e.target.value ? Number(e.target.value) : '' }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.taxPayable ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              Tax payable
+            </label>
+            <input
+              type="number"
+              placeholder="₹0"
+              value={form.taxPayable ?? ("" as any)}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  taxPayable: e.target.value ? Number(e.target.value) : "",
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.taxPayable ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.taxPayable && <p className="text-xs text-rose-400 mt-1">{errors.taxPayable}</p>}
+            {submitAttempted && errors.taxPayable && (
+              <p className="text-xs text-rose-400 mt-1">{errors.taxPayable}</p>
+            )}
           </div>
 
           {/* Tax Paid */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Tax paid</label>
-            <input 
-              type="number" 
-              placeholder="₹0" 
-              value={form.taxPaid ?? '' as any} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), taxPaid: e.target.value ? Number(e.target.value) : '' }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.taxPaid ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              Tax paid
+            </label>
+            <input
+              type="number"
+              placeholder="₹0"
+              value={form.taxPaid ?? ("" as any)}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  taxPaid: e.target.value ? Number(e.target.value) : "",
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.taxPaid ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.taxPaid && <p className="text-xs text-rose-400 mt-1">{errors.taxPaid}</p>}
+            {submitAttempted && errors.taxPaid && (
+              <p className="text-xs text-rose-400 mt-1">{errors.taxPaid}</p>
+            )}
           </div>
 
           {/* Acknowledgement Number */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Acknowledgement number {form.filingStatus === "Filed" && <span className="text-rose-400">*</span>}</label>
-            <input 
-              placeholder="Required if status is 'Filed'" 
-              value={form.acknowledgementNumber || ''} 
-              onChange={(e) => setForm((f:any) => ({ ...(f||{}), acknowledgementNumber: e.target.value }))} 
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.acknowledgementNumber ? 'border-rose-500/60' : 'border-white/10'}`}
+            <label className="text-sm text-slate-400 mb-1 block">
+              Acknowledgement number{" "}
+              {form.filingStatus === "Filed" && (
+                <span className="text-rose-400">*</span>
+              )}
+            </label>
+            <input
+              placeholder="Required if status is 'Filed'"
+              value={form.acknowledgementNumber || ""}
+              onChange={(e) =>
+                setForm((f: any) => ({
+                  ...(f || {}),
+                  acknowledgementNumber: e.target.value,
+                }))
+              }
+              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.acknowledgementNumber ? "border-rose-500/60" : "border-white/10"}`}
             />
-            {submitAttempted && errors.acknowledgementNumber && <p className="text-xs text-rose-400 mt-1">{errors.acknowledgementNumber}</p>}
+            {submitAttempted && errors.acknowledgementNumber && (
+              <p className="text-xs text-rose-400 mt-1">
+                {errors.acknowledgementNumber}
+              </p>
+            )}
           </div>
 
           {/* File Upload */}
-          <div className="rounded-2xl p-3 bg-white/5"><FileUploader folder="tax" tags={['ITR']} accept=".pdf,.png,.jpg,.jpeg" maxSizeMB={10} onUploaded={onUploaded} /></div>
-          
+          <div className="rounded-2xl p-3 bg-white/5">
+            <FileUploader
+              folder="tax"
+              tags={["ITR"]}
+              accept=".pdf,.png,.jpg,.jpeg"
+              maxSizeMB={10}
+              onUploaded={onUploaded}
+            />
+          </div>
+
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-2">
-            <button 
-              onClick={() => router.push('/kar/itr')} 
+            <button
+              onClick={() => router.push("/kar/itr")}
               className="px-4 py-2 bg-white/5 rounded-md hover:bg-white/10 transition"
             >
               Cancel
             </button>
-            <button 
-              onClick={save} 
-              disabled={saving || !isFormValid} 
+            <button
+              onClick={save}
+              disabled={saving || !isFormValid}
               className="px-4 py-2 bg-amber-400 text-black rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-amber-300 transition"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
