@@ -680,7 +680,7 @@ export default function EducationPage() {
               onClick={() => setShowForm(true)}
               className="w-full bg-white/5 border border-dashed border-white/20 rounded-xl p-4 flex items-center justify-center gap-2 text-sm text-[var(--color-rajya-muted)] hover:border-[var(--color-rajya-accent)]/40 transition-colors"
             >
-              <Plus className="w-4 h-4" /> Add Another Qualification
+              <Plus className="w-4 h-4" /> {entries.length === 0 ? "Add Qualification" : "Add Another Qualification"}
             </button>
           </motion.div>
         }
