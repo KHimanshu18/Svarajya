@@ -49,25 +49,34 @@ export default function EditGstPage() {
         const res = await fetch(`/api/gst/records/${id}`);
         const j = await res.json();
         const record = j?.data || j || {};
-        
+
         setForm({
-        gstin: record.gstin || '',
-        businessName: record.businessName || '',
-        filingFrequency: record.filingFrequency || '',
-        lastFilingDate: record.lastFilingDate?.split('T')[0] || '',
-        nextDueDate: record.nextDueDate?.split('T')[0] || '',
-        gstr1Filed: record.gstr1Filed === true ? 'Yes' : record.gstr1Filed === false ? 'No' : '',
-        gstr3bFiled: record.gstr3bFiled === true ? 'Yes' : record.gstr3bFiled === false ? 'No' : '',
-        annualReturnFiled: record.annualReturnFiled === true ? 'Yes' : record.annualReturnFiled === false ? 'No' : '',
-        status: record.status || '',
-        documentUrl: record.documentUrl || '',
-      });
-    } catch {
-      setForm({});
-    } finally {
-      setLoading(false);
-    }
-  };
+          gstin: record.gstin || "",
+          businessName: record.businessName || "",
+          filingFrequency: record.filingFrequency || "",
+          lastFilingDate: record.lastFilingDate?.split("T")[0] || "",
+          nextDueDate: record.nextDueDate?.split("T")[0] || "",
+          gstr1Filed:
+            record.gstr1Filed === true ? "Yes"
+            : record.gstr1Filed === false ? "No"
+            : "",
+          gstr3bFiled:
+            record.gstr3bFiled === true ? "Yes"
+            : record.gstr3bFiled === false ? "No"
+            : "",
+          annualReturnFiled:
+            record.annualReturnFiled === true ? "Yes"
+            : record.annualReturnFiled === false ? "No"
+            : "",
+          status: record.status || "",
+          documentUrl: record.documentUrl || "",
+        });
+      } catch {
+        setForm({});
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchRecord();
   }, [id]);
@@ -147,27 +156,28 @@ export default function EditGstPage() {
     setSaving(true);
     try {
       const res = await fetch(`/api/gst/records/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error?.message || 'Save failed');
-      router.push('/kar/gst');
+      if (!res.ok) throw new Error(j?.error?.message || "Save failed");
+      router.push("/kar/gst");
     } catch (e) {
-      toast((e as Error).message || 'Unable to save', 'error');
+      toast((e as Error).message || "Unable to save", "error");
     } finally {
       setSaving(false);
     }
   }
 
   if (!id) return <div className="p-6 text-white/60">Invalid record id</div>;
-  if (loading) return (
-    <div className="p-6 flex items-center justify-center gap-3 text-white/60">
-      <span className="inline-block h-5 w-5 rounded-full border-2 border-white/20 border-t-amber-400 animate-spin" />
-      <span>Loading…</span>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-6 flex items-center justify-center gap-3 text-white/60">
+        <span className="inline-block h-5 w-5 rounded-full border-2 border-white/20 border-t-amber-400 animate-spin" />
+        <span>Loading…</span>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-slate-950 p-6">
@@ -176,8 +186,12 @@ export default function EditGstPage() {
           <ArrowLeft className="w-4 h-4" /> Back to GST registrations
         </button>
 
-        <h1 className="text-xl font-semibold text-white">Edit GST Registration</h1>
-        <p className="text-sm text-white/60 mt-1">Update the existing GST record with the latest data.</p>
+        <h1 className="text-xl font-semibold text-white">
+          Edit GST Registration
+        </h1>
+        <p className="text-sm text-white/60 mt-1">
+          Update the existing GST record with the latest data.
+        </p>
 
         <div className="grid gap-3 mt-6">
           <div>
@@ -193,7 +207,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Business name</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Business name
+            </label>
             <input
               placeholder="Business name"
               value={form.businessName || ''}
@@ -205,7 +221,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Filing frequency</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Filing frequency
+            </label>
             <select
               value={form.filingFrequency || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), filingFrequency: e.target.value }))}
@@ -220,7 +238,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Last filing date</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Last filing date
+            </label>
             <input
               type="date"
               value={form.lastFilingDate || ''}
@@ -232,7 +252,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Next due date</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Next due date
+            </label>
             <input
               type="date"
               value={form.nextDueDate || ''}
@@ -245,7 +267,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">GSTR-1 Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              GSTR-1 Filed?
+            </label>
             <select
               value={form.gstr1Filed || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr1Filed: e.target.value }))}
@@ -260,7 +284,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">GSTR-3B Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              GSTR-3B Filed?
+            </label>
             <select
               value={form.gstr3bFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr3bFiled: e.target.value }))}
@@ -275,7 +301,9 @@ export default function EditGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Annual Return Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Annual Return Filed?
+            </label>
             <select
               value={form.annualReturnFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), annualReturnFiled: e.target.value }))}
@@ -305,12 +333,18 @@ export default function EditGstPage() {
           </div>
 
           <div className="rounded-2xl p-3 bg-white/5">
-            <FileUploader folder="tax" tags={["GST"]} accept=".pdf,.png,.jpg,.jpeg" maxSizeMB={10} onUploaded={onUploaded} />
+            <FileUploader
+              folder="tax"
+              tags={["GST"]}
+              accept=".pdf,.png,.jpg,.jpeg"
+              maxSizeMB={10}
+              onUploaded={onUploaded}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <button
-              onClick={() => router.push('/kar/gst')}
+              onClick={() => router.push("/kar/gst")}
               className="px-4 py-2 bg-white/5 rounded-md hover:bg-white/10 transition"
             >
               Cancel
@@ -320,7 +354,7 @@ export default function EditGstPage() {
               disabled={saving || !isFormValid}
               className="px-4 py-2 bg-amber-400 text-black rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-amber-300 transition"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>

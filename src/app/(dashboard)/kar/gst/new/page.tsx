@@ -112,16 +112,16 @@ export default function NewGstPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('/api/gst/records', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/gst/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error?.message || 'Save failed');
-      router.push('/kar/gst');
+      if (!res.ok) throw new Error(j?.error?.message || "Save failed");
+      router.push("/kar/gst");
     } catch (e) {
-      toast((e as Error).message || 'Unable to save', 'error');
+      toast((e as Error).message || "Unable to save", "error");
     } finally {
       setSaving(false);
     }
@@ -130,12 +130,19 @@ export default function NewGstPage() {
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-2xl mx-auto bg-slate-900/80 rounded-2xl p-6">
-        <button onClick={() => router.push('/kar/gst')} className="text-sm text-white/60 hover:text-white mb-5 inline-flex items-center gap-2">
+        <button
+          onClick={() => router.push("/kar/gst")}
+          className="text-sm text-white/60 hover:text-white mb-5 inline-flex items-center gap-2"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to GST registrations
         </button>
 
-        <h1 className="text-xl font-semibold text-white">Add GST Registration</h1>
-        <p className="text-sm text-white/60 mt-1">Create a new GST registration record on a separate page.</p>
+        <h1 className="text-xl font-semibold text-white">
+          Add GST Registration
+        </h1>
+        <p className="text-sm text-white/60 mt-1">
+          Create a new GST registration record on a separate page.
+        </p>
 
         <div className="grid gap-3 mt-6">
           <div>
@@ -151,7 +158,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Business name</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Business name
+            </label>
             <input
               placeholder="Business name"
               value={form.businessName || ''}
@@ -163,7 +172,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Filing frequency</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Filing frequency
+            </label>
             <select
               value={form.filingFrequency || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), filingFrequency: e.target.value }))}
@@ -178,7 +189,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Last filing date</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Last filing date
+            </label>
             <input
               type="date"
               value={form.lastFilingDate || ''}
@@ -190,7 +203,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Next due date</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Next due date
+            </label>
             <input
               type="date"
               value={form.nextDueDate || ''}
@@ -203,7 +218,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">GSTR-1 Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              GSTR-1 Filed?
+            </label>
             <select
               value={form.gstr1Filed || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr1Filed: e.target.value }))}
@@ -218,7 +235,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">GSTR-3B Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              GSTR-3B Filed?
+            </label>
             <select
               value={form.gstr3bFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), gstr3bFiled: e.target.value }))}
@@ -233,7 +252,9 @@ export default function NewGstPage() {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">Annual Return Filed?</label>
+            <label className="text-sm text-slate-400 mb-1 block">
+              Annual Return Filed?
+            </label>
             <select
               value={form.annualReturnFiled || ''}
               onChange={(e) => setForm((f) => ({ ...(f || {}), annualReturnFiled: e.target.value }))}
@@ -263,12 +284,18 @@ export default function NewGstPage() {
           </div>
 
           <div className="rounded-2xl p-3 bg-white/5">
-            <FileUploader folder="tax" tags={["GST"]} accept=".pdf,.png,.jpg,.jpeg" maxSizeMB={10} onUploaded={onUploaded} />
+            <FileUploader
+              folder="tax"
+              tags={["GST"]}
+              accept=".pdf,.png,.jpg,.jpeg"
+              maxSizeMB={10}
+              onUploaded={onUploaded}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <button
-              onClick={() => router.push('/kar/gst')}
+              onClick={() => router.push("/kar/gst")}
               className="px-4 py-2 bg-white/5 rounded-md hover:bg-white/10 transition"
             >
               Cancel
@@ -278,7 +305,7 @@ export default function NewGstPage() {
               disabled={saving || !isFormValid}
               className="px-4 py-2 bg-amber-400 text-black rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-amber-300 transition"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
