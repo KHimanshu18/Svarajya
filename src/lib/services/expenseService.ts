@@ -10,6 +10,7 @@ export interface CreateExpenseEntryInput {
   accountId?: string;
   description?: string;
   isRecurring?: boolean;
+  frequency?: string;
 }
 
 export interface UpdateExpenseEntryInput {
@@ -20,6 +21,7 @@ export interface UpdateExpenseEntryInput {
   accountId?: string;
   description?: string;
   isRecurring?: boolean;
+  frequency?: string;
 }
 
 /**

@@ -141,7 +141,8 @@ export default function WillManagementPage() {
                             <label className="text-xs font-medium text-white/70">Last Review/Update Date</label>
                             <input 
                                 type="date" 
-                                value={lastReviewDate} 
+                                value={lastReviewDate}
+                                max={new Date().toISOString().split("T")[0]}
                                 onChange={e => setLastReviewDate(e.target.value)}
                                 className="w-full bg-white/6 border border-white/15 rounded-xl px-4 py-3.5 text-sm text-white focus:border-amber-400/50 outline-none transition-all" 
                             />

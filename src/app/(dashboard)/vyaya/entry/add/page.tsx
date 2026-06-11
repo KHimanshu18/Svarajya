@@ -14,7 +14,7 @@ export default function AddExpensePage() {
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
-    const [mode, setMode] = useState<PaymentMode>("UPI");
+    const [mode, setMode] = useState<PaymentMode>("upi");
     const [recurring, setRecurring] = useState(false);
     const [recurringFrequency, setRecurringFrequency] = useState<ExpenseFrequency>("monthly");
 
@@ -64,8 +64,8 @@ export default function AddExpensePage() {
         ExpenseStore.addEntry({
             date,
             amount: amt,
-            category: finalCategory,
-            mode,
+            categoryId: finalCategory,
+            paymentMode: mode,
             recurring,
             recurringFrequency: recurring ? recurringFrequency : undefined,
             description: description.trim() || undefined,

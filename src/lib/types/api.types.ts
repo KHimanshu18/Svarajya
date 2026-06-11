@@ -376,6 +376,7 @@ export interface ExpenseEntryResponse {
   accountId?: string | null;
   description?: string | null;
   isRecurring: boolean;
+  frequency?: string | null;
   createdAt: string;
 }
 
@@ -391,6 +392,7 @@ export interface CreateExpenseRequest {
   paymentMode?: string; // Legacy support
   linkedFamilyMemberId?: string; // Legacy support
   paidFromAccountId?: string; // Legacy support
+  frequency?: string;
 }
 
 export interface UpdateExpenseRequest {
@@ -401,6 +403,7 @@ export interface UpdateExpenseRequest {
   accountId?: string;
   description?: string;
   isRecurring?: boolean;
+  frequency?: string;
 }
 
 // ============================================================================
