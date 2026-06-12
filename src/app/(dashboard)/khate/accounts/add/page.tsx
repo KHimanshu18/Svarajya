@@ -109,6 +109,16 @@ export default function AddBankAccount() {
             return;
         }
 
+        //Added code
+        const existingPrimary = existingAccounts.find(
+            (account) => account.isPrimary
+        );
+
+        if (isPrimary && existingPrimary) {
+            setError("Only one bank account can be marked as primary.");
+            return;
+        }
+
         setSaving(true);
         setError("");
 
@@ -156,7 +166,7 @@ export default function AddBankAccount() {
     }
 
     return (
-            <div className="pb-24 font-sans animate-fade-in relative">
+            <div className="pt-8 pb-24 px-6 font-sans animate-fade-in relative">
                 <div className="flex items-center gap-3 mb-8">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -181,10 +191,10 @@ export default function AddBankAccount() {
                             <p className="text-sm font-bold text-amber-100 mb-1">Possible duplicate detected.</p>
                             <p className="text-xs text-amber-200/80 mb-3">Another account with last digits <strong className="text-amber-100">{last4}</strong> already exists.</p>
                             <div className="flex gap-2">
-                                <button onClick={() => setDuplicateWarning(false)} className="text-xs font-semibold px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 transition-colors text-amber-300 border border-amber-500/30 rounded-lg">
+                                <button type="button" onClick={() => { setDuplicateWarning(false); setError(""); }} className="text-xs font-semibold px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 transition-colors text-amber-300 border border-amber-500/30 rounded-lg">
                                     Continue Anyway
                                 </button>
-                                <button onClick={() => { setDuplicateWarning(false); setLast4(""); }} className="text-xs font-semibold px-4 py-2 bg-white/5 hover:bg-white/10 transition-colors text-white/60 border border-white/10 rounded-lg">
+                                <button type="button" onClick={() => { setDuplicateWarning(false); setLast4(""); setError(""); }} className="text-xs font-semibold px-4 py-2 bg-white/5 hover:bg-white/10 transition-colors text-white/60 border border-white/10 rounded-lg">
                                     Cancel
                                 </button>
                             </div>
