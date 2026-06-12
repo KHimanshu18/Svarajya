@@ -15,15 +15,16 @@ const FIELD_LABELS: Record<string, string> = {
   taxPaid: "Tax paid",
   acknowledgementNumber: "Acknowledgement number",
 };
+const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => {
+  const start = 2020 + i;
+  const end = String(start + 1).slice(-2);
+  return `${start}-${end}`;
+});
 
 // Validate year format YYYY-YY
 const validateYearFormat = (year: string): boolean => {
   const regex = /^\d{4}-\d{2}$/;
   return regex.test(year);
-};
-
-const sanitizeYearInput = (value: string): string => {
-  return value.replace(/[^0-9-]/g, "").slice(0, 7);
 };
 
 export default function NewItrPage() {
@@ -184,20 +185,28 @@ export default function NewItrPage() {
             <label className="text-sm text-slate-400 mb-1 block">
               Assessment year
             </label>
-            <input
-              placeholder="e.g., 2024-25"
-              inputMode="numeric"
-              pattern="\d{4}-\d{2}"
-              maxLength={7}
-              value={form.assessmentYear || ""}
-              onChange={(e) =>
-                setForm((f: any) => ({
-                  ...(f || {}),
-                  assessmentYear: sanitizeYearInput(e.target.value),
-                }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.assessmentYear ? "border-rose-500/60" : "border-white/10"}`}
-            />
+          <select
+            value={form.assessmentYear || ""}
+            onChange={(e) =>
+            setForm((f: any) => ({
+              ...(f || {}),
+              assessmentYear: e.target.value,
+          }))
+        }
+        className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${
+          submitAttempted && errors.assessmentYear
+        ? "border-rose-500/60"
+        : "border-white/10"
+      }`}
+    >
+      <option value="">Select Assessment Year</option>
+
+      {YEAR_OPTIONS.map((year) => (
+        <option key={year} value={year}>
+        {year}
+      </option>
+    ))}
+  </select>
             {submitAttempted && errors.assessmentYear && (
               <p className="text-xs text-rose-400 mt-1">
                 {errors.assessmentYear}
@@ -210,20 +219,28 @@ export default function NewItrPage() {
             <label className="text-sm text-slate-400 mb-1 block">
               Financial year
             </label>
-            <input
-              placeholder="e.g., 2023-24"
-              inputMode="numeric"
-              pattern="\d{4}-\d{2}"
-              maxLength={7}
+            <select
               value={form.financialYear || ""}
               onChange={(e) =>
-                setForm((f: any) => ({
-                  ...(f || {}),
-                  financialYear: sanitizeYearInput(e.target.value),
-                }))
-              }
-              className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${submitAttempted && errors.financialYear ? "border-rose-500/60" : "border-white/10"}`}
-            />
+              setForm((f: any) => ({
+                ...(f || {}),
+                financialYear: e.target.value,
+              }))
+            }
+            className={`w-full p-3 rounded-md bg-white/5 text-white border transition ${
+              submitAttempted && errors.financialYear
+              ? "border-rose-500/60"
+              : "border-white/10"
+            }`}
+          >
+            <option value="">Select Financial Year</option>
+
+            {YEAR_OPTIONS.map((year) => (
+              <option key={year} value={year}>
+              {year}
+              </option>
+            ))}
+          </select>
             {submitAttempted && errors.financialYear && (
               <p className="text-xs text-rose-400 mt-1">
                 {errors.financialYear}
@@ -392,7 +409,7 @@ export default function NewItrPage() {
             </button>
             <button
               onClick={save}
-              disabled={saving || !isFormValid}
+              disabled={saving}
               className="px-4 py-2 bg-amber-400 text-black rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-amber-300 transition"
             >
               {saving ? "Saving…" : "Save"}
