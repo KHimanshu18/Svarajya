@@ -140,6 +140,7 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
     const handleLinkDocument = async (fileParam?: VaultFile) => {
         const file = fileParam || existingVaultFiles.find((item) => item.id === selectedVaultFileId);
         if (!file) return;
+
         if (!selectedVaultFileId) {
             setSelectedVaultFileId(file.id);
         }
@@ -165,7 +166,7 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
             const updateRes = await fetch(`/api/insurance/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ documentId: file.cloudId || file.id }),
+                body: JSON.stringify({ documentId: file.cloudId ?? file.id }),
             });
 
             if (!updateRes.ok) {
@@ -205,8 +206,25 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
         setUploadingFileName(file.name);
         try {
             // 1. Save locally to OPFS + indexedDB and backup to Google Drive
-            const { localId } = await Vault.saveFile('insurance', file, undefined, true);
+            console.log("CALLING VAULT SAVEFILE");
+            const { localId, cloudId } = await Vault.saveFile(
+                'insurance',
+                file,
+                [],
+                true
+            );
+
+            console.log("CLOUD ID RETURNED =", cloudId);
+
+            console.log("LOCAL ID:", localId);
+            console.log("CLOUD ID RETURNED:", cloudId);
+
             const newFile = await Vault.getFile(localId);
+
+            console.log("NEW FILE FROM VAULT:", newFile);
+            
+            if (newFile && cloudId) {newFile.cloudId = cloudId;
+            }
             const files = await Vault.getFiles('insurance');
             setExistingVaultFiles(files);
 
@@ -604,6 +622,7 @@ export default function PolicyDetailPage({ params }: { params: Promise<{ id: str
                             <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
                                 <FileUploader
                                     folder="insurance"
+                                    storageType="googledrive"
                                     onUploaded={async (fileId) => {
                                         setSelectedVaultFileId(fileId);
                                         const newFile = await Vault.getFile(fileId);
