@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountType, BankAccount } from "@/lib/bankStore";
 import { checkDuplicateAccounts, fetchBankSummary, saveBankAccount } from "@/lib/bankApi";
-import { MicroLearningWrapper } from "@/components/module/MicroLearningWrapper";
 import { ArrowLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function AddBankAccount() {
@@ -157,18 +156,6 @@ export default function AddBankAccount() {
     }
 
     return (
-        <MicroLearningWrapper
-            moduleTitle="Treasury Chest Builder"
-            contextText="Your wealth is not in one chest — it is scattered across many hidden vaults. Centralize them to see your true liquidity."
-            insightText="Silent liquidity sits in forgotten accounts. 15% of wealth is often lost to inactive balances."
-            quizQuestion="What percentage of wealth is often lost to inactive balances?"
-            quizOptions={[
-                { label: "5%", isCorrect: false },
-                { label: "15%", isCorrect: true },
-                { label: "50%", isCorrect: false }
-            ]}
-            onDataCaptureUnlock={() => { }}
-        >
             <div className="pb-24 font-sans animate-fade-in relative">
                 <div className="flex items-center gap-3 mb-8">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
@@ -377,6 +364,5 @@ export default function AddBankAccount() {
                     </button>
                 </div>
             </div>
-        </MicroLearningWrapper>
     );
 }
