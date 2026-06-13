@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
 
     const action = stateData.action || 'link';
     const userId = stateData.userId;
+    const redirectTo = stateData.redirectTo || '/pehchaan/records';
 
     if (action === 'link' && !userId) {
       return createErrorHtml('User ID missing. Please try again.');
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
         <html>
         <head>
           <title>Google Account Linked</title>
-          <meta http-equiv="refresh" content="2;URL=/pehchaan/records?success=Google_Linked">
+          <meta http-equiv="refresh" content="2">
         </head>
         <body style="margin: 0; padding: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
           <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
@@ -153,7 +154,7 @@ export async function GET(request: NextRequest) {
                 }, 1000);
               } else {
                 setTimeout(() => {
-                  window.location.href = '/pehchaan/records?success=Google_Linked';
+                  window.location.href = '${redirectTo}?success=Google_Linked';
                 }, 2000);
               }
             });

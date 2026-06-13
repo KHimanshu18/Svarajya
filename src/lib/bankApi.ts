@@ -33,6 +33,11 @@ type SaveAccountInput = {
     accountNumber?: string;  // Optional - not required by PRD
     accountLast4: string;
     nickname?: string;
+    //adding joint account holder details
+    holders?: {
+        jointHolderId?: string | null;
+        linkedIdentityId?: string | null;
+    };
     openingBalance: number;
     currentBalance: number;
     latestBalanceAsOf: string;

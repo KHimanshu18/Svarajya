@@ -12,6 +12,48 @@ import {
 import { syncDocumentMemberAssociation } from '@/lib/googleDriveUtils';
 import { prisma } from '@/lib/prisma';
 
+// This is the helper function used to sync document meta for education certificates
+async function syncEducationDocumentMeta(
+  userId: string,
+  educationId: string,
+  certificateId: string | undefined | null,
+  familyMemberId: string | null | undefined
+): Promise<void> {
+  if (!certificateId) return;
+
+  try {
+    const existing = await prisma.documentMeta.findFirst({
+      where: {
+        userId,
+        linkedEntityId: educationId,
+      },
+    });
+
+    if (existing) {
+      await prisma.documentMeta.update({
+        where: { id: existing.id },
+        data: {
+          cloudId: certificateId,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    } else {
+      await prisma.documentMeta.create({
+        data: {
+          userId,
+          docType: 'EDUCATION',
+          linkedEntityId: educationId,
+          cloudId: certificateId,
+          fileName: `Education-${educationId}`,
+          linkedFamilyMemberId: familyMemberId || null,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[syncEducationDocumentMeta]', err);
+  }
+}
+
 /**
  * DELETE /api/education/[id]
  * Delete an education record
@@ -153,8 +195,20 @@ async function putHandler(
       yearCompleted: data.year ? parseInt(data.year) : undefined,
       specialization: data.specialization,
       certificateUrl: data.certificateId,
+
+      linkedLoanId: data.hasLoan
+        ? "EDUCATION_LOAN_ACTIVE"
+        : null,
+
       ...(familyMemberChanged ? { familyMemberId: newFamilyMemberId } : {}),
     });
+    // Sync document_meta and Google Drive folder if family member changed or certificate changed
+    await syncEducationDocumentMeta(
+      authContext.userId,
+      id,
+      data.certificateId,
+      newFamilyMemberId
+    );
 
     // Sync document_meta and Google Drive folder if family member changed
     if (familyMemberChanged) {

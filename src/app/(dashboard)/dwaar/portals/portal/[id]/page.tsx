@@ -128,6 +128,7 @@ export default function PortalDetailPage() {
             });
 
             // Sync with backend
+            if (!updated) return;
             await fetch('/api/credentials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -152,14 +153,7 @@ export default function PortalDetailPage() {
     };
 
     const handleRevealPassword = () => {
-        if (!CredentialStore.isVaultCreated()) return;
-        if (!CredentialStore.isVaultUnlocked()) {
-            setShowPassModal("unlock");
-            return;
-        }
-        // In V1, show a placeholder since real decryption requires the passphrase key
-        setRevealedPassword("••• Encrypted (unlock required for real decryption) •••");
-        setShowPassword(true);
+        setShowPassModal("unlock");
     };
 
     const handleRemoveExecutor = async () => {
@@ -412,7 +406,14 @@ export default function PortalDetailPage() {
                                 {portal.passwordStorageMode === "encrypted" ? "🔐 Stored Encrypted" : "🔒 Not Stored"}
                             </span>
                             {portal.passwordStorageMode === "encrypted" && (
-                                <button onClick={handleRevealPassword} className="text-xs text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/30">
+                                <button onClick={() =>{
+                                    if (showPassword) {
+                                        setShowPassword(false);
+                                        setRevealedPassword(null);
+                                    } else {
+                                        setShowPassModal("unlock");
+                                    }
+                                }}className="text-xs text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/30">
                                     {showPassword ? <EyeOff className="w-3 h-3 inline mr-1" /> : <Eye className="w-3 h-3 inline mr-1" />}
                                     {showPassword ? "Hide" : "Reveal Password"}
                                 </button>
@@ -562,8 +563,11 @@ export default function PortalDetailPage() {
                 </div>
             )}
 
-            {showPassModal && (
-                <MasterPassphraseModal mode={showPassModal} onClose={() => setShowPassModal(null)} />
+            {showPassModal && (<MasterPassphraseModal mode={showPassModal}
+                    onClose={() => setShowPassModal(null)}
+                    onUnlocked={() => {
+                        setRevealedPassword("Password Unlocked");
+                        setShowPassword(true);}}/>
             )}
         </div>
     );

@@ -181,13 +181,13 @@ export const ExpenseStore = {
                 body: JSON.stringify({
                     amount: rest.amount,
                     date: rest.date,
-                    categoryId: rest.categoryId,
-                    paymentMode: rest.paymentMode,
+                    category: rest.categoryId,
+                    mode: rest.paymentMode,
                     isRecurring: rest.recurring,
                     frequency: rest.recurringFrequency,
                     description: rest.description,
                     linkedFamilyMemberId: rest.linkedFamilyMemberId,
-                    paidFromAccountId: rest.paidFromAccountId,
+                    accountId: rest.paidFromAccountId,
                 })
             }).then(async (res) => {
                 if (res.ok) {
@@ -214,13 +214,13 @@ export const ExpenseStore = {
                     id: entry.id,
                     amount: entry.amount,
                     date: entry.date,
-                    categoryId: entry.categoryId,
-                    paymentMode: entry.paymentMode,
+                    category: entry.categoryId,
+                    mode: entry.paymentMode,
                     isRecurring: entry.recurring,
                     frequency: entry.recurringFrequency,
                     description: entry.description,
                     linkedFamilyMemberId: entry.linkedFamilyMemberId,
-                    paidFromAccountId: entry.paidFromAccountId,
+                    accountId: entry.paidFromAccountId,
                 })
             }).catch(e => console.warn('Expense sync err', e));
         }
@@ -520,13 +520,13 @@ export const ExpenseStore = {
                 id: String(d.id),
                 date: d.date ? String(d.date).split('T')[0] : new Date().toISOString().split('T')[0],
                 amount: Number(d.amount) || 0,
-                categoryId: String(d.categoryId || 'other'),
-                paymentMode: String(d.paymentMode || 'upi') as PaymentMode,
+                categoryId: String(d.category || 'other'),
+                paymentMode: String(d.mode || 'upi') as PaymentMode,
                 recurring: !!d.isRecurring,
                 recurringFrequency: d.frequency ? String(d.frequency) as ExpenseFrequency : undefined,
                 description: d.description ? String(d.description) : undefined,
                 linkedFamilyMemberId: d.linkedFamilyMemberId ? String(d.linkedFamilyMemberId) : undefined,
-                paidFromAccountId: d.paidFromAccountId ? String(d.paidFromAccountId) : undefined,
+                paidFromAccountId: d.accountId ? String(d.accountId) : undefined,
                 createdAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
                 updatedAt: d.createdAt ? new Date(d.createdAt as string).getTime() : Date.now(),
             })) as ExpenseEntry[];

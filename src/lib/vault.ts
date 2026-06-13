@@ -126,6 +126,7 @@ export const Vault = {
                 }
             } catch (err) {
                 console.error("Cloud backup failed during save:", err);
+                alert("Cloud upload failed. Check console.");
             }
         }
 
@@ -170,7 +171,7 @@ export const Vault = {
                 body: form,
             });
             const uploadJson = await uploadRes.json();
-            
+
             if (uploadRes.ok && uploadJson.success && uploadJson.data?.fileId) {
                 await Vault.updateFile(id, { 
                     cloudId: uploadJson.data.fileId, 

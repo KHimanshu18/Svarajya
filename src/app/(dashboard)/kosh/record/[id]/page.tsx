@@ -122,7 +122,8 @@ export default function RecordDetailPage() {
                             <DetailRow label="Deductions" value={formatRupee(record.deductions)} />
                             <DetailRow label="Net Income" value={formatRupee(net)} highlight />
                             {record.tdsAmount ? <DetailRow label="TDS Amount" value={formatRupee(record.tdsAmount)} /> : null}
-                            <DetailRow label="Risk Level" value={record.riskLevel.charAt(0).toUpperCase() + record.riskLevel.slice(1)} />
+                            <DetailRow label="Risk Level" value={record.riskLevel ? record.riskLevel.charAt(0).toUpperCase() + record.riskLevel.slice(1) : "Low"
+                            } />
                             {record.historicalIncome ? <DetailRow label="Historical Income" value={formatRupee(record.historicalIncome)} /> : null}
                             {record.expectedGrowthPct !== undefined ? <DetailRow label="Expected Growth" value={`${record.expectedGrowthPct}%`} /> : null}
                             {record.notes ? <DetailRow label="Notes" value={record.notes} /> : null}

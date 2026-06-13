@@ -18,7 +18,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Pass the user ID in state to know who is linking
-    const state = Buffer.from(JSON.stringify({ userId: session.user.id })).toString('base64');
+    const redirectTo =
+      request.nextUrl.searchParams.get("redirectTo") || "/foundation/education";
+    const state = Buffer.from(JSON.stringify({
+        userId: session.user.id,
+        redirectTo,
+      })
+    ).toString("base64");
 
     const scopes = [
       'https://www.googleapis.com/auth/drive.file',

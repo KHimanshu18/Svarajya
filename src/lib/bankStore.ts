@@ -9,6 +9,7 @@ export type BalanceUpdateSource = "manual" | "import";
 export type EncryptedSecret = string;
 
 export type BankAccount = {
+    isPrimary?: boolean;
     id: string;
     bankName: string;              // HDFC, SBI
     accountType: AccountType;
@@ -89,6 +90,7 @@ function seedDefaults() {
             bankName: "HDFC Bank",
             accountType: "salary",
             accountLast4: "1234",
+            isPrimary: true,
             status: "active",
             openingBalance: 50000,
             latestBalance: 85000,

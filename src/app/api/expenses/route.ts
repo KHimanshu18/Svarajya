@@ -45,6 +45,7 @@ async function getHandler(request: NextRequest): Promise<NextResponse> {
       accountId: exp.accountId,
       description: exp.description,
       isRecurring: exp.isRecurring,
+      frequency: exp.frequency,
       createdAt: exp.createdAt.toISOString(),
     }));
 
@@ -93,6 +94,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         accountId: data.accountId,
         description: data.description,
         isRecurring: data.isRecurring,
+        frequency: data.frequency,
       });
     } else {
       // Create new
@@ -104,6 +106,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
         accountId: data.accountId,
         description: data.description,
         isRecurring: data.isRecurring,
+        frequency: data.frequency,
       });
     }
 
@@ -117,6 +120,7 @@ async function postHandler(request: NextRequest): Promise<NextResponse> {
       accountId: expense.accountId,
       description: expense.description,
       isRecurring: expense.isRecurring,
+      frequency: expense.frequency,
       createdAt: expense.createdAt.toISOString(),
     };
 

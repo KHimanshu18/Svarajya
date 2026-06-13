@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountType, BankAccount } from "@/lib/bankStore";
 import { checkDuplicateAccounts, fetchBankSummary, saveBankAccount } from "@/lib/bankApi";
-import { MicroLearningWrapper } from "@/components/module/MicroLearningWrapper";
 import { ArrowLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function AddBankAccount() {
@@ -30,11 +29,48 @@ export default function AddBankAccount() {
     const [success, setSuccess] = useState(false);
     const [existingAccounts, setExistingAccounts] = useState<BankAccount[]>([]);
     const [saving, setSaving] = useState(false);
+    // Adding here the family members and joint accounts Holder
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [jointHolderId, setJointHolderId] = useState("");
+    // For fetching identity records
+    const [identityRecords, setIdentityRecords] = useState<any[]>([]);
+    const [linkedIdentityId, setLinkedIdentityId] = useState("");
+    // This is for fetching portal records
+    const [portalRecords, setPortalRecords] = useState<any[]>([]);
+    const [linkedPortalId, setLinkedPortalId] = useState("");
 
     useEffect(() => {
         fetchBankSummary()
             .then((summary) => setExistingAccounts(summary?.accounts || []))
             .catch(() => undefined);
+        fetch("/api/family")
+            .then((res) => res.json())
+            .then((data) => {
+                const members = data.data || data;
+                setFamilyMembers(members);
+            })
+            .catch(() => setFamilyMembers([]));
+        fetch("/api/identity")
+            .then((res) => res.json())
+            .then((data) => {
+                const records = data.data || data;
+                setIdentityRecords(records);
+            })
+            .catch(() => setIdentityRecords([]));
+        fetch("/api/credentials")
+            .then((res) => res.json())
+            .then((data) => {
+                console.log("PORTAL DATA:", data);
+
+                const records = data.data || data;
+                console.log("PORTAL RECORDS:", records);
+
+                setPortalRecords(records);
+            })
+            .catch((err) => {
+                console.error("PORTAL ERROR:", err);
+                setPortalRecords([]);
+            });
     }, []);
 
     const handleCheckPrefix = () => {
@@ -73,6 +109,16 @@ export default function AddBankAccount() {
             return;
         }
 
+        //Added code
+        const existingPrimary = existingAccounts.find(
+            (account) => account.isPrimary
+        );
+
+        if (isPrimary && existingPrimary) {
+            setError("Only one bank account can be marked as primary.");
+            return;
+        }
+
         setSaving(true);
         setError("");
 
@@ -82,6 +128,12 @@ export default function AddBankAccount() {
                 accountType,
                 accountLast4: last4,
                 nickname: nickname || undefined,
+
+                holders: {
+                    jointHolderId: jointHolderId || null,
+                    linkedIdentityId: linkedIdentityId || null,
+                },
+
                 openingBalance: openBal,
                 currentBalance: currBal,
                 latestBalanceAsOf: balanceAsOf,
@@ -114,19 +166,7 @@ export default function AddBankAccount() {
     }
 
     return (
-        <MicroLearningWrapper
-            moduleTitle="Treasury Chest Builder"
-            contextText="Your wealth is not in one chest — it is scattered across many hidden vaults. Centralize them to see your true liquidity."
-            insightText="Silent liquidity sits in forgotten accounts. 15% of wealth is often lost to inactive balances."
-            quizQuestion="What percentage of wealth is often lost to inactive balances?"
-            quizOptions={[
-                { label: "5%", isCorrect: false },
-                { label: "15%", isCorrect: true },
-                { label: "50%", isCorrect: false }
-            ]}
-            onDataCaptureUnlock={() => { }}
-        >
-            <div className="pb-24 font-sans animate-fade-in relative">
+            <div className="pt-8 pb-24 px-6 font-sans animate-fade-in relative">
                 <div className="flex items-center gap-3 mb-8">
                     <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
                         <ArrowLeft className="w-4 h-4 text-white/60" />
@@ -151,10 +191,10 @@ export default function AddBankAccount() {
                             <p className="text-sm font-bold text-amber-100 mb-1">Possible duplicate detected.</p>
                             <p className="text-xs text-amber-200/80 mb-3">Another account with last digits <strong className="text-amber-100">{last4}</strong> already exists.</p>
                             <div className="flex gap-2">
-                                <button onClick={() => setDuplicateWarning(false)} className="text-xs font-semibold px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 transition-colors text-amber-300 border border-amber-500/30 rounded-lg">
+                                <button type="button" onClick={() => { setDuplicateWarning(false); setError(""); }} className="text-xs font-semibold px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 transition-colors text-amber-300 border border-amber-500/30 rounded-lg">
                                     Continue Anyway
                                 </button>
-                                <button onClick={() => { setDuplicateWarning(false); setLast4(""); }} className="text-xs font-semibold px-4 py-2 bg-white/5 hover:bg-white/10 transition-colors text-white/60 border border-white/10 rounded-lg">
+                                <button type="button" onClick={() => { setDuplicateWarning(false); setLast4(""); setError(""); }} className="text-xs font-semibold px-4 py-2 bg-white/5 hover:bg-white/10 transition-colors text-white/60 border border-white/10 rounded-lg">
                                     Cancel
                                 </button>
                             </div>
@@ -204,6 +244,69 @@ export default function AddBankAccount() {
                             </label>
                             <input type="text" value={nickname} onChange={e => { setNickname(e.target.value); handleCheckPrefix(); }} placeholder="Home Savings"
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50" />
+                        </div>
+
+                        {/* Joint Account Holder */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Joint Account Holder
+                            </label>
+
+                            <select
+                                value={jointHolderId}
+                                onChange={(e) => setJointHolderId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {familyMembers.map((member) => (
+                                    <option key={member.id} value={member.id}>
+                                        {member.name} ({member.relation})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* This is for linked Identity */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Linked Identity
+                            </label>
+
+                            <select
+                                value={linkedIdentityId}
+                                onChange={(e) => setLinkedIdentityId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {identityRecords.map((record) => (
+                                    <option key={record.id} value={record.id}>
+                                        {record.idType} ({record.numberMasked})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* the link related for Portal */}
+                        <div className="space-y-1">
+                            <label className="text-xs text-white/50 uppercase tracking-widest font-semibold">
+                                Linked Portal
+                            </label>
+
+                            <select
+                                value={linkedPortalId}
+                                onChange={(e) => setLinkedPortalId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                            >
+                                <option value="">None</option>
+
+                                {portalRecords.map((portal) => (
+                                    <option key={portal.id} value={portal.id}>
+                                        {portal.portalName} ({portal.portalType})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -271,6 +374,5 @@ export default function AddBankAccount() {
                     </button>
                 </div>
             </div>
-        </MicroLearningWrapper>
     );
 }

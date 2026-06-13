@@ -43,13 +43,14 @@ export default function EditEducation({
   const [error, setError] = useState("");
   const [record, setRecord] = useState<any>(null);
 
-  const [degree, setDegree] = useState("");
-  const [institution, setInstitution] = useState("");
-  const [year, setYear] = useState("");
-  const [specialization, setSpecialization] = useState("");
-  const [certificateId, setCertificateId] = useState<string | null>(null);
-  const [familyMemberId, setFamilyMemberId] = useState<string>("");
-  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [degree, setDegree] = useState("");
+    const [institution, setInstitution] = useState("");
+    const [year, setYear] = useState("");
+    const [specialization, setSpecialization] = useState("");
+    const [hasLoan, setHasLoan] = useState(false);
+    const [certificateId, setCertificateId] = useState<string | null>(null);
+    const [familyMemberId, setFamilyMemberId] = useState<string>("");
+    const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
   const [existingFiles, setExistingFiles] = useState<VaultFile[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -75,20 +76,35 @@ export default function EditEducation({
         const data = json.data;
         setRecord(data);
 
-        setDegree(data.degree || "");
-        setInstitution(data.institute || "");
-        setYear(data.yearCompleted?.toString() || "");
-        setSpecialization(data.specialization || "");
-        setCertificateId(data.certificateUrl || null);
-        setFamilyMemberId(data.familyMemberId ?? "");
-      } catch (err: any) {
-        setError(err.message || "Failed to load record");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchRecord();
-  }, [id]);
+                setDegree(data.degree || "");
+                setInstitution(data.institute || "");
+                setYear(data.yearCompleted?.toString() || "");
+                setSpecialization(data.specialization || "");
+                setHasLoan(!!data.linkedLoanId);
+                setCertificateId(data.certificateUrl || null);
+                setFamilyMemberId(data.familyMemberId ?? "");
+            } catch (err: any) {
+                setError(err.message || "Failed to load record");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchRecord();
+    }, [id]);
+
+    useEffect(() => {
+        if (certificateId) {
+            Vault.getFile(certificateId).then(file => {
+                if (file) {
+                    setFileName(file.name);
+                } else if (certificateId.length > 20) {
+                    setFileName("Google Drive Document");
+                } else {
+                    setFileName("Attached Certificate");
+                }
+            });
+        }
+    }, [certificateId]);
 
   useEffect(() => {
     if (certificateId) {
@@ -103,44 +119,7 @@ export default function EditEducation({
       });
     }
   }, [certificateId]);
-
-  const handleSave = async () => {
-    setError("");
-    if (!degree || !institution) {
-      setError("Degree and Institution are required.");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const apiPayload = {
-        degree,
-        institution,
-        year: year || null,
-        specialization,
-        certificateId,
-        familyMemberId: familyMemberId || null,
-      };
-
-      const response = await fetch(`/api/education/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(apiPayload),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to update record");
-      }
-
-      router.push("/foundation/education");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "An error occurred");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  
 
   if (isLoading) {
     return (
@@ -165,6 +144,40 @@ export default function EditEducation({
         </button>
       </div>
     );
+  }
+
+  async function handleSave(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+    try {
+      const apiPayload = {
+        degree,
+        institution,
+        year: year || null,
+        specialization,
+        hasLoan,
+        certificateId,
+        familyMemberId: familyMemberId || null,
+      };
+
+      const response = await fetch(`/api/education/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiPayload),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update record");
+      }
+
+      router.push("/foundation/education");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An error occurred");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -218,51 +231,64 @@ export default function EditEducation({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
-              Year
-            </label>
-            <input
-              type="number"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              placeholder="e.g. 2020"
-              className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none placeholder-white/20"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
-              Specialization
-            </label>
-            <input
-              type="text"
-              value={specialization}
-              onChange={(e) => setSpecialization(e.target.value)}
-              placeholder="e.g. Computer Science"
-              className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none placeholder-white/20"
-            />
-          </div>
+        <div>
+          <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
+            Specialization
+          </label>
+          <input
+            type="text"
+            value={specialization}
+            onChange={(e) => setSpecialization(e.target.value)}
+            placeholder="e.g. Computer Science"
+            className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none placeholder-white/20"
+          />
         </div>
 
-        {/* Certificate Owner */}
-        <div className="space-y-2">
-          <label className="text-xs text-[var(--color-rajya-muted)] mb-1 flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" /> Certificate Belongs To
-          </label>
-          <select
-            value={familyMemberId}
-            onChange={(e) => setFamilyMemberId(e.target.value)}
-            className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
-          >
-            <option value="">Myself</option>
-            {familyMembers.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </div>
+                <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div>
+                        <p className="text-sm text-[var(--color-rajya-text)]">
+                            Education Loan?
+                        </p>
+                        <p className="text-[10px] text-[var(--color-rajya-muted)]">
+                            Is there an active loan for this degree?
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setHasLoan(!hasLoan)}
+                        className={`w-12 h-7 rounded-full border transition-colors flex items-center px-0.5 ${
+                            hasLoan
+                                ? "bg-[var(--color-rajya-danger)] border-[var(--color-rajya-danger)]"
+                                : "bg-white/10 border-white/20"
+                        }`}
+                    >
+                        <div
+                            className={`w-6 h-6 rounded-full bg-white transition-transform ${
+                                hasLoan ? "translate-x-5" : "translate-x-0"
+                            }`}
+                        />
+                    </button>
+                </div>
+
+                {/* Certificate Owner */}
+                <div className="space-y-2">
+                  <label className="text-xs text-[var(--color-rajya-muted)] mb-1 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" /> Certificate Belongs To
+                  </label>
+                  <select
+                    value={familyMemberId}
+                    onChange={(e) => setFamilyMemberId(e.target.value)}
+                    className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none appearance-none"
+                  >
+                    <option value="">Myself</option>
+                    {familyMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
         <div className="space-y-4 pt-4 border-t border-white/10">
           <div className="flex items-center justify-between">
@@ -340,11 +366,11 @@ export default function EditEducation({
         )}
       </div>
 
-      <footer className="mt-auto pt-10 sticky bottom-0 bg-slate-950/80 backdrop-blur-md pb-6 relative z-10">
+      <footer className="mt-6 sticky bottom-0 bg-slate-950/80 backdrop-blur-md pb-6 relative z-10">
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="w-full bg-[var(--color-rajya-accent)] text-black font-bold py-4 rounded-xl shadow-[0_10px_30px_rgba(201,162,39,0.15)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          className="max-w-md mx-auto w-full bg-[var(--color-rajya-accent)] text-black font-bold py-4 rounded-xl shadow-[0_10px_30px_rgba(201,162,39,0.15)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
         >
           {isSaving ?
             <>

@@ -1,12 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MicroLearningWrapper } from "@/components/module/MicroLearningWrapper";
 import { SelectGridGame } from "@/components/module/SelectGridGame";
 import { MonitorPlay, Music, Wifi, Box } from "lucide-react";
 import { VideoTutorialPlaceholder } from "@/components/ui/VideoTutorialPlaceholder";
 
-const SUBSCRIPTIONS = [
+interface LeakageItem {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+}
+const DEFAULT_SUBSCRIPTIONS: LeakageItem[] = [
     { id: 'video', label: 'Video Streaming', icon: <MonitorPlay /> },
     { id: 'audio', label: 'Audio & Music', icon: <Music /> },
     { id: 'internet', label: 'Internet', icon: <Wifi /> },
@@ -15,6 +21,33 @@ const SUBSCRIPTIONS = [
 
 export default function LeakageModule() {
     const router = useRouter();
+
+    const [subscriptions, setSubscriptions] =
+        useState<LeakageItem[]>(DEFAULT_SUBSCRIPTIONS);
+        useEffect(() => {
+        fetch("/api/expenses")
+            .then((res) => res.json())
+            .then((data) => {
+                const expenses = data.data || [];
+
+                const recurringExpenses = expenses.filter(
+                    (expense: any) => expense.isRecurring
+                );
+
+                if (recurringExpenses.length > 0) {
+                    setSubscriptions(
+                        recurringExpenses.map((expense: any) => ({
+                            id: expense.id,
+                            label: expense.description || expense.category,
+                            icon: <MonitorPlay />,
+                        }))
+                    );
+                }
+            })
+            .catch(() => {
+                setSubscriptions(DEFAULT_SUBSCRIPTIONS);
+            });
+    }, []);
 
     const handleSave = (selectedIds: string[]) => {
         console.log("Leakages Identified:", selectedIds);
@@ -39,7 +72,7 @@ export default function LeakageModule() {
                 <SelectGridGame
                     label="Identify The Holes"
                     description="Which of these automatic drains are currently drawing from your Kosh?"
-                    items={SUBSCRIPTIONS}
+                    items={subscriptions}
                     multiSelect={true}
                     onSave={handleSave}
                 />

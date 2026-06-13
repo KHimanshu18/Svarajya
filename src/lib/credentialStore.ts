@@ -402,8 +402,17 @@ export const CredentialStore = {
     },
 
     // ——— Vault lock state ———
-    getMasterVerifyBlob(): EncryptedSecret | null { return _masterVerifyBlob; },
-    setMasterVerifyBlob(blob: EncryptedSecret) { _masterVerifyBlob = blob; },
+    getMasterVerifyBlob(): EncryptedSecret | null {
+        if (_masterVerifyBlob) return _masterVerifyBlob;
+            const stored = localStorage.getItem("masterVerifyBlob");
+        if (!stored) return null;
+            _masterVerifyBlob = JSON.parse(stored);
+        return _masterVerifyBlob;
+    },
+    setMasterVerifyBlob(blob: EncryptedSecret) {
+        _masterVerifyBlob = blob;
+        localStorage.setItem("masterVerifyBlob", JSON.stringify(blob));
+    },
 
     isVaultCreated(): boolean { return _masterVerifyBlob !== null; },
 
