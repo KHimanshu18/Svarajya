@@ -633,7 +633,7 @@ export default function EducationPage() {
                   </p>
                   <button
                     onClick={() =>
-                      (window.location.href = "/api/auth/link-google")
+                      (window.location.href ="/api/auth/link-google?redirectTo=/foundation/education")
                     }
                     className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
                   >
