@@ -231,6 +231,19 @@ export default function EditEducation({
           />
         </div>
 
+        <div>
+          <label className="text-xs text-[var(--color-rajya-muted)] mb-1 block">
+            Specialization
+          </label>
+          <input
+            type="text"
+            value={specialization}
+            onChange={(e) => setSpecialization(e.target.value)}
+            placeholder="e.g. Computer Science"
+            className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-[var(--color-rajya-text)] text-sm focus:border-[var(--color-rajya-accent)]/50 focus:outline-none placeholder-white/20"
+          />
+        </div>
+
                 <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
                     <div>
                         <p className="text-sm text-[var(--color-rajya-text)]">
