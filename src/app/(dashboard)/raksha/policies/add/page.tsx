@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
-    Shield, ArrowLeft, Save, Loader2, 
+import {
+    Shield, ArrowLeft, Save, Loader2,
     Calendar, Building2, User, CreditCard,
-    Info, Plus, Trash2, Check
+    Info, Plus, Trash2, Check, FileText
 } from "lucide-react";
+import { FileUploader } from "@/components/vault/FileUploader";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRakshaStore } from "@/lib/stores/rakshaStore";
 import { NotificationStore } from "@/lib/stores/notificationStore";
@@ -21,6 +22,7 @@ export default function AddPolicyPage() {
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [documentId, setDocumentId] = useState<string | null>(null);
     
     const [formData, setFormData] = useState({
         type: "LIFE",
@@ -61,7 +63,7 @@ export default function AddPolicyPage() {
             const res = await fetch('/api/insurance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, documentId })
             });
             
             const result = await res.json();
@@ -300,6 +302,24 @@ export default function AddPolicyPage() {
                                 placeholder="e.g., Ramesh - 9876543210"
                             />
                         </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                        <div className="flex items-center gap-2 text-[var(--color-rajya-accent)]">
+                            <FileText className="w-4 h-4" />
+                            <h3 className="text-xs font-bold uppercase tracking-widest">
+                                Policy Document
+                            </h3>
+                        </div>
+
+                        <FileUploader
+                            folder="insurance"
+                            storageType="googledrive"
+                            onUploaded={(fileId) => setDocumentId(fileId)}
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            maxSizeMB={2}
+                            showFamilyMemberSelector={true}
+                        />
                     </div>
 
                     {/* Actions */}
